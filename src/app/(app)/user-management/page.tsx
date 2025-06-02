@@ -5,17 +5,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, type User } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants here
 import { PlusCircle, Edit3, Trash2, UserCog, UserPlus, Loader2, RefreshCw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { createUserDocumentInFirestore, getAllUsers } from '@/services/user-service';
+import { getAllUsers } from '@/services/user-service'; // createUserDocumentInFirestore removed as it's only used in one place for Alper
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { AddUserForm } from '@/components/user-management/add-user-form';
 import { EditUserForm } from '@/components/user-management/edit-user-form';
 import { handleDeleteUserAction } from './actions'; // Server Action for delete
+import { createUserDocumentInFirestore } from '@/services/user-service'; // Specific import for Alper's profile creation
+
 
 export default function UserManagementPage() {
   const { user: currentUser, isAdminOrMarketingManager } = useAuth();
@@ -248,7 +250,10 @@ export default function UserManagementPage() {
       </Card>
 
       {selectedUserToEdit && (
-        <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
+        <Dialog open={isEditUserDialogOpen} onOpenChange={(open) => {
+          if (!open) setSelectedUserToEdit(null);
+          setIsEditUserDialogOpen(open);
+        }}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="font-headline text-2xl">Kullanıcıyı Düzenle</DialogTitle>
@@ -263,7 +268,7 @@ export default function UserManagementPage() {
         </Dialog>
       )}
 
-      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => { if (!open) setUserToDelete(null);}}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Kullanıcıyı Silmek Üzeresiniz</AlertDialogTitle>
@@ -288,3 +293,4 @@ export default function UserManagementPage() {
     </div>
   );
 }
+
