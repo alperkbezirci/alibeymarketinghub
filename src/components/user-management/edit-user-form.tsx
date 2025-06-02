@@ -3,7 +3,8 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useActionState, useFormStatus } from 'react'; // React 19+ için doğru import
+import { useActionState } from 'react'; // React 19+ için doğru import
+import { useFormStatus } from 'react-dom'; // DÜZELTİLDİ: react-dom'dan import edildi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,11 +54,11 @@ export function EditUserForm({ user, onSuccess, onClose }: EditUserFormProps) {
   }, [state, toast, onSuccess]);
 
   const handleRoleChange = (roleValue: string, checked: boolean) => {
-    setSelectedRoles(prev => 
+    setSelectedRoles(prev =>
       checked ? [...prev, roleValue] : prev.filter(r => r !== roleValue)
     );
   };
-  
+
   return (
     <form action={formAction} className="space-y-4 py-4">
       <input type="hidden" name="uid" value={user.uid} />
@@ -104,9 +105,9 @@ export function EditUserForm({ user, onSuccess, onClose }: EditUserFormProps) {
         <div className="space-y-2 mt-1">
           {Object.entries(USER_ROLES).map(([key, value]) => (
             <div key={key} className="flex items-center space-x-2">
-              <Checkbox 
-                id={`edit-role-${key}`} 
-                name="roles" 
+              <Checkbox
+                id={`edit-role-${key}`}
+                name="roles"
                 value={value}
                 checked={selectedRoles.includes(value)}
                 onCheckedChange={(checked) => handleRoleChange(value, Boolean(checked))}
@@ -117,7 +118,7 @@ export function EditUserForm({ user, onSuccess, onClose }: EditUserFormProps) {
         </div>
         <p className="text-xs text-muted-foreground mt-1">En az bir rol seçilmelidir.</p>
       </div>
-      
+
       <div className="flex justify-end space-x-2 pt-4">
         <Button type="button" variant="outline" onClick={onClose}>İptal</Button>
         <SubmitButton />

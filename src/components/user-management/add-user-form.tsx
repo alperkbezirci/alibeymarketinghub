@@ -3,7 +3,8 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useActionState, useFormStatus } from 'react'; // React 19+ için doğru import
+import { useActionState } from 'react'; // React 19+ için doğru import
+import { useFormStatus } from 'react-dom'; // DÜZELTİLDİ: react-dom'dan import edildi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +44,7 @@ export function AddUserForm({ onSuccess, onClose }: AddUserFormProps) {
     if (state?.message) {
       if (state.success) {
         toast({ title: "Başarılı", description: state.message });
-        onSuccess(); 
+        onSuccess();
       } else {
         toast({ title: "Hata", description: state.message, variant: "destructive" });
       }
@@ -107,7 +108,7 @@ export function AddUserForm({ onSuccess, onClose }: AddUserFormProps) {
         </div>
          <p className="text-xs text-muted-foreground mt-1">En az bir rol seçilmelidir.</p>
       </div>
-      
+
       <div className="flex justify-end space-x-2 pt-4">
         <Button type="button" variant="outline" onClick={onClose}>İptal</Button>
         <SubmitButton />
