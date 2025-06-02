@@ -24,12 +24,12 @@ interface InvoiceFormProps {
 }
 
 export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) {
-  const { categories: spendingCategoriesFromContext } = useSpendingCategories();
+  const { categories: spendingCategoriesFromContext, isLoading: isLoadingCategories } = useSpendingCategories();
   
   const [invoiceNumber, setInvoiceNumber] = useState(initialData?.invoiceNumber || "");
   const [invoiceDate, setInvoiceDate] = useState<Date | undefined>(initialData?.invoiceDate ? new Date(initialData.invoiceDate) : new Date());
   const [hotel, setHotel] = useState(initialData?.hotel || (HOTEL_NAMES.length > 0 ? HOTEL_NAMES[0] : ""));
-  const [category, setCategory] = useState(initialData?.category || (spendingCategoriesFromContext.length > 0 ? spendingCategoriesFromContext[0].name : ""));
+  const [category, setCategory] = useState(initialData?.category || ""); // Initialize to "" to show placeholder if no initial/default
   const [amount, setAmount] = useState<number | string>(initialData?.amount || "");
   const [currency, setCurrency] = useState(initialData?.currency || (CURRENCIES.length > 0 ? CURRENCIES[0] : ""));
   const [description, setDescription] = useState(initialData?.description || "");
@@ -38,6 +38,13 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
   const [calculatedEurAmount, setCalculatedEurAmount] = useState<number | null>(null);
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Set initial category if not set and categories are loaded
+    if (!initialData?.category && !category && spendingCategoriesFromContext.length > 0 && !isLoadingCategories) {
+      setCategory(spendingCategoriesFromContext[0].name);
+    }
+  }, [initialData, category, spendingCategoriesFromContext, isLoadingCategories]);
 
   useEffect(() => {
     if (currency === 'EUR') {
@@ -149,14 +156,15 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
         </div>
         <div>
           <Label htmlFor="category">Kategori *</Label>
-          <Select value={category} onValueChange={setCategory} required>
-            <SelectTrigger id="category"><SelectValue placeholder="Kategori seçin" /></SelectTrigger>
+          <Select value={category} onValueChange={setCategory} required disabled={isLoadingCategories}>
+            <SelectTrigger id="category"><SelectValue placeholder={isLoadingCategories? "Kategoriler yükleniyor..." : "Kategori seçin"} /></SelectTrigger>
             <SelectContent>
-              {spendingCategoriesFromContext.length > 0 ? (
+              {isLoadingCategories && <SelectItem value="loading_placeholder" disabled>Yükleniyor...</SelectItem>}
+              {!isLoadingCategories && spendingCategoriesFromContext.length > 0 ? (
                 spendingCategoriesFromContext.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)
-              ) : (
-                <SelectItem value="" disabled>Kategori bulunamadı</SelectItem>
-              )}
+              ) : !isLoadingCategories ? (
+                <SelectItem value="no_categories_placeholder" disabled>Kategori bulunamadı</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
         </div>
@@ -226,3 +234,4 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
     </form>
   );
 }
+
