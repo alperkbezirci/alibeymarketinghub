@@ -1,75 +1,75 @@
-
 // src/lib/firebase.ts
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
-import dotenv from 'dotenv';
-import path from 'path';
 
-// Explicitly load the .env file from /workspace/.env
-// This is crucial if Next.js isn't picking it up automatically in this environment.
-// Note: In a standard Next.js setup, this explicit dotenv call might not be necessary
-// as Next.js has built-in .env loading. However, for specific environments like Firebase Studio,
-// being explicit can help ensure variables are loaded.
-const envPath = '/workspace/.env'; // Assuming .env is in the workspace root.
-const dotenvResult = dotenv.config({ path: envPath, override: true }); // override: true ensures these values take precedence.
-
-if (dotenvResult.error) {
-  console.warn(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Warning: Error loading .env file from ${envPath}: ${dotenvResult.error.message}. This might be okay if variables are set via other platform-specific mechanisms. Will proceed to check process.env directly. !!!!!!!!!!`);
-} else {
-  if (dotenvResult.parsed) {
-    console.log(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Successfully loaded and parsed .env file from ${envPath}. Variables loaded by dotenv:`, Object.keys(dotenvResult.parsed).join(', '));
-  } else {
-    console.log(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Loaded .env file from ${envPath}, but no variables were parsed (is the file empty or only comments?).`);
+// Log all environment variables starting with NEXT_PUBLIC_FIREBASE_ to see what the app receives
+console.log("!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Module loaded. Checking process.env for Firebase vars. !!!!!!!!!!");
+const allEnvVars: Record<string, string | undefined> = {};
+if (typeof process !== 'undefined' && process.env) {
+  for (const key in process.env) {
+    if (key.startsWith("NEXT_PUBLIC_FIREBASE_")) {
+      allEnvVars[key] = process.env[key];
+    }
   }
 }
+console.log("!!!!!!!!!! ALL NEXT_PUBLIC_FIREBASE_ ENV VARS SEEN BY THE APP (at module load):", JSON.stringify(allEnvVars, null, 2));
 
-console.log("!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Checking Firebase Environment Variables from process.env (after attempting to load .env) !!!!!!!!!!");
+
+const firebaseConfigValues = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
 
 const requiredEnvVarKeys = [
-  'NEXT_PUBLIC_FIREBASE_API_KEY',
-  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-  'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
-  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-  'NEXT_PUBLIC_FIREBASE_APP_ID',
-];
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId',
+] as const;
 
 let missingVarsMessage = '';
 let criticalConfigError = false;
 const placeholderSubstrings = ['YOUR_', 'placeholder', 'REPLACE_'];
 
-const firebaseConfigValues: Record<string, string | undefined> = {};
+console.log("!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Starting pre-check of Firebase config values from process.env !!!!!!!!!!");
+for (const key of requiredEnvVarKeys) {
+  const varName = `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}` as keyof typeof firebaseConfigValues;
+  const value = firebaseConfigValues[key];
 
-for (const varName of requiredEnvVarKeys) {
-  const value = process.env[varName];
-  firebaseConfigValues[varName] = value;
-  console.log(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Var: ${varName}, Value from process.env: ${value ? 'SET (first few chars: ' + String(value).substring(0,5) + '...)' : 'UNDEFINED or EMPTY'}`);
+  console.log(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Var: ${varName}, Value from process.env: ${value ? 'SET (length: ' + String(value).length + ')' : 'UNDEFINED or EMPTY'}`);
+
   if (!value) {
     missingVarsMessage += `${varName} is missing. `;
     criticalConfigError = true;
-  } else if (varName === 'NEXT_PUBLIC_FIREBASE_APP_ID' && placeholderSubstrings.some(p => value.toUpperCase().includes(p))) {
-    missingVarsMessage += `${varName} is still a placeholder: '${value}'. You MUST replace the placeholder in /workspace/.env and restart the server. `;
+  } else if (key === 'appId' && placeholderSubstrings.some(p => String(value).toUpperCase().includes(p))) {
+    missingVarsMessage += `${varName} is still a placeholder: '${value}'. You MUST replace the placeholder in /workspace/.env or /workspace/.env.local and restart the server. `;
     criticalConfigError = true;
   }
 }
 
 if (criticalConfigError) {
-  const fullErrorMsg = `Firebase Initialization Failed: ${missingVarsMessage}Check your /workspace/.env file, ensure all placeholders (especially App ID) are replaced with actual values, and restart the server.`;
+  const fullErrorMsg = `Firebase Initialization Failed: ${missingVarsMessage}Check your /workspace/.env or /workspace/.env.local file, ensure all placeholders (especially App ID) are replaced with actual values, and restart the server.`;
   console.error("!!!!!!!!!! " + fullErrorMsg.toUpperCase() + " !!!!!!!!!!!");
   throw new Error(fullErrorMsg);
+} else {
+    console.log("!!!!!!!!!! FIREBASE CONFIG PRE-CHECK PASSED (all required env vars found in process.env, and App ID is not a placeholder) !!!!!!!!!!!");
 }
 
-console.log("!!!!!!!!!! FIREBASE CONFIG PRE-CHECK PASSED (all required env vars found in process.env, and App ID is not a placeholder) !!!!!!!!!!!");
-
 const firebaseConfig = {
-  apiKey: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_API_KEY!,
-  authDomain: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-  projectId: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-  storageBucket: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
-  messagingSenderId: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-  appId: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  apiKey: firebaseConfigValues.apiKey!,
+  authDomain: firebaseConfigValues.authDomain!,
+  projectId: firebaseConfigValues.projectId!,
+  storageBucket: firebaseConfigValues.storageBucket!,
+  messagingSenderId: firebaseConfigValues.messagingSenderId!,
+  appId: firebaseConfigValues.appId!,
 };
 
 let app: FirebaseApp;
@@ -94,12 +94,7 @@ try {
 } catch (error: any) {
   console.error("!!!!!!!!!! FIREBASE SDK INITIALIZATION OR SERVICE GET FAILED !!!!!!!!!!! This usually means the provided config values (though present and checked by pre-check) are incorrect for your Firebase project OR the API key has restrictions preventing its use.", error);
   console.error("Firebase config used during failed attempt:", firebaseConfig);
-  // Re-throw the original Firebase error if it's a Firebase specific error, otherwise our custom one.
-  if (error.code && error.code.startsWith('auth/')) {
-    throw error;
-  } else {
-     throw new Error(`Firebase SDK error after config pre-check: ${error.message}. Config used: ${JSON.stringify(firebaseConfig)}`);
-  }
+  throw error;
 }
 
 export { app, auth, db, storage };
