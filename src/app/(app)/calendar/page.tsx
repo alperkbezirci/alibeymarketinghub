@@ -8,17 +8,18 @@ import { PlusCircle, ChevronLeft, ChevronRight, Loader2, AlertTriangle } from "l
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { EventForm } from "@/components/calendar/event-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge"; // Added Badge for event type display
+import { Badge } from "@/components/ui/badge";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, isSameDay, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { getEvents, addEvent, type CalendarEvent } from "@/services/calendar-service";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EVENT_TYPES } from "@/lib/constants"; // For coloring logic
+import { EVENT_TYPES } from "@/lib/constants";
+import { cn } from "@/lib/utils"; // Added missing import
 
-// Helper for event type colors (can be expanded)
+// Helper for event type colors
 const getEventTypeColor = (eventType?: string) => {
-  if (!eventType) return "bg-gray-500/20 text-gray-700 dark:text-gray-300"; // Default
+  if (!eventType) return "bg-gray-500/20 text-gray-700 dark:text-gray-300";
   switch (eventType) {
     case EVENT_TYPES[0]: // Organizasyon
     case EVENT_TYPES[8]: // Fuar
@@ -55,7 +56,7 @@ export default function CalendarPage() {
     setError(null);
     try {
       const viewStart = startOfWeek(startOfMonth(month), { locale: tr });
-      const viewEnd = endOfWeek(addDays(endOfMonth(month), 7), { locale: tr });
+      const viewEnd = endOfWeek(addDays(endOfMonth(month), 7), { locale: tr }); // Fetch a bit more for full week views
       const fetchedEvents = await getEvents(viewStart, viewEnd);
       setEvents(fetchedEvents);
     } catch (err: any) {
@@ -70,31 +71,17 @@ export default function CalendarPage() {
     fetchEventsForMonth(currentMonth);
   }, [currentMonth, fetchEventsForMonth]);
 
-  const daysInMonth = useMemo(() => eachDayOfInterval({
-    start: startOfMonth(currentMonth),
-    end: endOfMonth(currentMonth),
-  }), [currentMonth]);
-
-  const startingDayIndex = useMemo(() => {
-    const day = getDay(startOfMonth(currentMonth));
-    return day === 0 ? 6 : day - 1; // Monday as 0
-  }, [currentMonth]);
-
   const calendarDays = useMemo(() => {
     let daysArray = [];
     const firstDayOfGrid = startOfWeek(startOfMonth(currentMonth), { locale: tr });
     const lastDayOfGrid = endOfWeek(endOfMonth(currentMonth), { locale: tr });
 
-    let currentDay = firstDayOfGrid;
-    while(daysArray.length < 35) {
-         daysArray.push(currentDay);
-         currentDay = addDays(currentDay, 1);
-    }
-    if (daysArray[daysArray.length-1] < lastDayOfGrid || daysArray.length < 42) {
-        while(daysArray.length < 42) {
-             daysArray.push(currentDay);
-             currentDay = addDays(currentDay, 1);
-        }
+    let currentDayIter = firstDayOfGrid;
+    // Ensure the grid always shows 6 weeks (42 days) for consistent layout
+    const requiredDays = 42; 
+    while(daysArray.length < requiredDays) {
+         daysArray.push(currentDayIter);
+         currentDayIter = addDays(currentDayIter, 1);
     }
     return daysArray;
   }, [currentMonth]);
@@ -124,7 +111,7 @@ export default function CalendarPage() {
       const date = new Date(dateInput);
       if (isNaN(date.getTime())) return 'Geçersiz Tarih';
       // Check if time is midnight (likely only date was set)
-      if (date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0) {
+      if (date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0) {
         return format(date, 'dd MMM yyyy', { locale: tr });
       }
       return format(date, 'dd MMM yyyy, HH:mm', { locale: tr });
@@ -184,7 +171,7 @@ export default function CalendarPage() {
                 {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map(day => (
                   <div key={day} className="py-2 text-center font-medium text-sm border-r border-b bg-muted/50">{day}</div>
                 ))}
-                {Array.from({ length: 35 }).map((_, index) => (
+                {Array.from({ length: 42 }).map((_, index) => ( // Ensure 42 cells for skeleton
                   <div key={index} className="p-2 border-r border-b min-h-[100px]">
                     <Skeleton className="h-4 w-1/4 mb-2" />
                     <Skeleton className="h-3 w-full mb-1" />
@@ -217,11 +204,14 @@ export default function CalendarPage() {
                   >
                     <span className={`font-medium ${isSameMonth(day, currentMonth) ? '' : 'opacity-50'}`}>{format(day, "d")}</span>
                     <div className="mt-1 space-y-1 text-xs">
-                      {getEventsForDate(day).map(event => (
+                      {getEventsForDate(day).slice(0, 2).map(event => ( // Limit to 2 events for smaller cells
                          <div key={event.id || event.title} className={cn("p-1 rounded-sm truncate", getEventTypeColor(event.eventType))}>
                           {event.title}
                          </div>
                       ))}
+                      {getEventsForDate(day).length > 2 && (
+                        <div className="text-xs text-muted-foreground text-center mt-1">+ {getEventsForDate(day).length - 2} more</div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -238,12 +228,12 @@ export default function CalendarPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? <Skeleton className="h-20 w-full" /> : selectedDateEvents.length > 0 ? (
-              <ul className="space-y-3">
+              <ul className="space-y-3 max-h-[400px] overflow-y-auto">
                 {selectedDateEvents.map(event => (
                   <li key={event.id || event.title} className="p-3 border rounded-md shadow-sm">
                     <div className="flex justify-between items-start mb-1">
                       <p className="font-semibold text-base">{event.title}</p>
-                      {event.eventType && <Badge variant="secondary">{event.eventType}</Badge>}
+                      {event.eventType && <Badge variant="secondary" className={cn("whitespace-nowrap", getEventTypeColor(event.eventType))}>{event.eventType}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       <span className="font-medium">Başlangıç:</span> {formatDateDisplay(event.startDate)}
@@ -269,3 +259,6 @@ export default function CalendarPage() {
     </div>
   );
 }
+
+
+    
