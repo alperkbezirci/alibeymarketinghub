@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 
 // Placeholder user data
 const sampleUsers = [
-  { id: "1", name: "Alper Küçükbezirci", email: "akucukbezirci@alibey.com", roles: ["Admin", "Pazarlama Müdürü"] },
+  { id: "1", name: "Alper Küçükbezirci", email: "akucukbezirci@alibey.com", roles: ["Pazarlama Müdürü", "Admin"] },
   { id: "2", name: "Ayşe Yılmaz", email: "ayilmaz@alibey.com", roles: ["Ekip Üyesi"] },
   { id: "3", name: "Mehmet Öztürk", email: "mozturk@alibey.com", roles: ["Ekip Üyesi"] },
 ];
