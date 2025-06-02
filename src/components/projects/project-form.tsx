@@ -1,3 +1,4 @@
+
 // src/components/projects/project-form.tsx
 "use client";
 
@@ -16,20 +17,22 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { generateDescription } from '@/ai/flows/ai-assisted-descriptions';
+import type { Project } from '@/services/project-service'; // Import Project type
 
 interface ProjectFormProps {
-  onSave: (formData: any) => void; // Replace 'any' with a proper type
-  initialData?: any; // For editing
+  onSave: (formData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  initialData?: Partial<Project>;
   onClose: () => void;
+  isSaving?: boolean;
 }
 
-export function ProjectForm({ onSave, initialData, onClose }: ProjectFormProps) {
+export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectFormProps) {
   const [projectName, setProjectName] = useState(initialData?.projectName || "");
-  const [responsiblePersons, setResponsiblePersons] = useState(initialData?.responsiblePersons || ""); // Simplified as text for now
+  const [responsiblePersons, setResponsiblePersons] = useState(initialData?.responsiblePersons || "");
   const [startDate, setStartDate] = useState<Date | undefined>(initialData?.startDate ? new Date(initialData.startDate) : undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(initialData?.endDate ? new Date(initialData.endDate) : undefined);
   const [status, setStatus] = useState(initialData?.status || PROJECT_STATUSES[0]);
-  const [hotel, setHotel] = useState(initialData?.hotel || HOTEL_NAMES[0]);
+  const [hotel, setHotel] = useState(initialData?.hotel || (HOTEL_NAMES.length > 0 ? HOTEL_NAMES[0] : ""));
   const [description, setDescription] = useState(initialData?.description || "");
   const [aiAssist, setAiAssist] = useState(false);
   const [aiDetails, setAiDetails] = useState("");
@@ -55,15 +58,27 @@ export function ProjectForm({ onSave, initialData, onClose }: ProjectFormProps) 
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Basic validation
-    if (!projectName || !startDate || !endDate) {
-      toast({ title: "Eksik Bilgi", description: "Lütfen tüm zorunlu alanları doldurun.", variant: "destructive" });
+    if (!projectName || !endDate) { // Start date can be optional
+      toast({ title: "Eksik Bilgi", description: "Proje adı ve bitiş tarihi zorunludur.", variant: "destructive" });
       return;
     }
-    const formData = { projectName, responsiblePersons, startDate, endDate, status, hotel, description /*, files */ };
-    onSave(formData);
+    if (startDate && endDate && startDate > endDate) {
+      toast({ title: "Tarih Hatası", description: "Başlangıç tarihi, bitiş tarihinden sonra olamaz.", variant: "destructive" });
+      return;
+    }
+
+    const formData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = { 
+      projectName, 
+      responsiblePersons, 
+      startDate: startDate || undefined, // Keep undefined if not set
+      endDate, 
+      status, 
+      hotel, 
+      description 
+    };
+    await onSave(formData);
   };
 
   return (
@@ -78,7 +93,7 @@ export function ProjectForm({ onSave, initialData, onClose }: ProjectFormProps) 
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="startDate">Başlangıç Tarihi *</Label>
+          <Label htmlFor="startDate">Başlangıç Tarihi</Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant={"outline"} className="w-full justify-start text-left font-normal">
@@ -101,7 +116,7 @@ export function ProjectForm({ onSave, initialData, onClose }: ProjectFormProps) 
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus locale={tr} />
+              <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus locale={tr} required />
             </PopoverContent>
           </Popover>
         </div>
@@ -145,20 +160,23 @@ export function ProjectForm({ onSave, initialData, onClose }: ProjectFormProps) 
         <div className="space-y-2 rounded-md border p-4">
           <Label htmlFor="aiDetails">Yapay Zeka için Proje Detayları</Label>
           <Textarea id="aiDetails" value={aiDetails} onChange={(e) => setAiDetails(e.target.value)} placeholder="Proje hedefleri, anahtar noktalar, hedef kitle vb." rows={3}/>
-          <Button type="button" variant="outline" size="sm" onClick={handleGenerateDescription} disabled={isGeneratingDescription}>
+          <Button type="button" variant="outline" size="sm" onClick={handleGenerateDescription} disabled={isGeneratingDescription || isSaving}>
             {isGeneratingDescription ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Info className="mr-2 h-4 w-4" />}
             Açıklama Oluştur
           </Button>
         </div>
       )}
       <div>
-        <Label htmlFor="files">Dosya Yükleme</Label>
-        <Input id="files" type="file" multiple />
-        <p className="text-xs text-muted-foreground mt-1">Birden fazla dosya seçebilirsiniz.</p>
+        <Label htmlFor="files">Dosya Yükleme (Yapım Aşamasında)</Label>
+        <Input id="files" type="file" multiple disabled />
+        <p className="text-xs text-muted-foreground mt-1">Birden fazla dosya seçebilirsiniz. Bu özellik yakında eklenecektir.</p>
       </div>
       <div className="flex justify-end space-x-2 pt-4">
-        <Button type="button" variant="outline" onClick={onClose}>İptal</Button>
-        <Button type="submit">Kaydet</Button>
+        <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>İptal</Button>
+        <Button type="submit" disabled={isSaving}>
+          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {initialData?.id ? 'Güncelle' : 'Kaydet'}
+        </Button>
       </div>
     </form>
   );
