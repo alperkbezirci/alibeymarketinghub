@@ -4,7 +4,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart as LucideLineChart, BarChart as BarChartIcon, PieChart as LucidePieChart } from "lucide-react"; // Renamed to avoid conflict
-import { BarChart, Bar, Line, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieSector } from 'recharts';
+import { BarChart, Bar, Line, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 // Placeholder data for charts
 const taskCompletionData = [
@@ -68,7 +68,7 @@ export default function ReportsPage() {
                   fontSize={12}
                 >
                   {projectStatusData.map((entry, index) => (
-                    <PieSector key={`cell-${index}`} fill={COLORS[index % COLORS.length]} name={entry.name}/>
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
