@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, TrendingUp, Hotel, Layers } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-// import { InvoiceForm } from "@/components/budget/invoice-form"; // To be created
+import { InvoiceForm } from "@/components/budget/invoice-form"; 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +31,10 @@ export default function BudgetPage() {
 
   const handleSaveInvoice = (formData: any) => {
     console.log("Yeni Fatura Kaydedildi:", formData);
-    toast({ title: "Başarılı", description: `Fatura No: ${formData.invoiceNumber} eklendi.` });
+    // Burada fatura verileriyle bütçe verilerini güncelleme mantığı eklenebilir.
+    // Örnek: İlgili otelin harcanan bütçesini artır, ilgili kategorinin harcamasını artır.
+    // Şimdilik sadece bir tost mesajı gösteriyoruz.
+    toast({ title: "Başarılı", description: `Fatura No: ${formData.invoiceNumber} tutarı ${formData.amount} ${formData.currency} olarak eklendi.` });
     setIsDialogOpen(false);
   };
 
@@ -50,15 +53,11 @@ export default function BudgetPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Fatura Ekle
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-headline text-2xl">Yeni Fatura</DialogTitle>
             </DialogHeader>
-            {/* <InvoiceForm onSave={handleSaveInvoice} onClose={() => setIsDialogOpen(false)} /> */}
-             <p className="p-4 text-center text-muted-foreground">Fatura formu buraya eklenecek.</p>
-             <div className="flex justify-end p-4">
-               <Button onClick={() => handleSaveInvoice({invoiceNumber: 'INV-123'})}>Örnek Fatura Ekle</Button>
-             </div>
+            <InvoiceForm onSave={handleSaveInvoice} onClose={() => setIsDialogOpen(false)} />
           </DialogContent>
         </Dialog>
       </div>
