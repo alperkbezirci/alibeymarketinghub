@@ -57,18 +57,28 @@ export default function UserManagementPage() {
 
   const handleCreateAlperFirestoreProfile = async () => {
     setIsCreatingAlperProfile(true);
-    const alperUID = "XbjLMMC2ihdHjg2TBecCSdyOwKB3"; // Alper's actual UID from Firebase Auth
+    
+    let targetUID = "XbjLMMC2ihdHjg2TBecCSdyOwKB3"; // Default/fallback UID
     const alperEmail = "akucukbezirci@alibey.com";
+    
+    // If the currently logged-in user is Alper K., use their actual UID.
+    if (currentUser && currentUser.email === alperEmail) {
+      targetUID = currentUser.uid;
+      console.log(`[UserManagementPage] Alper K. logged in. Using actual UID: ${targetUID} for Firestore profile.`);
+    } else {
+      console.warn(`[UserManagementPage] Creating Alper K. profile, but current user is not akucukbezirci@alibey.com or not logged in. Using fallback UID: ${targetUID}. This might be an issue if Alper K.'s Auth UID is different.`);
+    }
+
     const alperFirstName = "Alper";
     const alperLastName = "Küçükbezirci";
     const alperRoles = [USER_ROLES.MARKETING_MANAGER, USER_ROLES.ADMIN];
-    const alperTitle = "Pazarlama Müdürü"; // Example title
-    const alperOrganization = HOTEL_NAMES.find(h => h.includes("Resort")) || HOTEL_NAMES[0]; // Example organization
+    const alperTitle = "Pazarlama Müdürü";
+    const alperOrganization = HOTEL_NAMES.find(h => h.includes("Resort")) || HOTEL_NAMES[0];
     const alperAuthLevel = AUTHORIZATION_LEVELS.find(level => level.includes("Tam Yetki")) || AUTHORIZATION_LEVELS[AUTHORIZATION_LEVELS.length -1];
 
     try {
       await createUserDocumentInFirestore(
-        alperUID, 
+        targetUID, 
         alperEmail, 
         alperFirstName, 
         alperLastName, 
@@ -76,13 +86,14 @@ export default function UserManagementPage() {
         alperTitle,
         alperOrganization,
         alperAuthLevel
-        // photoURL can be added if available
       );
       toast({
-        title: "Profil Oluşturuldu",
-        description: `${alperFirstName} ${alperLastName} için Firestore kullanıcı profili başarıyla oluşturuldu/güncellendi.`,
+        title: "Profil Oluşturuldu/Güncellendi",
+        description: `${alperFirstName} ${alperLastName} için Firestore kullanıcı profili başarıyla oluşturuldu/güncellendi. Değişikliklerin tam olarak yansıması için lütfen sayfayı yenileyin veya yeniden giriş yapın.`,
+        duration: 7000,
       });
-      if(isAdminOrMarketingManager) fetchUsers();
+      // fetchUsers will be called by useEffect if isAdminOrMarketingManager becomes true after context update
+      // For immediate effect, user might need to re-login or context needs a way to force refresh roles.
     } catch (error: any) {
       toast({
         title: "Profil Oluşturma Hatası",
@@ -117,7 +128,7 @@ export default function UserManagementPage() {
   };
 
 
-  if (!isAdminOrMarketingManager && !isCreatingAlperProfile) { // Allow showing Alper's button even if not admin yet
+  if (!isAdminOrMarketingManager && !isCreatingAlperProfile) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
@@ -126,11 +137,11 @@ export default function UserManagementPage() {
         <Card className="bg-secondary/30 border-primary/50">
           <CardHeader>
             <CardTitle className="text-base font-semibold flex items-center">
-              <UserPlus className="mr-2 h-5 w-5 text-primary" /> Özel Kullanıcı Profili Oluşturma
+              <UserPlus className="mr-2 h-5 w-5 text-primary" /> Özel Yönetici Profili Oluşturma
             </CardTitle>
             <CardDescription className="text-xs">
-              Bu bölüm, Alper Küçükbezirci (UID: XbjLMMC2ihdHjg2TBecCSdyOwKB3) için Firestore profil belgesini manuel olarak oluşturmak/güncellemek içindir.
-              Bu işlem, ilk yönetici kullanıcısının sisteme dahil edilmesini sağlar. Profil oluşturulduktan sonra normal şekilde giriş yapabilirsiniz.
+              Bu bölüm, `akucukbezirci@alibey.com` e-posta adresli yönetici kullanıcısı için Firestore profil belgesini manuel olarak oluşturmak/güncellemek içindir.
+              Bu işlem, ilk yönetici kullanıcısının sisteme tam yetkiyle dahil edilmesini sağlar. Lütfen önce Firebase Authentication üzerinden bu kullanıcıyı oluşturduğunuzdan emin olun.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -141,17 +152,17 @@ export default function UserManagementPage() {
               className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
               {isCreatingAlperProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Alper K. Profilini Firestore'a Ekle/Güncelle
+              Yönetici (Alper K.) Profilini Firestore'a Ekle/Güncelle
             </Button>
             <p className="text-xs text-muted-foreground mt-2">
-              UID: XbjLMMC2ihdHjg2TBecCSdyOwKB3, E-posta: akucukbezirci@alibey.com
+              Hedef e-posta: akucukbezirci@alibey.com. UID, giriş yapan kullanıcıdan alınacaktır.
             </p>
           </CardContent>
         </Card>
          <div className="flex flex-col items-center justify-center h-64 text-center border rounded-lg p-8">
           <UserCog className="w-16 h-16 text-destructive mb-4" />
           <h1 className="text-2xl font-bold">Erişim Kısıtlı</h1>
-          <p className="text-muted-foreground">Sayfanın geri kalanını görüntülemek için yönetici olarak giriş yapmalısınız. <br/> Eğer Alper Küçükbezirci iseniz ve Firestore profiliniz henüz oluşturulmadıysa, lütfen yukarıdaki butonu kullanın.</p>
+          <p className="text-muted-foreground">Sayfanın geri kalanını görüntülemek için yönetici olarak giriş yapmalısınız. <br/> Eğer `akucukbezirci@alibey.com` ile giriş yaptıysanız ve Firestore profiliniz henüz oluşturulmadıysa, lütfen yukarıdaki butonu kullanın.</p>
         </div>
       </div>
     );
@@ -188,10 +199,10 @@ export default function UserManagementPage() {
       <Card className="bg-secondary/30 border-primary/50">
         <CardHeader>
           <CardTitle className="text-base font-semibold flex items-center">
-            <UserPlus className="mr-2 h-5 w-5 text-primary" /> Özel Kullanıcı Profili Oluşturma (Alper K.)
+            <UserPlus className="mr-2 h-5 w-5 text-primary" /> Özel Yönetici Profili Oluşturma (Alper K.)
           </CardTitle>
           <CardDescription className="text-xs">
-            Alper Küçükbezirci (UID: XbjLMMC2ihdHjg2TBecCSdyOwKB3) için Firestore profil belgesini oluşturur/günceller.
+            `akucukbezirci@alibey.com` kullanıcısı için Firestore profil belgesini oluşturur/günceller. Eğer bu kullanıcı sizseniz ve henüz profiliniz yoksa bu butonu kullanabilirsiniz.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -203,7 +214,7 @@ export default function UserManagementPage() {
             size="sm"
           >
             {isCreatingAlperProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Alper K. Profilini Oluştur/Güncelle
+            Yönetici (Alper K.) Profilini Oluştur/Güncelle
           </Button>
         </CardContent>
       </Card>
@@ -248,18 +259,44 @@ export default function UserManagementPage() {
                     <TableCell>{user.organization || '-'}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {user.roles.map(role => <Badge key={role} variant="secondary">{role}</Badge>)}
-                        {user.roles.length === 0 && <Badge variant="outline">Rol Atanmamış</Badge>}
+                        {user.roles && user.roles.length > 0 ? 
+                          user.roles.map(role => <Badge key={role} variant="secondary">{role}</Badge>) :
+                          <Badge variant="outline">Rol Atanmamış</Badge>
+                        }
                       </div>
                     </TableCell>
                     <TableCell>{user.authorizationLevel || '-'}</TableCell>
                     <TableCell className="text-right space-x-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} disabled={user.uid === currentUser?.uid && user.roles.includes(USER_ROLES.ADMIN) && users.filter(u => u.roles.includes(USER_ROLES.ADMIN)).length === 1 /* Son admin kendini düzenleyemesin */}>
-                        <Edit3 className="h-4 w-4" />
+                       <Dialog open={selectedUserToEdit?.uid === user.uid && isEditUserDialogOpen} onOpenChange={(open) => {
+                          if (!open) setSelectedUserToEdit(null);
+                          setIsEditUserDialogOpen(open);
+                       }}>
+                        <DialogTrigger asChild>
+                           <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} 
+                            disabled={user.uid === currentUser?.uid && user.roles.includes(USER_ROLES.ADMIN) && users.filter(u => u.roles.includes(USER_ROLES.ADMIN)).length === 1}
+                           >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        {selectedUserToEdit?.uid === user.uid && ( // Render form only if this user is selected
+                            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+                                <DialogHeader>
+                                <DialogTitle className="font-headline text-2xl">Kullanıcıyı Düzenle</DialogTitle>
+                                <DialogDescription>{`${selectedUserToEdit.firstName} ${selectedUserToEdit.lastName}`} kullanıcısının bilgilerini güncelleyin.</DialogDescription>
+                                </DialogHeader>
+                                <EditUserForm 
+                                user={selectedUserToEdit}
+                                onSuccess={() => { setIsEditUserDialogOpen(false); fetchUsers(); setSelectedUserToEdit(null); }}
+                                onClose={() => { setIsEditUserDialogOpen(false); setSelectedUserToEdit(null); }}
+                                />
+                            </DialogContent>
+                        )}
+                      </Dialog>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => setUserToDelete(user)} 
+                        disabled={user.uid === currentUser?.uid || (user.roles.includes(USER_ROLES.ADMIN) && users.filter(u => u.roles.includes(USER_ROLES.ADMIN)).length === 1 && user.uid !== currentUser?.uid) }
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                       <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => setUserToDelete(user)} disabled={user.uid === currentUser?.uid /* Admin kendini silemesin */}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -268,25 +305,6 @@ export default function UserManagementPage() {
           )}
         </CardContent>
       </Card>
-
-      {selectedUserToEdit && (
-        <Dialog open={isEditUserDialogOpen} onOpenChange={(open) => {
-          if (!open) setSelectedUserToEdit(null);
-          setIsEditUserDialogOpen(open);
-        }}>
-          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="font-headline text-2xl">Kullanıcıyı Düzenle</DialogTitle>
-              <DialogDescription>{`${selectedUserToEdit.firstName} ${selectedUserToEdit.lastName}`} kullanıcısının bilgilerini güncelleyin.</DialogDescription>
-            </DialogHeader>
-            <EditUserForm 
-              user={selectedUserToEdit}
-              onSuccess={() => { setIsEditUserDialogOpen(false); fetchUsers(); setSelectedUserToEdit(null); }}
-              onClose={() => { setIsEditUserDialogOpen(false); setSelectedUserToEdit(null); }}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
 
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => { if (!open) setUserToDelete(null);}}>
         <AlertDialogContent>
@@ -313,3 +331,5 @@ export default function UserManagementPage() {
     </div>
   );
 }
+
+    
