@@ -177,9 +177,7 @@ const Sidebar = React.forwardRef<
     ref
   ) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
-    const titleId = React.useId();
-    const descriptionId = React.useId();
-
+    
     if (collapsible === "none") {
       return (
         <div
@@ -196,6 +194,8 @@ const Sidebar = React.forwardRef<
     }
 
     if (isMobile) {
+      const titleId = React.useId();
+      const descriptionId = React.useId();
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
           <SheetContent
@@ -211,10 +211,10 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
-            <SheetHeader className="sr-only">
+            <div className="sr-only">
               <SheetTitle id={titleId}>Ana Menü</SheetTitle>
               <SheetDescription id={descriptionId}>Uygulama ana navigasyon menüsü.</SheetDescription>
-            </SheetHeader>
+            </div>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
