@@ -37,7 +37,8 @@ export default function CmsPage() {
   }
 
   const handleSaveSettings = (settingName: string) => {
-    toast({ title: "Ayarlar Kaydedildi", description: `${settingName} ayarları güncellendi (simülasyon).` });
+    // TODO: In a real app, this would save to Firestore (e.g., a 'settings' collection or specific documents)
+    toast({ title: "Ayarlar Kaydedildi", description: `${settingName} ayarları güncellendi (simülasyon). Firebase'e kaydedilecek.` });
   };
 
   const handleAddCategory = async () => {
@@ -88,7 +89,7 @@ export default function CmsPage() {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="mainTitle">Ana Başlık</Label>
-              <Input id="mainTitle" defaultValue="Ali Bey Marketing Hub" />
+              <Input id="mainTitle" placeholder="Örn: Ali Bey Marketing Hub" />
             </div>
             <div>
               <Label htmlFor="logoUpload">Logo Yükle (PNG, JPG)</Label>
@@ -107,15 +108,15 @@ export default function CmsPage() {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="sorgunBudget">Ali Bey Resort Sorgun Bütçe Limiti (€)</Label>
-              <Input id="sorgunBudget" type="number" defaultValue="50000" />
+              <Input id="sorgunBudget" type="number" placeholder="Örn: 50000" />
             </div>
              <div>
               <Label htmlFor="manavgatBudget">Ali Bey Club & Park Manavgat Bütçe Limiti (€)</Label>
-              <Input id="manavgatBudget" type="number" defaultValue="75000" />
+              <Input id="manavgatBudget" type="number" placeholder="Örn: 75000" />
             </div>
              <div>
               <Label htmlFor="bijalBudget">BIJAL Bütçe Limiti (€)</Label>
-              <Input id="bijalBudget" type="number" defaultValue="120000" />
+              <Input id="bijalBudget" type="number" placeholder="Örn: 120000" />
             </div>
             <Button onClick={() => handleSaveSettings("Bütçe")}>Bütçe Ayarlarını Kaydet</Button>
           </CardContent>
@@ -220,3 +221,5 @@ export default function CmsPage() {
     </div>
   );
 }
+
+    

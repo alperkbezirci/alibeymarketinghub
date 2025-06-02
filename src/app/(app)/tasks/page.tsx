@@ -1,3 +1,4 @@
+
 // src/app/(app)/tasks/page.tsx
 "use client";
 
@@ -72,12 +73,8 @@ export default function TasksPage() {
               </DialogDescription>
             </DialogHeader>
             {/* <TaskForm onSave={handleSaveTask} onClose={() => setIsDialogOpen(false)} /> */}
-            <p className="p-4 text-center text-muted-foreground">Görev formu (TaskForm) buraya eklenecek. Şimdilik örnek bir görev ekleniyor.</p>
-            <div className="flex justify-end p-4">
-              <Button onClick={() => {
-                handleSaveTask({ taskName: 'Örnek Görev (Firebase)', project: 'Örnek Proje', hotel: 'BIJAL', status: 'Yapılacak', priority: 'Orta', dueDate: new Date().toISOString().split('T')[0], assignedTo: 'Test Kullanıcısı' });
-              }}>Örnek Görev Ekle (Yerel)</Button>
-            </div>
+            <p className="p-4 text-center text-muted-foreground">Görev formu (TaskForm) buraya eklenecek.</p>
+            {/* Örnek görev ekleme butonu kaldırıldı */}
           </DialogContent>
         </Dialog>
       </div>
@@ -143,3 +140,5 @@ export default function TasksPage() {
     </div>
   );
 }
+
+    

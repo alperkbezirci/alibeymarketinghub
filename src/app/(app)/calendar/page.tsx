@@ -1,3 +1,4 @@
+
 // src/app/(app)/calendar/page.tsx
 "use client";
 
@@ -90,10 +91,8 @@ export default function CalendarPage() {
               </DialogDescription>
             </DialogHeader>
             {/* <EventForm onSave={handleSaveEvent} onClose={() => setIsDialogOpen(false)} /> */}
-             <p className="p-4 text-center text-muted-foreground">Etkinlik formu (EventForm) buraya eklenecek. Şimdilik örnek bir etkinlik ekleniyor.</p>
-             <div className="flex justify-end p-4">
-              <Button onClick={() => handleSaveEvent({eventName: 'Örnek Etkinlik (Firebase)', date: selectedDate || new Date(), type: 'event'})}>Örnek Etkinlik Ekle (Yerel)</Button>
-            </div>
+             <p className="p-4 text-center text-muted-foreground">Etkinlik formu (EventForm) buraya eklenecek.</p>
+            {/* Örnek etkinlik ekleme butonu kaldırıldı */}
           </DialogContent>
         </Dialog>
       </div>
@@ -178,3 +177,5 @@ export default function CalendarPage() {
     </div>
   );
 }
+
+    
