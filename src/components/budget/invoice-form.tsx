@@ -1,7 +1,7 @@
 // src/components/budget/invoice-form.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,8 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
   const [amount, setAmount] = useState<number | string>(initialData?.amount || "");
   const [currency, setCurrency] = useState(initialData?.currency || CURRENCIES[0]);
   const [description, setDescription] = useState(initialData?.description || "");
-  const [file, setFile] = useState<File | null>(null); // Re-enabled file state
+  const [file, setFile] = useState<File | null>(null);
+  const [exchangeRateToEur, setExchangeRateToEur] = useState<number | string>("");
 
   const { toast } = useToast();
 
@@ -44,15 +45,30 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
         toast({ title: "Geçersiz Tutar", description: "Lütfen geçerli bir tutar girin.", variant: "destructive" });
         return;
     }
+
+    let finalAmountInEur = numericAmount;
+    let finalExchangeRateToEur: number | null = null;
+
+    if (currency !== 'EUR') {
+      if (!exchangeRateToEur || isNaN(parseFloat(String(exchangeRateToEur))) || parseFloat(String(exchangeRateToEur)) <= 0) {
+        toast({ title: "Eksik Bilgi", description: "Lütfen geçerli bir döviz kuru girin.", variant: "destructive" });
+        return;
+      }
+      finalExchangeRateToEur = parseFloat(String(exchangeRateToEur));
+      finalAmountInEur = numericAmount * finalExchangeRateToEur;
+    }
+
     onSave({
       invoiceNumber,
       invoiceDate,
       hotel,
       category,
-      amount: numericAmount,
-      currency,
+      originalAmount: numericAmount,
+      originalCurrency: currency,
       description,
-      file, // Pass the file object
+      file,
+      amountInEur: finalAmountInEur,
+      exchangeRateToEur: finalExchangeRateToEur,
     });
   };
 
@@ -63,6 +79,13 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
       setFile(null);
     }
   };
+
+  useEffect(() => {
+    // Para birimi EUR olarak değiştiğinde kuru sıfırla/temizle
+    if (currency === 'EUR') {
+      setExchangeRateToEur("");
+    }
+  }, [currency]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -122,6 +145,24 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
           </Select>
         </div>
       </div>
+
+      {currency !== 'EUR' && (
+        <div>
+          <Label htmlFor="exchangeRateToEur">Döviz Kuru (1 {currency} = X EUR) *</Label>
+          <Input
+            id="exchangeRateToEur"
+            type="number"
+            value={exchangeRateToEur}
+            onChange={(e) => setExchangeRateToEur(e.target.value)}
+            placeholder="Örn: 0.032"
+            required
+            step="0.000001"
+          />
+           <p className="text-xs text-muted-foreground mt-1">
+            1 {currency} kaç EUR yaptığını giriniz.
+          </p>
+        </div>
+      )}
       
       <div>
         <Label htmlFor="description">Açıklama</Label>

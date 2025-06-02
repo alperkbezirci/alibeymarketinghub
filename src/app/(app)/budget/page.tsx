@@ -31,16 +31,23 @@ export default function BudgetPage() {
 
   const handleSaveInvoice = (formData: any) => {
     console.log("Yeni Fatura Kaydedildi:", formData);
-    if (formData.file) {
-      console.log("Yüklenen Dosya Adı:", formData.file.name);
+    
+    let description = `Fatura No: ${formData.invoiceNumber}, ${formData.originalAmount.toLocaleString('tr-TR')} ${formData.originalCurrency} tutarında eklendi.`;
+    
+    if (formData.originalCurrency !== 'EUR' && formData.amountInEur) {
+      description += ` (EUR karşılığı: ${formData.amountInEur.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })}, Kur: ${formData.exchangeRateToEur})`;
+    } else if (formData.originalCurrency === 'EUR') {
+      description = `Fatura No: ${formData.invoiceNumber}, ${formData.amountInEur.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })} tutarında eklendi.`;
     }
-    // Burada fatura verileriyle bütçe verilerini güncelleme mantığı eklenebilir.
-    // Örnek: İlgili otelin harcanan bütçesini artır, ilgili kategorinin harcamasını artır.
-    // Şimdilik sadece bir tost mesajı gösteriyoruz.
-    let description = `Fatura No: ${formData.invoiceNumber} tutarı ${formData.amount} ${formData.currency} olarak eklendi.`;
+
     if (formData.file) {
       description += ` Dosya: ${formData.file.name}`;
     }
+
+    // TODO: Burada fatura verileriyle bütçe verilerini güncelleme mantığı eklenebilir.
+    // Örnek: İlgili otelin harcanan bütçesini (formData.amountInEur kullanarak) artır, 
+    // ilgili kategorinin harcamasını artır.
+    
     toast({ title: "Başarılı", description });
     setIsDialogOpen(false);
   };
