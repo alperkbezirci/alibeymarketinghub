@@ -1,23 +1,55 @@
 // src/app/login/page.tsx
 "use client";
 
-import React, { useState } from 'react'; // Added React import
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
-import { Mountain } from 'lucide-react'; // Placeholder for logo
+import { Mountain, Loader2 } from 'lucide-react'; // Placeholder for logo, added Loader2
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState(''); // Password not used in mock auth but good for form structure
-  const { login } = useAuth();
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { login, loading: authLoading } = useAuth(); // Renamed loading to authLoading to avoid conflict
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(email);
+    setIsLoading(true);
+    try {
+      await login(email, password);
+      // Navigation is handled by AuthProvider's useEffect
+    } catch (error: any) {
+      // Handle login errors (e.g., wrong password, user not found)
+      console.error("Login page error catch:", error.message);
+      let errorMessage = "Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.";
+      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        errorMessage = "E-posta veya şifre hatalı.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Geçersiz e-posta formatı.";
+      }
+      toast({
+        title: "Giriş Başarısız",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  // If auth is still loading (e.g. checking initial state), show a generic loading
+  if (authLoading && !isLoading) {
+     return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -41,6 +73,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="text-base"
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -48,13 +81,16 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="text-base"
+                disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full text-lg py-6">
+            <Button type="submit" className="w-full text-lg py-6" disabled={isLoading || authLoading}>
+              {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
               Giriş Yap
             </Button>
           </form>
