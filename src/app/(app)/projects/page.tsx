@@ -1,7 +1,7 @@
 // src/app/(app)/projects/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -13,25 +13,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { HOTEL_NAMES, PROJECT_STATUSES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 
-// Placeholder data - in a real app, this would come from Firestore
-const sampleProjects = [
-  { id: "1", projectName: "Yaz Sezonu Kampanyası", hotel: "Ali Bey Resort Sorgun", status: "Devam Ediyor", endDate: "2024-09-30", responsiblePersons: "Ayşe Y., Mehmet K." },
-  { id: "2", name: "Web Sitesi Yenileme Projesi", hotel: "BIJAL", status: "Planlama", endDate: "2024-12-15", responsiblePersons: "Zeynep A." },
-  { id: "3", name: "Sadakat Programı Geliştirme", hotel: "Ali Bey Hotels & Resorts", status: "Tamamlandı", endDate: "2024-05-01", responsiblePersons: "Ali V." },
-];
-
+// TODO: Define a proper interface for Project
+interface Project {
+  id: string;
+  projectName: string; // Or 'name' depending on your Firestore structure
+  hotel: string;
+  status: string;
+  endDate: string; // Consider using Date type
+  responsiblePersons: string;
+  // Add other fields as necessary
+}
 
 export default function ProjectsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [projects, setProjects] = useState(sampleProjects); // Placeholder state
+  const [projects, setProjects] = useState<Project[]>([]); // Initial state is an empty array
   const { toast } = useToast();
 
+  useEffect(() => {
+    // TODO: Fetch projects from Firebase here and update the 'projects' state
+    // Example:
+    // const fetchProjects = async () => {
+    //   // const fetchedProjects = await getProjectsFromFirestore();
+    //   // setProjects(fetchedProjects);
+    // };
+    // fetchProjects();
+    console.log("ProjectsPage: useEffect - A_FETCH_PROJECTS_FROM_FIREBASE");
+  }, []);
+
   const handleSaveProject = (formData: any) => {
-    console.log("Yeni Proje Kaydedildi:", formData);
-    // In a real app, you would save to Firestore and update state
-    const newProject = { ...formData, id: String(projects.length + 1), name: formData.projectName }; // simplified
+    console.log("Yeni Proje Kaydedildi (Firebase'e eklenecek):", formData);
+    // TODO: Save formData to Firebase, then refetch projects or update state optimistically
+    const newProject: Project = { 
+      ...formData, 
+      id: String(projects.length + 1 + Math.random()), // Temporary ID generation
+      name: formData.projectName // Ensure 'name' or 'projectName' consistency
+    }; 
     setProjects(prev => [newProject, ...prev]);
-    toast({ title: "Başarılı", description: `${formData.projectName} adlı proje oluşturuldu.` });
+    toast({ title: "Başarılı", description: `${formData.projectName} adlı proje oluşturuldu (yerel). Firebase'e kaydedilecek.` });
     setIsDialogOpen(false);
   };
 
@@ -86,7 +104,7 @@ export default function ProjectsPage() {
         {projects.map((project) => (
           <Card key={project.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardHeader>
-              <CardTitle className="font-headline text-xl">{project.name || project.projectName}</CardTitle>
+              <CardTitle className="font-headline text-xl">{project.projectName}</CardTitle>
               <CardDescription>{project.hotel}</CardDescription>
             </CardHeader>
             <CardContent className="flex-grow">
@@ -97,13 +115,13 @@ export default function ProjectsPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" size="sm" className="w-full" onClick={() => toast({title: project.name, description: "Proje detayları açılacak."})}>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => toast({title: project.projectName, description: "Proje detayları açılacak (Firebase'den çekilecek)."})}>
                 Detayları Gör
               </Button>
             </CardFooter>
           </Card>
         ))}
-        {projects.length === 0 && <p className="col-span-full text-center text-muted-foreground">Gösterilecek proje bulunmamaktadır.</p>}
+        {projects.length === 0 && <p className="col-span-full text-center text-muted-foreground py-8">Gösterilecek proje bulunmamaktadır. Yeni bir proje oluşturabilirsiniz.</p>}
       </div>
     </div>
   );

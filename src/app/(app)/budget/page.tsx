@@ -1,4 +1,3 @@
-
 // src/app/(app)/budget/page.tsx
 "use client";
 
@@ -10,44 +9,63 @@ import { InvoiceForm } from "@/components/budget/invoice-form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'; // Removed Cell as it's not used here
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { HOTEL_NAMES } from "@/lib/constants";
 import { useSpendingCategories, type SpendingCategory } from "@/contexts/spending-categories-context";
 import { Skeleton } from "@/components/ui/skeleton";
 
-
-// Placeholder data for budget summary - This should ideally also come from a dynamic source or be calculated
-const budgetSummaryData = [
-  { name: HOTEL_NAMES[0], totalBudget: 50000, spent: 35000, remaining: 15000 },
-  { name: HOTEL_NAMES[1], totalBudget: 75000, spent: 40000, remaining: 35000 },
-  { name: HOTEL_NAMES[2], totalBudget: 120000, spent: 90000, remaining: 30000 },
-];
+// TODO: Define proper types for BudgetSummaryItem
+interface BudgetSummaryItem {
+  name: string;
+  totalBudget: number;
+  spent: number;
+  remaining: number;
+}
+// Data will be fetched/calculated from Firebase
+const initialBudgetSummaryData: BudgetSummaryItem[] = [];
 
 interface SpendingCategoryDisplayData extends SpendingCategory {
-  spent: number; // Keep spent as a separate, potentially dynamic part for display
+  spent: number;
 }
 
 export default function BudgetPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   const { categories: spendingCategoriesFromContext, isLoading: isLoadingCategories, error: categoriesError, refetchCategories } = useSpendingCategories();
+  const [budgetSummaryData, setBudgetSummaryData] = useState<BudgetSummaryItem[]>(initialBudgetSummaryData);
 
-  // Memoize spendingCategoriesData to avoid re-computation on every render unless dependencies change.
-  // Spent amounts are still random for now.
+  // TODO: Fetch invoices/expenses from Firebase to calculate actual 'spent' amounts for categories and budget summary.
+  // This useEffect is a placeholder for that logic.
+  useEffect(() => {
+    console.log("BudgetPage: useEffect - A_FETCH_INVOICES_AND_CALCULATE_BUDGETS from Firebase");
+    // Example:
+    // const calculateBudgets = async () => {
+    //   // const invoices = await getInvoicesFromFirestore();
+    //   // const calculatedSummary = calculateBudgetSummary(invoices, spendingCategoriesFromContext);
+    //   // setBudgetSummaryData(calculatedSummary);
+    //   // Update spendingCategoriesData with actual spent amounts as well
+    // };
+    // if (spendingCategoriesFromContext.length > 0) {
+    //   calculateBudgets();
+    // }
+  }, [spendingCategoriesFromContext]);
+
   const spendingCategoriesData = useMemo(() => {
+    // TODO: Calculate real spent amounts based on invoices from Firebase.
+    // For now, 'spent' is 0 until actual data is fetched and processed.
     return spendingCategoriesFromContext.map(category => ({
-      ...category, // id, name, limit are from context (Firestore)
-      spent: Math.floor(Math.random() * (category.limit * 0.8)), // Random spent, up to 80% of limit
+      ...category,
+      spent: 0, 
     }));
   }, [spendingCategoriesFromContext]);
 
 
   const handleSaveInvoice = (formData: any) => {
-    console.log("Yeni Fatura Kaydedildi:", formData);
+    console.log("Yeni Fatura Kaydedildi (Firebase'e eklenecek):", formData);
+    // TODO: Save formData to Firebase (e.g., an 'invoices' collection).
+    // After saving, refetch/recalculate budget data.
     
     let description = `Fatura No: ${formData.invoiceNumber}, ${formData.originalAmount.toLocaleString('tr-TR')} ${formData.originalCurrency} tutarında eklendi.`;
-    
-    // Bütçeye yansıyacak EUR tutarı:
     const amountForBudget = formData.amountInEur; 
 
     if (formData.originalCurrency !== 'EUR' && formData.amountInEur) {
@@ -60,10 +78,9 @@ export default function BudgetPage() {
       description += ` Dosya: ${formData.file.name}`;
     }
     
-    toast({ title: "Başarılı", description });
+    toast({ title: "Başarılı (Yerel)", description: `${description} Firebase'e kaydedilecek.` });
     setIsDialogOpen(false);
-    // TODO: Update budgetSummaryData and real 'spent' amounts in spendingCategoriesData based on formData.amountInEur and formData.category
-    // This would likely involve fetching/updating Firestore data for actual spendings.
+    // After saving to Firebase, trigger a recalculation of budgetSummaryData and spendingCategoriesData's 'spent' amounts.
   };
 
   const totalBudget = budgetSummaryData.reduce((sum, item) => sum + item.totalBudget, 0);
@@ -99,28 +116,34 @@ export default function BudgetPage() {
           <CardTitle className="font-headline text-xl flex items-center">
             <TrendingUp className="mr-2 h-5 w-5 text-primary" /> Ana Bütçe Özeti
           </CardTitle>
-          <CardDescription>Oteller bazında genel bütçe durumu.</CardDescription>
+          <CardDescription>Oteller bazında genel bütçe durumu (Firebase'den hesaplanacak).</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <div className="flex justify-between text-sm mb-1">
-              <span>Genel Toplam Harcama: {totalSpent.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })}</span>
-              <span>Genel Toplam Bütçe: {totalBudget.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })}</span>
-            </div>
-            <Progress value={overallProgress} className="w-full h-3" />
-            <p className="text-xs text-muted-foreground text-right mt-1">{overallProgress.toFixed(1)}% kullanıldı</p>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <RechartsBarChart data={budgetSummaryData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={12} angle={-15} textAnchor="end" height={50} />
-              <YAxis fontSize={12} tickFormatter={(value) => `${(value / 1000)}k €`} />
-              <Tooltip formatter={(value: number) => [value.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' }), "Miktar"]} />
-              <Legend wrapperStyle={{fontSize: "12px"}}/>
-              <Bar dataKey="spent" name="Harcanan" stackId="a" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="remaining" name="Kalan" stackId="a" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
-            </RechartsBarChart>
-          </ResponsiveContainer>
+          {budgetSummaryData.length > 0 ? (
+            <>
+              <div className="mb-4">
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Genel Toplam Harcama: {totalSpent.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })}</span>
+                  <span>Genel Toplam Bütçe: {totalBudget.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })}</span>
+                </div>
+                <Progress value={overallProgress} className="w-full h-3" />
+                <p className="text-xs text-muted-foreground text-right mt-1">{overallProgress.toFixed(1)}% kullanıldı</p>
+              </div>
+              <ResponsiveContainer width="100%" height={300}>
+                <RechartsBarChart data={budgetSummaryData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" fontSize={12} angle={-15} textAnchor="end" height={50} />
+                  <YAxis fontSize={12} tickFormatter={(value) => `${(value / 1000)}k €`} />
+                  <Tooltip formatter={(value: number) => [value.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' }), "Miktar"]} />
+                  <Legend wrapperStyle={{fontSize: "12px"}}/>
+                  <Bar dataKey="spent" name="Harcanan" stackId="a" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="remaining" name="Kalan" stackId="a" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">Bütçe özeti verisi bulunmamaktadır. Veriler Firebase'den yüklenecek/hesaplanacaktır.</p>
+          )}
         </CardContent>
       </Card>
       
@@ -130,7 +153,7 @@ export default function BudgetPage() {
           <CardTitle className="font-headline text-xl flex items-center">
             <Layers className="mr-2 h-5 w-5 text-primary" /> Harcama Kategorileri
           </CardTitle>
-          <CardDescription>Kategori bazında bütçe limitleri (Firestore'dan) ve harcamalar (Şu an için rastgele).</CardDescription>
+          <CardDescription>Kategori bazında bütçe limitleri (Firestore'dan) ve harcamalar (Firebase'den hesaplanacak).</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {isLoadingCategories ? (

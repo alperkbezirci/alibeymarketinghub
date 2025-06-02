@@ -1,7 +1,7 @@
 // src/app/(app)/tasks/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -13,25 +13,44 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { HOTEL_NAMES, TASK_STATUSES, TASK_PRIORITIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 
-// Placeholder data - in a real app, this would come from Firestore
-const sampleTasks = [
-  { id: "1", taskName: "Web Sitesi Ana Sayfa Tasarımı", project: "Web Sitesi Yenileme Projesi", hotel: "BIJAL", status: "Devam Ediyor", priority: "Yüksek", dueDate: "2024-07-30", assignedTo: "Ayşe Y." },
-  { id: "2", taskName: "Sosyal Medya İçerik Takvimi Hazırlama", project: "Yaz Sezonu Kampanyası", hotel: "Ali Bey Resort Sorgun", status: "Yapılacak", priority: "Orta", dueDate: "2024-08-15", assignedTo: "Mehmet K." },
-  { id: "3", taskName: "Raporlama Şablonu Oluşturma", project: "Genel Projeler", hotel: "Ali Bey Hotels & Resorts", status: "Tamamlandı", priority: "Düşük", dueDate: "2024-06-01", assignedTo: "Zeynep A." },
-];
-
+// TODO: Define a proper interface for Task
+interface Task {
+  id: string;
+  taskName: string;
+  project: string;
+  hotel: string;
+  status: string;
+  priority: string;
+  dueDate: string; // Consider using Date type
+  assignedTo: string;
+  // Add other fields as necessary
+}
 
 export default function TasksPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [tasks, setTasks] = useState(sampleTasks); // Placeholder state
+  const [tasks, setTasks] = useState<Task[]>([]); // Initial state is an empty array
   const { toast } = useToast();
 
+  useEffect(() => {
+    // TODO: Fetch tasks from Firebase here and update the 'tasks' state
+    // Example:
+    // const fetchTasks = async () => {
+    //   // const fetchedTasks = await getTasksFromFirestore();
+    //   // setTasks(fetchedTasks);
+    // };
+    // fetchTasks();
+    console.log("TasksPage: useEffect - A_FETCH_TASKS_FROM_FIREBASE");
+  }, []);
+
   const handleSaveTask = (formData: any) => {
-    console.log("Yeni Görev Kaydedildi:", formData);
-    // In a real app, you would save to Firestore and update state
-    const newTask = { ...formData, id: String(tasks.length + 1), taskName: formData.taskName }; // simplified
+    console.log("Yeni Görev Kaydedildi (Firebase'e eklenecek):", formData);
+    // TODO: Save formData to Firebase, then refetch tasks or update state optimistically
+    const newTask: Task = { 
+      ...formData, 
+      id: String(tasks.length + 1 + Math.random()) // Temporary ID generation
+    };
     setTasks(prev => [newTask, ...prev]);
-    toast({ title: "Başarılı", description: `${formData.taskName} adlı görev oluşturuldu.` });
+    toast({ title: "Başarılı", description: `${formData.taskName} adlı görev oluşturuldu (yerel). Firebase'e kaydedilecek.` });
     setIsDialogOpen(false);
   };
 
@@ -53,11 +72,11 @@ export default function TasksPage() {
               </DialogDescription>
             </DialogHeader>
             {/* <TaskForm onSave={handleSaveTask} onClose={() => setIsDialogOpen(false)} /> */}
-            <p className="p-4 text-center text-muted-foreground">Görev formu buraya eklenecek.</p>
+            <p className="p-4 text-center text-muted-foreground">Görev formu (TaskForm) buraya eklenecek. Şimdilik örnek bir görev ekleniyor.</p>
             <div className="flex justify-end p-4">
               <Button onClick={() => {
-                handleSaveTask({ taskName: 'Örnek Görev', project: 'Örnek Proje', hotel: 'BIJAL', status: 'Yapılacak', priority: 'Orta', dueDate: new Date().toISOString().split('T')[0], assignedTo: 'Test Kullanıcısı' });
-              }}>Örnek Görev Ekle</Button>
+                handleSaveTask({ taskName: 'Örnek Görev (Firebase)', project: 'Örnek Proje', hotel: 'BIJAL', status: 'Yapılacak', priority: 'Orta', dueDate: new Date().toISOString().split('T')[0], assignedTo: 'Test Kullanıcısı' });
+              }}>Örnek Görev Ekle (Yerel)</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -113,13 +132,13 @@ export default function TasksPage() {
               </div>
             </CardContent>
             <CardFooter>
-               <Button variant="outline" size="sm" className="w-full" onClick={() => toast({title: task.taskName, description: "Görev detayları açılacak."})}>
+               <Button variant="outline" size="sm" className="w-full" onClick={() => toast({title: task.taskName, description: "Görev detayları açılacak (Firebase'den çekilecek)."})}>
                 Detayları Gör
               </Button>
             </CardFooter>
           </Card>
         ))}
-        {tasks.length === 0 && <p className="col-span-full text-center text-muted-foreground">Gösterilecek görev bulunmamaktadır.</p>}
+        {tasks.length === 0 && <p className="col-span-full text-center text-muted-foreground py-8">Gösterilecek görev bulunmamaktadır. Yeni bir görev oluşturabilirsiniz.</p>}
       </div>
     </div>
   );
