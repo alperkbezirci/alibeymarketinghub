@@ -1,8 +1,7 @@
 // src/contexts/auth-context.tsx
 "use client";
 
-import type React from 'react';
-import { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 export interface User {
@@ -10,6 +9,7 @@ export interface User {
   email: string;
   name: string;
   roles: string[]; // e.g., ['Admin', 'Pazarlama Müdürü']
+  photoURL?: string;
 }
 
 interface AuthContextType {
