@@ -8,7 +8,7 @@ import { useFormStatus } from 'react-dom';
 import { getProjectById, type Project } from '@/services/project-service';
 import { getAllUsers, type User as AppUser } from '@/services/user-service';
 import { getTasksByProjectId, type Task } from '@/services/task-service';
-import { getProjectActivities, addProjectActivity, updateProjectActivity, type ProjectActivity, type ProjectActivityInputData, type ProjectActivityStatus } from '@/services/project-activity-service';
+import { getProjectActivities, type ProjectActivity, type ProjectActivityStatus } from '@/services/project-activity-service';
 import { handleAddProjectActivityAction, handleUpdateActivityStatusAction } from './actions';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Label } from "@/components/ui/label"; // Added import for Label
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -180,7 +181,8 @@ export default function ProjectDetailsPage() {
     }).join(', ');
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status?: string) => {
+    if (!status) return 'bg-gray-500 hover:bg-gray-600';
     switch (status) {
       case 'Tamamlandı': return 'bg-green-500 hover:bg-green-600';
       case 'Devam Ediyor': return 'bg-blue-500 hover:bg-blue-600';
