@@ -5,7 +5,7 @@
  * @fileOverview Firestore service for managing projects.
  */
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, getDoc as getFirestoreDoc } from 'firebase/firestore';
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
@@ -24,12 +24,12 @@ const convertToISOString = (dateField: any): string | undefined => {
 
 export interface Project {
   id: string; // Firestore document ID
-  projectName?: string; // Made optional
+  projectName?: string;
   responsiblePersons?: string[]; // Array of user UIDs
   startDate?: string | undefined;
   endDate?: string | undefined;
-  status?: string; // Made optional
-  hotel?: string; // Made optional
+  status?: string;
+  hotel?: string;
   description?: string;
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
@@ -56,12 +56,12 @@ export async function getProjects(): Promise<Project[]> {
       const data = docSnap.data();
       return {
         id: docSnap.id,
-        projectName: data.projectName || 'İsimsiz Proje', // Fallback for missing projectName
+        projectName: data.projectName || 'İsimsiz Proje',
         responsiblePersons: Array.isArray(data.responsiblePersons) ? data.responsiblePersons : [],
         startDate: convertToISOString(data.startDate),
         endDate: convertToISOString(data.endDate),
-        status: data.status || 'Bilinmiyor', // Fallback for missing status
-        hotel: data.hotel || 'Bilinmiyor', // Fallback for missing hotel
+        status: data.status || 'Bilinmiyor',
+        hotel: data.hotel || 'Bilinmiyor',
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
@@ -69,11 +69,39 @@ export async function getProjects(): Promise<Project[]> {
     });
     return projectList;
   } catch (error) {
-    console.error("Original error in getProjects:", error); // Log the original error
-    console.error("Error fetching projects: ", error);
+    console.error("Original error in getProjects:", error);
     throw new Error("Projeler alınırken bir hata oluştu.");
   }
 }
+
+export async function getProjectById(id: string): Promise<Project | null> {
+  try {
+    const projectDocRef = doc(db, PROJECTS_COLLECTION, id);
+    const docSnap = await getFirestoreDoc(projectDocRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        projectName: data.projectName || 'İsimsiz Proje',
+        responsiblePersons: Array.isArray(data.responsiblePersons) ? data.responsiblePersons : [],
+        startDate: convertToISOString(data.startDate),
+        endDate: convertToISOString(data.endDate),
+        status: data.status || 'Bilinmiyor',
+        hotel: data.hotel || 'Bilinmiyor',
+        description: data.description,
+        createdAt: convertToISOString(data.createdAt),
+        updatedAt: convertToISOString(data.updatedAt),
+      } as Project;
+    } else {
+      return null; // Project not found
+    }
+  } catch (error) {
+    console.error(`Error fetching project with ID ${id}:`, error);
+    throw new Error(`Proje (ID: ${id}) alınırken bir hata oluştu.`);
+  }
+}
+
 
 export async function addProject(projectData: ProjectInputData): Promise<Project> {
   try {
@@ -134,3 +162,4 @@ export async function deleteProject(id: string): Promise<void> {
     throw new Error("Proje silinirken bir hata oluştu.");
   }
 }
+

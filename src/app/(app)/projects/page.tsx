@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -15,6 +16,7 @@ import { HOTEL_NAMES, PROJECT_STATUSES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { getProjects, addProject, type Project, type ProjectInputData } from "@/services/project-service";
 import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProjectsPage() {
@@ -57,10 +59,10 @@ export default function ProjectsPage() {
     }
   };
 
-  const formatDateDisplay = (dateInput: string | undefined | null) => {
+  const formatDateDisplay = (dateInput: string | undefined | null, dateFormat: string = 'dd/MM/yyyy') => {
     if (!dateInput) return 'N/A';
     try {
-      return format(new Date(dateInput), 'dd/MM/yyyy');
+      return format(new Date(dateInput), dateFormat, { locale: tr });
     } catch (e) {
       console.error("Error formatting date:", dateInput, e);
       return 'Geçersiz Tarih';
@@ -167,8 +169,10 @@ export default function ProjectsPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" size="sm" className="w-full" onClick={() => toast({title: project.projectName, description: "Proje detayları sayfası (veya modal) açılacak."})}>
-                  Detayları Gör
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link href={`/projects/${project.id}`}>
+                    Detayları Gör
+                  </Link>
                 </Button>
               </CardFooter>
             </Card>
@@ -178,3 +182,4 @@ export default function ProjectsPage() {
     </div>
   );
 }
+
