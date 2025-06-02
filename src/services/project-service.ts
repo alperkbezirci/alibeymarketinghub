@@ -24,15 +24,15 @@ const convertToISOString = (dateField: any): string | undefined => {
 
 export interface Project {
   id: string; // Firestore document ID
-  projectName: string;
+  projectName?: string; // Made optional
   responsiblePersons?: string[]; // Array of user UIDs
-  startDate?: string; // Changed to string
-  endDate: string;   // Changed to string
-  status: string;
-  hotel: string;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
+  status?: string; // Made optional
+  hotel?: string; // Made optional
   description?: string;
-  createdAt?: string; // Changed to string
-  updatedAt?: string; // Changed to string
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
 }
 
 export interface ProjectInputData {
@@ -45,6 +45,8 @@ export interface ProjectInputData {
   description?: string;
 }
 
+const PROJECTS_COLLECTION = 'projects';
+
 export async function getProjects(): Promise<Project[]> {
   try {
     const projectsCollection = collection(db, PROJECTS_COLLECTION);
@@ -54,12 +56,12 @@ export async function getProjects(): Promise<Project[]> {
       const data = docSnap.data();
       return {
         id: docSnap.id,
-        projectName: data.projectName,
+        projectName: data.projectName || 'İsimsiz Proje', // Fallback for missing projectName
         responsiblePersons: Array.isArray(data.responsiblePersons) ? data.responsiblePersons : [],
         startDate: convertToISOString(data.startDate),
-        endDate: convertToISOString(data.endDate)!, // endDate is mandatory
-        status: data.status,
-        hotel: data.hotel,
+        endDate: convertToISOString(data.endDate),
+        status: data.status || 'Bilinmiyor', // Fallback for missing status
+        hotel: data.hotel || 'Bilinmiyor', // Fallback for missing hotel
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
@@ -67,6 +69,7 @@ export async function getProjects(): Promise<Project[]> {
     });
     return projectList;
   } catch (error) {
+    console.error("Original error in getProjects:", error); // Log the original error
     console.error("Error fetching projects: ", error);
     throw new Error("Projeler alınırken bir hata oluştu.");
   }
@@ -78,13 +81,12 @@ export async function addProject(projectData: ProjectInputData): Promise<Project
       ...projectData,
       startDate: projectData.startDate ? Timestamp.fromDate(projectData.startDate) : null,
       endDate: Timestamp.fromDate(projectData.endDate),
+      responsiblePersons: projectData.responsiblePersons || [],
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
     const docRef = await addDoc(collection(db, PROJECTS_COLLECTION), dataToSave);
 
-    // For the return value, we'll construct it to match the Project interface (string dates)
-    // A full re-fetch (await getDoc(docRef)) would be more accurate for server-generated timestamps
     return {
       id: docRef.id,
       projectName: projectData.projectName,
@@ -94,8 +96,8 @@ export async function addProject(projectData: ProjectInputData): Promise<Project
       status: projectData.status,
       hotel: projectData.hotel,
       description: projectData.description,
-      createdAt: new Date().toISOString(), // Approximation, server value is set
-      updatedAt: new Date().toISOString(), // Approximation
+      createdAt: new Date().toISOString(), 
+      updatedAt: new Date().toISOString(), 
     };
   } catch (error) {
     console.error("Error adding project: ", error);
