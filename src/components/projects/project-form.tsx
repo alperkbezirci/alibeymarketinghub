@@ -74,17 +74,23 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
 
   const handleGenerateDescription = async () => {
     if (!aiDetails.trim()) {
-      toast({ title: "Hata", description: "Lütfen yapay zeka için proje detaylarını girin.", variant: "destructive" });
+      toast({ title: "Eksik Bilgi", description: "Lütfen yapay zeka için proje detaylarını girin.", variant: "destructive" });
       return;
     }
     setIsGeneratingDescription(true);
     try {
       const result = await generateDescription({ details: aiDetails });
-      setDescription(result.description);
-      toast({ title: "Başarılı", description: "Proje açıklaması yapay zeka tarafından oluşturuldu." });
+      if (result.error) {
+        toast({ title: "Yapay Zeka Hatası", description: result.error, variant: "destructive" });
+      } else if (result.description) {
+        setDescription(result.description);
+        toast({ title: "Başarılı", description: "Proje açıklaması yapay zeka tarafından oluşturuldu." });
+      } else {
+        toast({ title: "Yapay Zeka Hatası", description: "Açıklama oluşturulamadı, bilinmeyen bir sorun oluştu.", variant: "destructive" });
+      }
     } catch (error) {
-      console.error("Error generating description:", error);
-      toast({ title: "Hata", description: "Açıklama oluşturulurken bir hata oluştu.", variant: "destructive" });
+      console.error("Error generating description from UI:", error);
+      toast({ title: "Sistem Hatası", description: "Açıklama oluşturulurken bir sistem hatası oluştu.", variant: "destructive" });
     } finally {
       setIsGeneratingDescription(false);
     }
