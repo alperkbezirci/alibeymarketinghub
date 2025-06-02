@@ -30,7 +30,7 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
   const [currency, setCurrency] = useState(initialData?.currency || CURRENCIES[0]);
   const [description, setDescription] = useState(initialData?.description || "");
   const [file, setFile] = useState<File | null>(null);
-  const [exchangeRateToEur, setExchangeRateToEur] = useState<number | string>("");
+  const [rateEurToCurrency, setRateEurToCurrency] = useState<number | string>(""); // 1 EUR = X [currency]
 
   const { toast } = useToast();
 
@@ -47,15 +47,16 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
     }
 
     let finalAmountInEur = numericAmount;
-    let finalExchangeRateToEur: number | null = null;
+    let finalExchangeRateForToast: number | null = null; // This will be 1 SelectedCurrency = X EUR for the toast
 
     if (currency !== 'EUR') {
-      if (!exchangeRateToEur || isNaN(parseFloat(String(exchangeRateToEur))) || parseFloat(String(exchangeRateToEur)) <= 0) {
-        toast({ title: "Eksik Bilgi", description: "Lütfen geçerli bir döviz kuru girin.", variant: "destructive" });
+      const numericRateEurToCurrency = parseFloat(String(rateEurToCurrency));
+      if (!rateEurToCurrency || isNaN(numericRateEurToCurrency) || numericRateEurToCurrency <= 0) {
+        toast({ title: "Eksik Bilgi", description: "Lütfen geçerli bir döviz kuru girin (1 EUR = X " + currency +").", variant: "destructive" });
         return;
       }
-      finalExchangeRateToEur = parseFloat(String(exchangeRateToEur));
-      finalAmountInEur = numericAmount * finalExchangeRateToEur;
+      finalAmountInEur = numericAmount / numericRateEurToCurrency;
+      finalExchangeRateForToast = 1 / numericRateEurToCurrency; // To show as 1 currency = X EUR in toast
     }
 
     onSave({
@@ -68,7 +69,7 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
       description,
       file,
       amountInEur: finalAmountInEur,
-      exchangeRateToEur: finalExchangeRateToEur,
+      exchangeRateToEur: finalExchangeRateForToast, // This is 1 original currency to EUR rate for consistency in budget page
     });
   };
 
@@ -83,7 +84,7 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
   useEffect(() => {
     // Para birimi EUR olarak değiştiğinde kuru sıfırla/temizle
     if (currency === 'EUR') {
-      setExchangeRateToEur("");
+      setRateEurToCurrency("");
     }
   }, [currency]);
 
@@ -148,18 +149,18 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
 
       {currency !== 'EUR' && (
         <div>
-          <Label htmlFor="exchangeRateToEur">Döviz Kuru (1 {currency} = X EUR) *</Label>
+          <Label htmlFor="rateEurToCurrency">Döviz Kuru (1 EUR = X {currency}) *</Label>
           <Input
-            id="exchangeRateToEur"
+            id="rateEurToCurrency"
             type="number"
-            value={exchangeRateToEur}
-            onChange={(e) => setExchangeRateToEur(e.target.value)}
-            placeholder="Örn: 0.032"
+            value={rateEurToCurrency}
+            onChange={(e) => setRateEurToCurrency(e.target.value)}
+            placeholder={`Örn: ${currency === 'TRY' ? '35.5' : currency === 'USD' ? '1.08' : 'Kur girin'}`}
             required
             step="0.000001"
           />
            <p className="text-xs text-muted-foreground mt-1">
-            1 {currency} kaç EUR yaptığını giriniz.
+            1 EUR'nun kaç {currency} yaptığını giriniz.
           </p>
         </div>
       )}
@@ -183,3 +184,4 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
     </form>
   );
 }
+
