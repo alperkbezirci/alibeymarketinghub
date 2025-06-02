@@ -4,73 +4,54 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
-// Log all environment variables starting with NEXT_PUBLIC_FIREBASE_ to see what the app receives
-console.log("!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Module loaded. Checking process.env for Firebase vars. !!!!!!!!!!");
-const allEnvVars: Record<string, string | undefined> = {};
-if (typeof process !== 'undefined' && process.env) {
-  for (const key in process.env) {
-    if (key.startsWith("NEXT_PUBLIC_FIREBASE_")) {
-      allEnvVars[key] = process.env[key];
-    }
-  }
-}
-console.log("!!!!!!!!!! ALL NEXT_PUBLIC_FIREBASE_ ENV VARS SEEN BY THE APP (at module load):", JSON.stringify(allEnvVars, null, 2));
+// !!!!! UYARI: GEÇİCİ HATA AYIKLAMA ADIMI - ÜRETİM İÇİN GÜVENLİ DEĞİLDİR !!!!!
+// Normalde, bu değerler ortam değişkenlerinden (örneğin .env.local) gelmeli
+// ve kaynak kodunuza GÖMÜLMEMELİDİR.
+// Kimlik bilgilerini koda gömmek bir güvenlik riskidir ve farklı
+// ortamları (geliştirme, hazırlık, üretim) yönetmeyi çok zorlaştırır.
 
-
-const firebaseConfigValues = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-const requiredEnvVarKeys = [
-  'apiKey',
-  'authDomain',
-  'projectId',
-  'storageBucket',
-  'messagingSenderId',
-  'appId',
-] as const;
-
-let missingVarsMessage = '';
-let criticalConfigError = false;
-const placeholderSubstrings = ['YOUR_', 'placeholder', 'REPLACE_'];
-
-console.log("!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Starting pre-check of Firebase config values from process.env !!!!!!!!!!");
-for (const key of requiredEnvVarKeys) {
-  const varName = `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}` as keyof typeof firebaseConfigValues;
-  const value = firebaseConfigValues[key];
-
-  console.log(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Var: ${varName}, Value from process.env: ${value ? 'SET (length: ' + String(value).length + ')' : 'UNDEFINED or EMPTY'}`);
-
-  if (!value) {
-    missingVarsMessage += `${varName} is missing. `;
-    criticalConfigError = true;
-  } else if (key === 'appId' && placeholderSubstrings.some(p => String(value).toUpperCase().includes(p))) {
-    missingVarsMessage += `${varName} is still a placeholder: '${value}'. You MUST replace the placeholder in /workspace/.env or /workspace/.env.local and restart the server. `;
-    criticalConfigError = true;
-  }
-}
-
-if (criticalConfigError) {
-  const fullErrorMsg = `Firebase Initialization Failed: ${missingVarsMessage}Check your /workspace/.env or /workspace/.env.local file, ensure all placeholders (especially App ID) are replaced with actual values, and restart the server.`;
-  console.error("!!!!!!!!!! " + fullErrorMsg.toUpperCase() + " !!!!!!!!!!!");
-  throw new Error(fullErrorMsg);
-} else {
-    console.log("!!!!!!!!!! FIREBASE CONFIG PRE-CHECK PASSED (all required env vars found in process.env, and App ID is not a placeholder) !!!!!!!!!!!");
-}
-
+// BU YÖNTEMI HATA AYIKLAMA İÇİN KULLANIYORSANIZ, BURADAKİ DEĞERLERİN DOĞRU OLDUĞUNDAN EMİN OLUN.
+// ÖZELLİKLE APP_ID YER TUTUCUSUNU DEĞİŞTİRİN.
 const firebaseConfig = {
-  apiKey: firebaseConfigValues.apiKey!,
-  authDomain: firebaseConfigValues.authDomain!,
-  projectId: firebaseConfigValues.projectId!,
-  storageBucket: firebaseConfigValues.storageBucket!,
-  messagingSenderId: firebaseConfigValues.messagingSenderId!,
-  appId: firebaseConfigValues.appId!,
+  apiKey: "AIzaSyCQSBJ_Et7Le_kCl_LoscVyM7sc6R86jzQ", // ÖNCEKİ DENEMELERDE SAĞLANAN DEĞER
+  authDomain: "alibey-marketing-hub.firebaseapp.com", // ÖNCEKİ DENEMELERDE SAĞLANAN DEĞER
+  projectId: "alibey-marketing-hub", // ÖNCEKİ DENEMELERDE SAĞLANAN DEĞER
+  storageBucket: "alibey-marketing-hub.appspot.com", // ÖNCEKİ DENEMELERDE SAĞLANAN DEĞER
+  messagingSenderId: "666761005327", // ÖNCEKİ DENEMELERDE SAĞLANAN DEĞER
+  // !!! ÖNEMLİ: AŞAĞIDAKİ "appId" İÇİN YER TUTUCUYU GERÇEK FIREBASE UYGULAMA KİMLİĞİNİZİN BENZERSİZ KARMA (HASH) BÖLÜMÜYLE DEĞİŞTİRİN !!!
+  // Firebase Konsolu -> Proje Ayarları -> Genel -> Uygulamalarınız -> Web Uygulamanız -> appId (örn: 1:XXXXXXXXXXXX:web:YYYYYYYYYYYYYYYYYYYYYYYY)
+  // Buraya YYYYYYYYYYYYYYYYYYYYYYYY kısmını girmeniz veya tam appId'yi tırnak içinde girmeniz gerekebilir.
+  // Emin olmak için tam formatı "1:PROJECT_NUMBER:web:UNIQUE_HASH" şeklinde girin.
+  appId: "1:666761005327:web:REPLACE_THIS_WITH_THE_UNIQUE_HASH_FROM_YOUR_FIREBASE_APP_ID"
 };
+
+// appId içindeki yer tutucu için temel kontrol
+if (firebaseConfig.appId.includes("REPLACE_THIS_WITH_THE_UNIQUE_HASH")) {
+  const placeholderErrorMsg = `Firebase Başlatma Durduruldu: src/lib/firebase.ts içindeki firebaseConfig objesindeki 'appId' değeri hala bir yer tutucu içeriyor ('${firebaseConfig.appId}'). Bu yer tutucuyu GERÇEK Firebase Web Uygulama Kimliğinizin benzersiz karma (hash) bölümüyle DEĞİŞTİRMELİSİNİZ.`;
+  console.error("!!!!!!!!!! " + placeholderErrorMsg.toUpperCase() + " !!!!!!!!!!!");
+  throw new Error(placeholderErrorMsg);
+}
+
+// Koda gömülü tüm değerlerin mevcut olup olmadığını kontrol et (temel kontrol)
+let missingHardcodedValue = false;
+let missingKeysMessage = '';
+for (const key in firebaseConfig) {
+  if (!firebaseConfig[key as keyof typeof firebaseConfig]) {
+    missingHardcodedValue = true;
+    missingKeysMessage += `${key} koda gömülü yapılandırmada eksik. `;
+  }
+}
+
+if (missingHardcodedValue) {
+  const hardcodedConfigError = `Firebase Başlatma Durduruldu: src/lib/firebase.ts içindeki koda gömülü firebaseConfig'de bir veya daha fazla değer eksik: ${missingKeysMessage}. Lütfen bu geçici hata ayıklama adımı için tüm Firebase yapılandırma değerlerinin doğru şekilde koda gömüldüğünden emin olun.`;
+  console.error("!!!!!!!!!! " + hardcodedConfigError.toUpperCase() + " !!!!!!!!!!!");
+  throw new Error(hardcodedConfigError);
+}
+
+console.log("!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Firebase'i KODA GÖMÜLÜ kimlik bilgileriyle başlatma deneniyor. BU SADECE HATA AYIKLAMA AMAÇLIDIR VE ÜRETİM İÇİN GÜVENLİ DEĞİLDİR. !!!!!!!!!!!");
+// API anahtarını loglarken gizle
+console.log("!!!!!!!!!! Kullanılan Koda Gömülü Firebase Yapılandırması:", JSON.stringify(firebaseConfig, (key, value) => key === 'apiKey' ? "LOGDA_GİZLENDİ" : value, 2));
+
 
 let app: FirebaseApp;
 let auth: Auth;
@@ -79,22 +60,22 @@ let storage: FirebaseStorage;
 
 try {
   if (getApps().length === 0) {
-    console.log("Attempting to initialize Firebase app with resolved config:", firebaseConfig);
     app = initializeApp(firebaseConfig);
-    console.log("Firebase app initialized successfully via initializeApp().");
+    console.log("!!!!!!!!!! Firebase uygulaması KODA GÖMÜLÜ yapılandırma kullanılarak başarıyla başlatıldı (initializeApp). !!!!!!!!!!");
   } else {
-    console.log("Firebase app already initialized (getApps().length > 0), getting existing app.");
     app = getApp();
+    console.log("!!!!!!!!!! Firebase uygulaması zaten başlatılmış (getApp), KODA GÖMÜLÜ yapılandırma kullanılıyor. !!!!!!!!!!");
   }
 
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
-  console.log("Firebase services (Auth, Firestore, Storage) obtained successfully.");
+  console.log("!!!!!!!!!! Firebase servisleri (Auth, Firestore, Storage) KODA GÖMÜLÜ yapılandırma kullanılarak başarıyla alındı. !!!!!!!!!!");
+  console.log("!!!!!!!!!! HATIRLATMA: Üretim veya paylaşılan herhangi bir ortam için ortam değişkenlerini (.env.local) kullanmaya geri dönün. !!!!!!!!!!!");
 } catch (error: any) {
-  console.error("!!!!!!!!!! FIREBASE SDK INITIALIZATION OR SERVICE GET FAILED !!!!!!!!!!! This usually means the provided config values (though present and checked by pre-check) are incorrect for your Firebase project OR the API key has restrictions preventing its use.", error);
-  console.error("Firebase config used during failed attempt:", firebaseConfig);
-  throw error;
+  console.error("!!!!!!!!!! FIREBASE SDK BAŞLATMA VEYA SERVİS ALMA BAŞARISIZ OLDU (koda gömülü yapılandırmayla bile) !!!!!!!!!!! Bu genellikle sağlanan yapılandırma değerlerinin (koda gömülü olsalar bile) Firebase projeniz için yanlış olduğu VEYA API anahtarının kullanımını engelleyen kısıtlamaları olduğu anlamına gelir.", error);
+  console.error("!!!!!!!!!! Başarısız deneme sırasında kullanılan Firebase yapılandırması (API Anahtarı bu logda gizlendi):", JSON.stringify(firebaseConfig, (key, value) => key === 'apiKey' ? "LOGDA_GİZLENDİ" : value, 2));
+  throw error; // Orijinal Firebase SDK hatasını yeniden fırlat
 }
 
 export { app, auth, db, storage };
