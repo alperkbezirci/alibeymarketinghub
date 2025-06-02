@@ -1,7 +1,7 @@
 // src/app/(app)/budget/page.tsx
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, TrendingUp, Hotel, Layers } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'; // Renamed to avoid conflict
 import { SPENDING_CATEGORIES, HOTEL_NAMES } from "@/lib/constants";
 
 // Placeholder data
@@ -81,7 +81,7 @@ export default function BudgetPage() {
             <p className="text-xs text-muted-foreground text-right mt-1">{overallProgress.toFixed(1)}% kullanıldı</p>
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={budgetSummaryData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
+            <RechartsBarChart data={budgetSummaryData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" fontSize={12} angle={-15} textAnchor="end" height={50} />
               <YAxis fontSize={12} tickFormatter={(value) => `${(value / 1000)}k €`} />
@@ -89,7 +89,7 @@ export default function BudgetPage() {
               <Legend wrapperStyle={{fontSize: "12px"}}/>
               <Bar dataKey="spent" name="Harcanan" stackId="a" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               <Bar dataKey="remaining" name="Kalan" stackId="a" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
-            </BarChart>
+            </RechartsBarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>

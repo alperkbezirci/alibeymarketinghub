@@ -1,7 +1,7 @@
 // src/components/projects/project-form.tsx
 "use client";
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -163,4 +163,3 @@ export function ProjectForm({ onSave, initialData, onClose }: ProjectFormProps) 
     </form>
   );
 }
-

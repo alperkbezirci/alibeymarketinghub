@@ -1,6 +1,7 @@
 // src/app/(app)/detailed-reports/page.tsx
 "use client";
 
+import React from 'react';
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

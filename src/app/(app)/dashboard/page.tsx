@@ -1,6 +1,7 @@
 // src/app/(app)/dashboard/page.tsx
 "use client";
 
+import React from 'react';
 import { WelcomeMessage } from "@/components/dashboard/welcome-message";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { OverviewCard } from "@/components/dashboard/overview-card";

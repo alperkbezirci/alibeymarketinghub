@@ -1,6 +1,7 @@
 // src/components/layout/header.tsx
 "use client";
 
+import React from 'react';
 import Link from 'next/link';
 import { Mountain } from 'lucide-react'; // Placeholder for logo
 import { UserNav } from '@/components/layout/user-nav';

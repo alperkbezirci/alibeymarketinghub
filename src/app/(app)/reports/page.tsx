@@ -1,8 +1,9 @@
 // src/app/(app)/reports/page.tsx
 "use client";
 
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, BarChart as BarChartIcon, PieChart } from "lucide-react";
+import { LineChart as LucideLineChart, BarChart as BarChartIcon, PieChart as LucidePieChart } from "lucide-react"; // Renamed to avoid conflict
 import { BarChart, Bar, Line, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieSector } from 'recharts';
 
 // Placeholder data for charts
@@ -31,7 +32,7 @@ export default function ReportsPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline text-xl flex items-center">
-             <LineChart className="mr-2 h-5 w-5 text-primary"/> Kişisel Performans Özeti
+             <LucideLineChart className="mr-2 h-5 w-5 text-primary"/> Kişisel Performans Özeti
           </CardTitle>
           <CardDescription>Görev tamamlama ve proje katılım durumlarınız.</CardDescription>
         </CardHeader>
