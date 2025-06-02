@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES, PROJECT_STATUSES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { getProjects, addProject, type Project } from "@/services/project-service";
+import { getProjects, addProject, type Project, type ProjectInputData } from "@/services/project-service";
 import { format } from 'date-fns';
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -43,7 +43,7 @@ export default function ProjectsPage() {
     fetchProjects();
   }, [fetchProjects]);
 
-  const handleSaveProject = async (formData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleSaveProject = async (formData: ProjectInputData) => {
     setIsSaving(true);
     try {
       await addProject(formData);
@@ -57,11 +57,12 @@ export default function ProjectsPage() {
     }
   };
 
-  const formatDateDisplay = (dateInput: Date | string | undefined | null) => {
+  const formatDateDisplay = (dateInput: string | undefined | null) => {
     if (!dateInput) return 'N/A';
     try {
       return format(new Date(dateInput), 'dd/MM/yyyy');
     } catch (e) {
+      console.error("Error formatting date:", dateInput, e);
       return 'Geçersiz Tarih';
     }
   };

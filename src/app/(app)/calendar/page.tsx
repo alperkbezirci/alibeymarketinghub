@@ -12,10 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, isSameDay, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { getEvents, addEvent, type CalendarEvent } from "@/services/calendar-service";
+import { getEvents, addEvent, type CalendarEvent, type CalendarEventInputData } from "@/services/calendar-service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EVENT_TYPES } from "@/lib/constants";
-import { cn } from "@/lib/utils"; // Added missing import
+import { cn } from "@/lib/utils";
 
 // Helper for event type colors
 const getEventTypeColor = (eventType?: string) => {
@@ -56,7 +56,7 @@ export default function CalendarPage() {
     setError(null);
     try {
       const viewStart = startOfWeek(startOfMonth(month), { locale: tr });
-      const viewEnd = endOfWeek(addDays(endOfMonth(month), 7), { locale: tr }); // Fetch a bit more for full week views
+      const viewEnd = endOfWeek(addDays(endOfMonth(month), 7), { locale: tr });
       const fetchedEvents = await getEvents(viewStart, viewEnd);
       setEvents(fetchedEvents);
     } catch (err: any) {
@@ -74,11 +74,9 @@ export default function CalendarPage() {
   const calendarDays = useMemo(() => {
     let daysArray = [];
     const firstDayOfGrid = startOfWeek(startOfMonth(currentMonth), { locale: tr });
-    const lastDayOfGrid = endOfWeek(endOfMonth(currentMonth), { locale: tr });
-
-    let currentDayIter = firstDayOfGrid;
     // Ensure the grid always shows 6 weeks (42 days) for consistent layout
     const requiredDays = 42; 
+    let currentDayIter = firstDayOfGrid;
     while(daysArray.length < requiredDays) {
          daysArray.push(currentDayIter);
          currentDayIter = addDays(currentDayIter, 1);
@@ -87,7 +85,7 @@ export default function CalendarPage() {
   }, [currentMonth]);
 
 
-  const handleSaveEvent = async (formData: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleSaveEvent = async (formData: CalendarEventInputData) => {
     setIsSaving(true);
     try {
       await addEvent(formData);
@@ -105,17 +103,18 @@ export default function CalendarPage() {
     return events.filter(event => event.startDate && isSameDay(new Date(event.startDate), date));
   };
 
-  const formatDateDisplay = (dateInput: Date | string | undefined | null) => {
+  const formatDateDisplay = (dateInput: string | undefined | null) => {
     if (!dateInput) return 'N/A';
     try {
-      const date = new Date(dateInput);
+      const date = new Date(dateInput); // dateInput is an ISO string
       if (isNaN(date.getTime())) return 'Geçersiz Tarih';
       // Check if time is midnight (likely only date was set)
-      if (date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0) {
+      if (date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0 && date.getUTCMilliseconds() === 0) {
         return format(date, 'dd MMM yyyy', { locale: tr });
       }
       return format(date, 'dd MMM yyyy, HH:mm', { locale: tr });
     } catch (e) {
+        console.error("Error formatting date display:", dateInput, e);
         return 'Geçersiz Tarih';
     }
   };
@@ -171,7 +170,7 @@ export default function CalendarPage() {
                 {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map(day => (
                   <div key={day} className="py-2 text-center font-medium text-sm border-r border-b bg-muted/50">{day}</div>
                 ))}
-                {Array.from({ length: 42 }).map((_, index) => ( // Ensure 42 cells for skeleton
+                {Array.from({ length: 42 }).map((_, index) => (
                   <div key={index} className="p-2 border-r border-b min-h-[100px]">
                     <Skeleton className="h-4 w-1/4 mb-2" />
                     <Skeleton className="h-3 w-full mb-1" />
@@ -204,7 +203,7 @@ export default function CalendarPage() {
                   >
                     <span className={`font-medium ${isSameMonth(day, currentMonth) ? '' : 'opacity-50'}`}>{format(day, "d")}</span>
                     <div className="mt-1 space-y-1 text-xs">
-                      {getEventsForDate(day).slice(0, 2).map(event => ( // Limit to 2 events for smaller cells
+                      {getEventsForDate(day).slice(0, 2).map(event => (
                          <div key={event.id || event.title} className={cn("p-1 rounded-sm truncate", getEventTypeColor(event.eventType))}>
                           {event.title}
                          </div>
@@ -259,6 +258,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-
-
-    

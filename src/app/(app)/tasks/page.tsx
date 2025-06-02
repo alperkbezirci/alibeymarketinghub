@@ -6,14 +6,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { TaskForm } from "@/components/tasks/task-form"; // Import new TaskForm
+import { TaskForm } from "@/components/tasks/task-form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES, TASK_STATUSES, TASK_PRIORITIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { getTasks, addTask, type Task } from "@/services/task-service"; // Import task service
+import { getTasks, addTask, type Task, type TaskInputData } from "@/services/task-service";
 import { format } from 'date-fns';
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -43,7 +43,7 @@ export default function TasksPage() {
     fetchTasks();
   }, [fetchTasks]);
 
-  const handleSaveTask = async (formData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleSaveTask = async (formData: TaskInputData) => {
     setIsSaving(true);
     try {
       await addTask(formData);
@@ -57,11 +57,12 @@ export default function TasksPage() {
     }
   };
 
-  const formatDateDisplay = (dateInput: Date | string | undefined | null) => {
+  const formatDateDisplay = (dateInput: string | undefined | null) => {
     if (!dateInput) return 'N/A';
     try {
       return format(new Date(dateInput), 'dd/MM/yyyy');
     } catch (e) {
+      console.error("Error formatting date:", dateInput, e);
       return 'Geçersiz Tarih';
     }
   };
@@ -165,7 +166,7 @@ export default function TasksPage() {
               <CardHeader>
                 <CardTitle className="font-headline text-lg">{task.taskName}</CardTitle>
                 <CardDescription>
-                  {task.project ? `Proje: ${task.project} | ` : ''}Otel: {task.hotel}
+                  {task.project ? `Proje: ${task.project === "" ? "Genel" : task.project } | ` : 'Proje: Genel | '}Otel: {task.hotel}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">

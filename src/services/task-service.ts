@@ -7,6 +7,19 @@
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
 
+// Helper to safely convert Firestore Timestamps or Dates to ISO strings
+const convertToISOString = (dateField: any): string | undefined => {
+  if (!dateField) return undefined;
+  if (dateField instanceof Timestamp) return dateField.toDate().toISOString();
+  if (dateField instanceof Date) return dateField.toISOString();
+  try {
+    return new Date(dateField).toISOString();
+  } catch (e) {
+    console.warn("Could not convert date field to ISO string:", dateField);
+    return typeof dateField === 'string' ? dateField : undefined;
+  }
+};
+
 export interface Task {
   id: string; // Firestore document ID
   taskName: string;
@@ -14,11 +27,22 @@ export interface Task {
   hotel: string;
   status: string;
   priority: string;
-  dueDate: Timestamp | string | Date;
+  dueDate: string; // Changed to string
   assignedTo?: string; // Could be a user ID or name
   description?: string;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt?: string; // Changed to string
+  updatedAt?: string; // Changed to string
+}
+
+export interface TaskInputData {
+  taskName: string;
+  project?: string;
+  hotel: string;
+  status: string;
+  priority: string;
+  dueDate: Date; // Expect Date from form
+  assignedTo?: string;
+  description?: string;
 }
 
 const TASKS_COLLECTION = 'tasks';
@@ -32,9 +56,16 @@ export async function getTasks(): Promise<Task[]> {
       const data = docSnap.data();
       return {
         id: docSnap.id,
-        ...data,
-        dueDate: data.dueDate instanceof Timestamp ? data.dueDate.toDate() : data.dueDate,
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
+        taskName: data.taskName,
+        project: data.project,
+        hotel: data.hotel,
+        status: data.status,
+        priority: data.priority,
+        dueDate: convertToISOString(data.dueDate)!, // dueDate is mandatory
+        assignedTo: data.assignedTo,
+        description: data.description,
+        createdAt: convertToISOString(data.createdAt),
+        updatedAt: convertToISOString(data.updatedAt),
       } as Task;
     });
     return taskList;
@@ -44,19 +75,29 @@ export async function getTasks(): Promise<Task[]> {
   }
 }
 
-export async function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
+export async function addTask(taskData: TaskInputData): Promise<Task> {
   try {
-    const docRef = await addDoc(collection(db, TASKS_COLLECTION), {
+    const dataToSave = {
       ...taskData,
-      dueDate: Timestamp.fromDate(new Date(taskData.dueDate as string | Date)),
+      dueDate: Timestamp.fromDate(taskData.dueDate),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    const docRef = await addDoc(collection(db, TASKS_COLLECTION), dataToSave);
+    
     return { 
       id: docRef.id, 
-      ...taskData, 
-      createdAt: Timestamp.now() // Approximate
-    } as Task;
+      taskName: taskData.taskName,
+      project: taskData.project,
+      hotel: taskData.hotel,
+      status: taskData.status,
+      priority: taskData.priority,
+      dueDate: taskData.dueDate.toISOString(),
+      assignedTo: taskData.assignedTo,
+      description: taskData.description,
+      createdAt: new Date().toISOString(), // Approximation
+      updatedAt: new Date().toISOString(), // Approximation
+    };
   } catch (error) {
     console.error("Error adding task: ", error);
     throw new Error("Görev eklenirken bir hata oluştu.");

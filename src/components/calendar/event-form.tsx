@@ -14,12 +14,12 @@ import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import type { CalendarEvent } from '@/services/calendar-service';
-import { EVENT_TYPES } from "@/lib/constants"; // Import EVENT_TYPES
+import type { CalendarEvent, CalendarEventInputData } from '@/services/calendar-service'; // Import CalendarEvent (for initialData) and CalendarEventInputData
+import { EVENT_TYPES } from "@/lib/constants";
 
 interface EventFormProps {
-  onSave: (formData: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  initialData?: Partial<CalendarEvent>;
+  onSave: (formData: CalendarEventInputData) => Promise<void>;
+  initialData?: Partial<CalendarEvent>; // CalendarEvent interface now has string dates
   onClose: () => void;
   isSaving?: boolean;
   selectedDate?: Date;
@@ -41,13 +41,19 @@ export function EventForm({ onSave, initialData, onClose, isSaving, selectedDate
   const { toast } = useToast();
 
   useEffect(() => {
-    if (selectedDate && (!startDate || selectedDate.getTime() !== startDate.getTime())) {
-      setStartDate(selectedDate);
-      if (!endDate || (startDate && endDate.getTime() === startDate.getTime())) {
-        setEndDate(selectedDate);
-      }
+    // If selectedDate prop changes and it's different from current startDate, update startDate.
+    // Also, if endDate was same as old startDate, update endDate to new selectedDate as well.
+    if (selectedDate) {
+        const newStartDate = new Date(selectedDate); // Ensure it's a new Date object
+        if (!startDate || newStartDate.getTime() !== startDate.getTime()) {
+            setStartDate(newStartDate);
+            if (!endDate || (startDate && endDate.getTime() === startDate.getTime())) {
+                setEndDate(new Date(newStartDate)); // Ensure endDate is also a new Date object
+            }
+        }
     }
-  }, [selectedDate, startDate, endDate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]); // Removed startDate and endDate from deps to avoid loop with their setters
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,11 +80,11 @@ export function EventForm({ onSave, initialData, onClose, isSaving, selectedDate
     }
 
 
-    const formData: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'> = {
+    const formData: CalendarEventInputData = {
       title,
       eventType,
-      startDate,
-      endDate,
+      startDate, // Pass Date object
+      endDate,   // Pass Date object
       participants,
       location,
       description,
@@ -110,11 +116,26 @@ export function EventForm({ onSave, initialData, onClose, isSaving, selectedDate
             <PopoverTrigger asChild>
               <Button variant={"outline"} className="w-full justify-start text-left font-normal">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "PPP", { locale: tr }) : <span>Tarih seçin</span>}
+                {startDate ? format(startDate, "PPP HH:mm", { locale: tr }) : <span>Tarih seçin</span>}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
               <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus locale={tr} required />
+              {/* Basic time input - for more complex needs, consider a dedicated time picker component */}
+              <div className="p-2 border-t">
+                <Label htmlFor="startTime">Saat:</Label>
+                <Input type="time" id="startTime" className="mt-1"
+                  value={startDate ? format(startDate, "HH:mm") : ""}
+                  onChange={(e) => {
+                    if (startDate) {
+                      const [hours, minutes] = e.target.value.split(':').map(Number);
+                      const newDate = new Date(startDate);
+                      newDate.setHours(hours, minutes);
+                      setStartDate(newDate);
+                    }
+                  }}
+                />
+              </div>
             </PopoverContent>
           </Popover>
         </div>
@@ -124,13 +145,27 @@ export function EventForm({ onSave, initialData, onClose, isSaving, selectedDate
             <PopoverTrigger asChild>
               <Button variant={"outline"} className="w-full justify-start text-left font-normal">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "PPP", { locale: tr }) : <span>Tarih seçin</span>}
+                {endDate ? format(endDate, "PPP HH:mm", { locale: tr }) : <span>Tarih seçin</span>}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
               <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus locale={tr} required 
-                disabled={ (date) => startDate ? date < startDate : false }
+                disabled={ (date) => startDate ? date < new Date(new Date(startDate).setHours(0,0,0,0)) : false } // Disable days before startDate
               />
+               <div className="p-2 border-t">
+                <Label htmlFor="endTime">Saat:</Label>
+                <Input type="time" id="endTime" className="mt-1"
+                  value={endDate ? format(endDate, "HH:mm") : ""}
+                  onChange={(e) => {
+                    if (endDate) {
+                      const [hours, minutes] = e.target.value.split(':').map(Number);
+                      const newDate = new Date(endDate);
+                      newDate.setHours(hours, minutes);
+                      setEndDate(newDate);
+                    }
+                  }}
+                />
+              </div>
             </PopoverContent>
           </Popover>
         </div>

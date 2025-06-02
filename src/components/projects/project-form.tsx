@@ -18,12 +18,12 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { generateDescription } from '@/ai/flows/ai-assisted-descriptions';
-import type { Project } from '@/services/project-service';
-import { getAllUsers, type User } from '@/services/user-service'; // Import User type and service
+import type { Project, ProjectInputData } from '@/services/project-service'; // Import Project (for initialData) and ProjectInputData
+import { getAllUsers, type User } from '@/services/user-service';
 
 interface ProjectFormProps {
-  onSave: (formData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  initialData?: Partial<Project>;
+  onSave: (formData: ProjectInputData) => Promise<void>;
+  initialData?: Partial<Project>; // Project interface now has string dates
   onClose: () => void;
   isSaving?: boolean;
 }
@@ -107,11 +107,11 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
       return;
     }
 
-    const formData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
+    const formData: ProjectInputData = {
       projectName,
       responsiblePersons: selectedResponsiblePersons,
-      startDate: startDate || undefined,
-      endDate,
+      startDate: startDate || undefined, // Pass Date object or undefined
+      endDate, // Pass Date object
       status,
       hotel,
       description

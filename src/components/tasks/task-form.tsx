@@ -2,7 +2,7 @@
 // src/components/tasks/task-form.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,27 +15,50 @@ import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import type { Task } from '@/services/task-service';
+import type { Task, TaskInputData } from '@/services/task-service';
+import { getProjects, type Project } from '@/services/project-service';
 
 interface TaskFormProps {
-  onSave: (formData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  initialData?: Partial<Task>;
+  onSave: (formData: TaskInputData) => Promise<void>;
+  initialData?: Partial<Task>; // Task interface now has string dates
   onClose: () => void;
   isSaving?: boolean;
-  // TODO: Add projects dropdown if needed
 }
 
 export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormProps) {
   const [taskName, setTaskName] = useState(initialData?.taskName || "");
-  const [project, setProject] = useState(initialData?.project || ""); // For now, text input
+  const [selectedProject, setSelectedProject] = useState(initialData?.project || ""); 
   const [hotel, setHotel] = useState(initialData?.hotel || (HOTEL_NAMES.length > 0 ? HOTEL_NAMES[0] : ""));
   const [status, setStatus] = useState(initialData?.status || TASK_STATUSES[0]);
   const [priority, setPriority] = useState(initialData?.priority || TASK_PRIORITIES[1]); // Default to Medium
   const [dueDate, setDueDate] = useState<Date | undefined>(initialData?.dueDate ? new Date(initialData.dueDate) : undefined);
-  const [assignedTo, setAssignedTo] = useState(initialData?.assignedTo || ""); // For now, text input
+  const [assignedTo, setAssignedTo] = useState(initialData?.assignedTo || "");
   const [description, setDescription] = useState(initialData?.description || "");
 
+  const [projectsList, setProjectsList] = useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+
   const { toast } = useToast();
+
+  const fetchProjectsForSelect = useCallback(async () => {
+    setIsLoadingProjects(true);
+    setProjectsError(null);
+    try {
+      const fetchedProjects = await getProjects();
+      setProjectsList(fetchedProjects);
+    } catch (err: any) {
+      setProjectsError(err.message || "Projeler yüklenirken bir hata oluştu.");
+      // No toast here, just log or handle silently for form element
+      console.error("Error fetching projects for task form:", err.message);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProjectsForSelect();
+  }, [fetchProjectsForSelect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,13 +67,13 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
       return;
     }
 
-    const formData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> = {
+    const formData: TaskInputData = {
       taskName,
-      project,
+      project: selectedProject, // Pass selected project ID or empty string
       hotel,
       status,
       priority,
-      dueDate,
+      dueDate, // Pass Date object
       assignedTo,
       description,
     };
@@ -67,7 +90,24 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="project">İlgili Proje</Label>
-          <Input id="project" value={project} onChange={(e) => setProject(e.target.value)} placeholder="Proje adı veya ID'si"/>
+          <Select value={selectedProject} onValueChange={setSelectedProject} disabled={isLoadingProjects}>
+            <SelectTrigger id="project">
+              <SelectValue placeholder={isLoadingProjects ? "Projeler yükleniyor..." : "Proje seçin (opsiyonel)"} />
+            </SelectTrigger>
+            <SelectContent>
+              {isLoadingProjects ? (
+                <SelectItem value="loading" disabled>Yükleniyor...</SelectItem>
+              ) : projectsError ? (
+                <SelectItem value="error" disabled>{projectsError}</SelectItem>
+              ) : (
+                <>
+                  <SelectItem value="">Proje seçmeyin (Genel)</SelectItem>
+                  {projectsList.map(p => <SelectItem key={p.id} value={p.id}>{p.projectName}</SelectItem>)}
+                  {projectsList.length === 0 && !projectsError && <SelectItem value="no_projects" disabled>Proje bulunamadı.</SelectItem>}
+                </>
+              )}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label htmlFor="hotel">Otel</Label>

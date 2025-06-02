@@ -7,20 +7,46 @@
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, where } from 'firebase/firestore';
 
+// Helper to safely convert Firestore Timestamps or Dates to ISO strings
+const convertToISOString = (dateField: any): string | undefined => {
+  if (!dateField) return undefined;
+  if (dateField instanceof Timestamp) return dateField.toDate().toISOString();
+  if (dateField instanceof Date) return dateField.toISOString();
+  try {
+    return new Date(dateField).toISOString();
+  } catch (e) {
+    console.warn("Could not convert date field to ISO string:", dateField);
+    return typeof dateField === 'string' ? dateField : undefined;
+  }
+};
+
 export interface CalendarEvent {
   id: string; // Firestore document ID
-  title: string; // Etkinlik Adı
-  eventType?: string; // Etkinlik Türü
-  startDate: Timestamp | string | Date; // Başlangıç Tarihi
-  endDate: Timestamp | string | Date;   // Bitiş Tarihi
-  participants?: string; // Katılımcılar
-  location?: string;     // Yer
-  description?: string;  // Açıklama
-  projectId?: string;    // Opsiyonel, eğer bir projeyle ilişkiliyse
-  taskId?: string;       // Opsiyonel, eğer bir görevle ilişkiliyse
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  title: string;
+  eventType?: string;
+  startDate: string; // Changed to string
+  endDate: string;   // Changed to string
+  participants?: string;
+  location?: string;
+  description?: string;
+  projectId?: string;
+  taskId?: string;
+  createdAt?: string; // Changed to string
+  updatedAt?: string; // Changed to string
 }
+
+export interface CalendarEventInputData {
+  title: string;
+  eventType?: string;
+  startDate: Date; // Expect Date from form
+  endDate: Date;   // Expect Date from form
+  participants?: string;
+  location?: string;
+  description?: string;
+  projectId?: string;
+  taskId?: string;
+}
+
 
 const EVENTS_COLLECTION = 'calendarEvents';
 
@@ -29,9 +55,10 @@ export async function getEvents(viewStartDate?: Date, viewEndDate?: Date): Promi
     const eventsCollection = collection(db, EVENTS_COLLECTION);
     let q;
     if (viewStartDate && viewEndDate) {
+        // Firestore expects Timestamps for date range queries
         q = query(eventsCollection,
                   where('startDate', '>=', Timestamp.fromDate(viewStartDate)),
-                  where('startDate', '<=', Timestamp.fromDate(viewEndDate)),
+                  where('startDate', '<=', Timestamp.fromDate(viewEndDate)), // Query by startDate for relevance in month view
                   orderBy('startDate', 'asc'));
     } else {
         q = query(eventsCollection, orderBy('startDate', 'asc'));
@@ -42,11 +69,17 @@ export async function getEvents(viewStartDate?: Date, viewEndDate?: Date): Promi
       const data = docSnap.data();
       return {
         id: docSnap.id,
-        ...data,
+        title: data.title,
         eventType: data.eventType || '',
-        startDate: data.startDate instanceof Timestamp ? data.startDate.toDate() : new Date(data.startDate as string | Date),
-        endDate: data.endDate instanceof Timestamp ? data.endDate.toDate() : new Date(data.endDate as string | Date),
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
+        startDate: convertToISOString(data.startDate)!, // startDate is mandatory
+        endDate: convertToISOString(data.endDate)!,   // endDate is mandatory
+        participants: data.participants,
+        location: data.location,
+        description: data.description,
+        projectId: data.projectId,
+        taskId: data.taskId,
+        createdAt: convertToISOString(data.createdAt),
+        updatedAt: convertToISOString(data.updatedAt),
       } as CalendarEvent;
     });
     return eventList;
@@ -56,27 +89,34 @@ export async function getEvents(viewStartDate?: Date, viewEndDate?: Date): Promi
   }
 }
 
-export async function addEvent(eventData: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>): Promise<CalendarEvent> {
+export async function addEvent(eventData: CalendarEventInputData): Promise<CalendarEvent> {
   try {
     if (!eventData.startDate || !eventData.endDate) {
       throw new Error("Başlangıç ve bitiş tarihleri zorunludur.");
     }
-    const docRef = await addDoc(collection(db, EVENTS_COLLECTION), {
+    const dataToSave = {
       ...eventData,
       eventType: eventData.eventType || '',
-      startDate: Timestamp.fromDate(new Date(eventData.startDate as string | Date)),
-      endDate: Timestamp.fromDate(new Date(eventData.endDate as string | Date)),
+      startDate: Timestamp.fromDate(eventData.startDate),
+      endDate: Timestamp.fromDate(eventData.endDate),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    const docRef = await addDoc(collection(db, EVENTS_COLLECTION), dataToSave);
      return {
       id: docRef.id,
-      ...eventData,
+      title: eventData.title,
       eventType: eventData.eventType || '',
-      startDate: new Date(eventData.startDate as string | Date), // Return as Date
-      endDate: new Date(eventData.endDate as string | Date),   // Return as Date
-      createdAt: Timestamp.now() // Approximate
-    } as CalendarEvent;
+      startDate: eventData.startDate.toISOString(),
+      endDate: eventData.endDate.toISOString(),
+      participants: eventData.participants,
+      location: eventData.location,
+      description: eventData.description,
+      projectId: eventData.projectId,
+      taskId: eventData.taskId,
+      createdAt: new Date().toISOString(), // Approximation
+      updatedAt: new Date().toISOString(), // Approximation
+    };
   } catch (error) {
     console.error("Error adding calendar event: ", error);
     throw new Error("Takvim etkinliği eklenirken bir hata oluştu.");
