@@ -1,7 +1,7 @@
 // src/contexts/auth-context.tsx
 "use client";
 
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 export interface User {
@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAuth = (): AuthContextType => {
-  const context = React.useContext(AuthContext);
+  const context = useContext(AuthContext); // Changed to use the imported useContext directly
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
