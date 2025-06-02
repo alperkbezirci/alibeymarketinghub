@@ -10,7 +10,7 @@
  * - deleteUserDocument: Deletes a user's document from Firestore.
  */
 import { db } from '@/lib/firebase';
-import { collection, doc, setDoc, serverTimestamp, getDoc, getDocs, updateDoc, deleteDoc, orderBy, query } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, getDoc, getDocs, updateDoc, deleteDoc, query } from 'firebase/firestore'; // Removed orderBy from here as it's not used directly now
 import type { User } from '@/contexts/auth-context';
 
 export interface UserProfileData {
@@ -81,7 +81,8 @@ export async function createUserDocumentInFirestore(
 export async function getAllUsers(): Promise<User[]> {
   try {
     const usersCollection = collection(db, USERS_COLLECTION);
-    const q = query(usersCollection, orderBy("firstName"), orderBy("lastName"));
+    // const q = query(usersCollection, orderBy("firstName"), orderBy("lastName")); // Removed orderBy to prevent index errors
+    const q = query(usersCollection); // Fetch without server-side ordering
     const usersSnapshot = await getDocs(q);
     const usersList = usersSnapshot.docs.map(docSnap => {
       const data = docSnap.data() as UserProfileData;
@@ -92,14 +93,16 @@ export async function getAllUsers(): Promise<User[]> {
         lastName: data.lastName,
         title: data.title,
         organization: data.organization,
-        roles: data.roles,
+        roles: data.roles || [], // Ensure roles is always an array
         authorizationLevel: data.authorizationLevel,
         photoURL: data.photoURL,
-      } as User;
+      } as User; // Casting to User, ensure User type matches these fields
     });
     return usersList;
   } catch (error) {
     console.error("Error fetching all users: ", error);
+    // The actual Firebase error object (logged above) will contain more specific details,
+    // possibly including a link to create the required index if that was the issue.
     throw new Error("Tüm kullanıcılar alınırken bir hata oluştu.");
   }
 }
