@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet" // Added SheetHeader, SheetTitle, SheetDescription
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -163,6 +163,8 @@ const Sidebar = React.forwardRef<
     side?: "left" | "right"
     variant?: "sidebar" | "floating" | "inset"
     collapsible?: "offcanvas" | "icon" | "none"
+    "aria-labelledby"?: string;
+    "aria-describedby"?: string;
   }
 >(
   (
@@ -172,14 +174,16 @@ const Sidebar = React.forwardRef<
       collapsible = "offcanvas",
       className,
       children,
-      ...props
+      "aria-labelledby": passedAriaLabelledby,
+      "aria-describedby": passedAriaDescribedby,
+      ...restProps // Renamed from props to avoid conflict with component props
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
-    // Call useId unconditionally at the top level
-    const titleId = React.useId();
-    const descriptionId = React.useId();
+    const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+    
+    const mobileSheetTitleId = passedAriaLabelledby || React.useId();
+    const mobileSheetDescriptionId = passedAriaDescribedby || React.useId();
     
     if (collapsible === "none") {
       return (
@@ -189,7 +193,7 @@ const Sidebar = React.forwardRef<
             className
           )}
           ref={ref}
-          {...props}
+          {...restProps}
         >
           {children}
         </div>
@@ -198,10 +202,11 @@ const Sidebar = React.forwardRef<
 
     if (isMobile) {
       return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+        // Pass original props (like className, style from Sidebar invocation) to Sheet if needed
+        <Sheet open={openMobile} onOpenChange={setOpenMobile} > 
           <SheetContent
-            aria-labelledby={titleId}
-            aria-describedby={descriptionId}
+            aria-labelledby={mobileSheetTitleId}
+            aria-describedby={mobileSheetDescriptionId}
             data-sidebar="sidebar"
             data-mobile="true"
             className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
@@ -212,26 +217,29 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
-            <div className="sr-only">
-              <SheetTitle id={titleId}>Ana Menü</SheetTitle>
-              <SheetDescription id={descriptionId}>Uygulama ana navigasyon menüsü.</SheetDescription>
-            </div>
+            <SheetHeader className="sr-only">
+              <SheetTitle id={mobileSheetTitleId}>Ana Menü</SheetTitle>
+              <SheetDescription id={mobileSheetDescriptionId}>Uygulama ana navigasyon menüsü.</SheetDescription>
+            </SheetHeader>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
       )
     }
 
+    // Desktop sidebar
     return (
       <div
         ref={ref}
-        className="group peer hidden md:block text-sidebar-foreground"
+        className={cn("group peer hidden md:block text-sidebar-foreground", className)}
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
+        aria-labelledby={passedAriaLabelledby} // For desktop container
+        aria-describedby={passedAriaDescribedby} // For desktop container
+        {...restProps}
       >
-        {/* This is what handles the sidebar gap on desktop */}
         <div
           className={cn(
             "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
@@ -248,13 +256,10 @@ const Sidebar = React.forwardRef<
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            // Adjust the padding for floating and inset variants.
             variant === "floating" || variant === "inset"
               ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
-            className
+              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l"
           )}
-          {...props}
         >
           <div
             data-sidebar="sidebar"
@@ -269,6 +274,7 @@ const Sidebar = React.forwardRef<
 )
 Sidebar.displayName = "Sidebar"
 
+// ... rest of the Sidebar components (SidebarTrigger, SidebarRail, etc.) remain the same
 const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
@@ -773,6 +779,3 @@ export {
 }
 
     
-
-    
-
