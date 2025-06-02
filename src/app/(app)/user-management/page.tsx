@@ -5,18 +5,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, type User } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants here
+import { Button, buttonVariants } from "@/components/ui/button";
 import { PlusCircle, Edit3, Trash2, UserCog, UserPlus, Loader2, RefreshCw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { getAllUsers } from '@/services/user-service'; // createUserDocumentInFirestore removed as it's only used in one place for Alper
+import { getAllUsers, createUserDocumentInFirestore } from '@/services/user-service';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"; // Removed AlertDialogTrigger import as it's not needed here
 import { AddUserForm } from '@/components/user-management/add-user-form';
 import { EditUserForm } from '@/components/user-management/edit-user-form';
-import { handleDeleteUserAction } from './actions'; // Server Action for delete
-import { createUserDocumentInFirestore } from '@/services/user-service'; // Specific import for Alper's profile creation
+import { handleDeleteUserAction } from './actions';
 
 
 export default function UserManagementPage() {
@@ -67,7 +66,7 @@ export default function UserManagementPage() {
         title: "Profil Oluşturuldu",
         description: `${alperName} için Firestore kullanıcı profili başarıyla oluşturuldu/güncellendi.`,
       });
-      if(isAdminOrMarketingManager) fetchUsers(); // Refresh list if admin is already logged in
+      if(isAdminOrMarketingManager) fetchUsers();
     } catch (error: any) {
       toast({
         title: "Profil Oluşturma Hatası",
@@ -92,7 +91,7 @@ export default function UserManagementPage() {
 
     if (result.success) {
         toast({ title: "Başarılı", description: result.message });
-        fetchUsers(); // Refresh user list
+        fetchUsers(); 
     } else {
         toast({ title: "Hata", description: result.message, variant: "destructive" });
     }
@@ -235,11 +234,9 @@ export default function UserManagementPage() {
                       <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} disabled={user.uid === currentUser?.uid /* Admin kendini düzenleyemesin (opsiyonel) */}>
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => setUserToDelete(user)} disabled={user.uid === currentUser?.uid /* Admin kendini silemesin */}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => setUserToDelete(user)} disabled={user.uid === currentUser?.uid /* Admin kendini silemesin */}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -293,4 +290,3 @@ export default function UserManagementPage() {
     </div>
   );
 }
-
