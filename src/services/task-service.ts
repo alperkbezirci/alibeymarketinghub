@@ -27,7 +27,7 @@ export interface Task {
   hotel: string;
   status: string;
   priority: string;
-  dueDate: string; // ISO string
+  dueDate?: string | undefined; // ISO string, made optional
   assignedTo?: string; // User ID or name
   description?: string;
   createdAt?: string; // ISO string
@@ -61,7 +61,7 @@ export async function getTasks(): Promise<Task[]> {
         hotel: data.hotel || 'Bilinmiyor',
         status: data.status || 'Bilinmiyor',
         priority: data.priority || 'Orta',
-        dueDate: convertToISOString(data.dueDate)!, // dueDate is mandatory
+        dueDate: convertToISOString(data.dueDate),
         assignedTo: data.assignedTo,
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
@@ -89,9 +89,8 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
       const priority = data.priority || 'Orta';
       
       const dueDateString = convertToISOString(data.dueDate);
-      if (!dueDateString) {
-        console.warn(`Task with ID ${docSnap.id} for project ${projectId} has a missing or invalid dueDate. Firestore data:`, data.dueDate);
-      }
+      // No warning needed here if dueDateString is undefined, as Task interface allows it.
+      // Firestore query with orderBy('dueDate') will fail if documents are missing 'dueDate' or if it's not a Timestamp.
 
       return {
         id: docSnap.id,
@@ -100,7 +99,7 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
         hotel: hotel,
         status: status,
         priority: priority,
-        dueDate: dueDateString!, 
+        dueDate: dueDateString, 
         assignedTo: data.assignedTo,
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
@@ -109,15 +108,17 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
     });
     return taskList;
   } catch (error: any) {
-    console.error(`[SERVICE_ERROR] Original error in getTasksByProjectId for project ID ${projectId}:`, error);
-    let detailedMessage = `Projeye ait görevler alınırken bir hata oluştu (Proje ID: ${projectId}).`;
-    // Firestore index error codes can vary slightly or be general 'failed-precondition'
-    if (error.message && (error.message.includes("FIRESTORE_INDEX_NOT_FOUND") || error.message.toLowerCase().includes("index required") || error.message.toLowerCase().includes("ensure an index"))) {
-        detailedMessage += " Bu genellikle Firestore'da gerekli bir index'in eksik olmasından kaynaklanır. Lütfen tarayıcı konsolundaki Firestore hata mesajını kontrol edin; orada index oluşturma linki olabilir.";
-    } else if (error.code && error.code === "failed-precondition") {
-        detailedMessage += " Bu hata genellikle Firestore'da gerekli bir index'in eksik olmasından kaynaklanır. Lütfen tarayıcı konsolundaki '[SERVICE_ERROR]' ile başlayan orijinal hata mesajını kontrol edin; orada index oluşturma linki olabilir.";
+    // Log the original error to the server console. This is crucial for debugging.
+    console.error(`[SERVICE_ERROR] Original Firestore error in getTasksByProjectId for project ID ${projectId}:`, error);
+    
+    let detailedMessage = `Projeye ait görevler alınırken bir hata oluştu (Proje ID: ${projectId}). `;
+    
+    if (error.code === "failed-precondition" || (error.message && error.message.toLowerCase().includes("index required"))) {
+        detailedMessage += "Bu hata, Firestore'da bu sorgu için gerekli bir veritabanı indeksinin eksik olmasından kaynaklanmaktadır. ";
+        detailedMessage += "Lütfen SUNUCU KONSOLU loglarında veya tarayıcınızın GELİŞTİRİCİ KONSOLU'nda '[SERVICE_ERROR]' ile başlayan orijinal Firestore hata mesajını bulun. ";
+        detailedMessage += "Bu orijinal mesaj, eksik indeksi Firebase konsolunda oluşturmanız için bir BAĞLANTI içerecektir. İndeksi oluşturduktan sonra birkaç dakika beklemeniz gerekebilir.";
     } else {
-        detailedMessage += " Lütfen daha fazla bilgi için tarayıcı veya sunucu konsolundaki '[SERVICE_ERROR]' ile başlayan orijinal hata mesajını kontrol edin.";
+        detailedMessage += "Lütfen daha fazla bilgi için SUNUCU KONSOLU loglarındaki veya tarayıcınızın GELİŞTİRİCİ KONSOLU'ndaki '[SERVICE_ERROR]' ile başlayan orijinal hata mesajını kontrol edin.";
     }
     throw new Error(detailedMessage);
   }
@@ -126,7 +127,7 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
 
 export async function addTask(taskData: TaskInputData): Promise<Task> {
   try {
-    const dataToSave: { [key: string]: any } = { // Use a more generic type for dataToSave
+    const dataToSave: { [key: string]: any } = { 
       taskName: taskData.taskName,
       project: taskData.project || '', 
       hotel: taskData.hotel,
@@ -137,10 +138,10 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
       updatedAt: serverTimestamp(),
     };
 
-    if (taskData.assignedTo !== undefined) { // Only add if defined, allows empty string
+    if (taskData.assignedTo !== undefined) { 
       dataToSave.assignedTo = taskData.assignedTo;
     }
-    if (taskData.description !== undefined) { // Only add if defined, allows empty string
+    if (taskData.description !== undefined) { 
       dataToSave.description = taskData.description;
     }
 
