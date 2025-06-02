@@ -10,34 +10,36 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { HOTEL_NAMES, SPENDING_CATEGORIES, CURRENCIES } from "@/lib/constants";
+import { HOTEL_NAMES, CURRENCIES } from "@/lib/constants";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
+import { useSpendingCategories } from '@/contexts/spending-categories-context';
 
 interface InvoiceFormProps {
   onSave: (formData: any) => void;
   onClose: () => void;
-  initialData?: any; // For editing, not implemented yet
+  initialData?: any; 
 }
 
 export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) {
+  const { categories: spendingCategoriesFromContext } = useSpendingCategories();
+  
   const [invoiceNumber, setInvoiceNumber] = useState(initialData?.invoiceNumber || "");
   const [invoiceDate, setInvoiceDate] = useState<Date | undefined>(initialData?.invoiceDate ? new Date(initialData.invoiceDate) : new Date());
-  const [hotel, setHotel] = useState(initialData?.hotel || HOTEL_NAMES[0]);
-  const [category, setCategory] = useState(initialData?.category || SPENDING_CATEGORIES[0]);
+  const [hotel, setHotel] = useState(initialData?.hotel || (HOTEL_NAMES.length > 0 ? HOTEL_NAMES[0] : ""));
+  const [category, setCategory] = useState(initialData?.category || (spendingCategoriesFromContext.length > 0 ? spendingCategoriesFromContext[0].name : ""));
   const [amount, setAmount] = useState<number | string>(initialData?.amount || "");
-  const [currency, setCurrency] = useState(initialData?.currency || CURRENCIES[0]);
+  const [currency, setCurrency] = useState(initialData?.currency || (CURRENCIES.length > 0 ? CURRENCIES[0] : ""));
   const [description, setDescription] = useState(initialData?.description || "");
   const [file, setFile] = useState<File | null>(null);
-  const [rateEurToCurrency, setRateEurToCurrency] = useState<number | string>(""); // 1 EUR = X [currency]
+  const [rateEurToCurrency, setRateEurToCurrency] = useState<number | string>(""); 
   const [calculatedEurAmount, setCalculatedEurAmount] = useState<number | null>(null);
 
   const { toast } = useToast();
 
   useEffect(() => {
-    // Para birimi EUR olarak değiştiğinde kuru sıfırla/temizle
     if (currency === 'EUR') {
       setRateEurToCurrency("");
     }
@@ -73,6 +75,10 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
         toast({ title: "Geçersiz Tutar", description: "Lütfen geçerli bir tutar girin.", variant: "destructive" });
         return;
     }
+    if (!category) {
+      toast({ title: "Eksik Bilgi", description: "Lütfen bir harcama kategorisi seçin.", variant: "destructive" });
+      return;
+    }
 
     let finalAmountInEur = numericAmount;
     let finalExchangeRateForToast: number | null = null; 
@@ -91,7 +97,7 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
       invoiceNumber,
       invoiceDate,
       hotel,
-      category,
+      category, // Pass category name
       originalAmount: numericAmount,
       originalCurrency: currency,
       description,
@@ -142,11 +148,15 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
           </Select>
         </div>
         <div>
-          <Label htmlFor="category">Kategori</Label>
-          <Select value={category} onValueChange={setCategory}>
+          <Label htmlFor="category">Kategori *</Label>
+          <Select value={category} onValueChange={setCategory} required>
             <SelectTrigger id="category"><SelectValue placeholder="Kategori seçin" /></SelectTrigger>
             <SelectContent>
-              {SPENDING_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {spendingCategoriesFromContext.length > 0 ? (
+                spendingCategoriesFromContext.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)
+              ) : (
+                <SelectItem value="" disabled>Kategori bulunamadı</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>

@@ -1,33 +1,38 @@
+
 // src/app/(app)/budget/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, TrendingUp, Hotel, Layers } from "lucide-react";
+import { PlusCircle, TrendingUp, Layers } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { InvoiceForm } from "@/components/budget/invoice-form"; 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { SPENDING_CATEGORIES, HOTEL_NAMES } from "@/lib/constants";
+import { HOTEL_NAMES } from "@/lib/constants";
+import { useSpendingCategories } from "@/contexts/spending-categories-context";
 
-// Placeholder data
+// Placeholder data for budget summary
 const budgetSummaryData = [
   { name: HOTEL_NAMES[0], totalBudget: 50000, spent: 35000, remaining: 15000 },
   { name: HOTEL_NAMES[1], totalBudget: 75000, spent: 40000, remaining: 35000 },
   { name: HOTEL_NAMES[2], totalBudget: 120000, spent: 90000, remaining: 30000 },
 ];
 
-const spendingCategoriesData = SPENDING_CATEGORIES.map(category => ({
-  name: category,
-  limit: Math.floor(Math.random() * 10000) + 5000, // Random limit
-  spent: Math.floor(Math.random() * 5000),      // Random spent amount
-}));
-
 export default function BudgetPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { categories: spendingCategoriesFromContext } = useSpendingCategories(); // Get categories from context
+
+  // Derive spendingCategoriesData from context
+  const spendingCategoriesData = spendingCategoriesFromContext.map(category => ({
+    id: category.id,
+    name: category.name,
+    limit: Math.floor(Math.random() * 10000) + 5000, // Random limit for now
+    spent: Math.floor(Math.random() * 5000),      // Random spent amount for now
+  }));
 
   const handleSaveInvoice = (formData: any) => {
     console.log("Yeni Fatura Kaydedildi:", formData);
@@ -43,13 +48,10 @@ export default function BudgetPage() {
     if (formData.file) {
       description += ` Dosya: ${formData.file.name}`;
     }
-
-    // TODO: Burada fatura verileriyle bütçe verilerini güncelleme mantığı eklenebilir.
-    // Örnek: İlgili otelin harcanan bütçesini (formData.amountInEur kullanarak) artır, 
-    // ilgili kategorinin harcamasını artır.
     
     toast({ title: "Başarılı", description });
     setIsDialogOpen(false);
+    // TODO: Update budgetSummaryData and spendingCategoriesData based on formData.amountInEur and formData.category
   };
 
   const totalBudget = budgetSummaryData.reduce((sum, item) => sum + item.totalBudget, 0);
@@ -113,11 +115,11 @@ export default function BudgetPage() {
           <CardTitle className="font-headline text-xl flex items-center">
             <Layers className="mr-2 h-5 w-5 text-primary" /> Harcama Kategorileri
           </CardTitle>
-          <CardDescription>Kategori bazında bütçe limitleri ve harcamalar.</CardDescription>
+          <CardDescription>Kategori bazında bütçe limitleri ve harcamalar (Context'ten gelen güncel liste).</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {spendingCategoriesData.map(category => (
-            <Card key={category.name} className="bg-card/50">
+          {spendingCategoriesData.length > 0 ? spendingCategoriesData.map(category => (
+            <Card key={category.id} className="bg-card/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-medium">{category.name}</CardTitle>
               </CardHeader>
@@ -128,7 +130,9 @@ export default function BudgetPage() {
                 </p>
               </CardContent>
             </Card>
-          ))}
+          )) : (
+            <p className="text-sm text-muted-foreground col-span-full text-center">Yönetilecek harcama kategorisi bulunmuyor. CMS sayfasından ekleyebilirsiniz.</p>
+          )}
         </CardContent>
       </Card>
     </div>
