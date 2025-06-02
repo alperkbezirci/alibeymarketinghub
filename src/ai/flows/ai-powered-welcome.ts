@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -42,8 +43,32 @@ const welcomeMessageFlow = ai.defineFlow(
     inputSchema: WelcomeMessageInputSchema,
     outputSchema: WelcomeMessageOutputSchema,
   },
-  async input => {
-    const {output} = await welcomeMessagePrompt(input);
-    return output!;
+  async (input): Promise<WelcomeMessageOutput> => {
+    try {
+      const {output} = await welcomeMessagePrompt(input);
+      if (!output) {
+        console.warn(`AI welcome message prompt returned null output for user ${input.userName}. Input:`, input);
+        // Provide a basic fallback if output is unexpectedly null
+        return { message: `Merhaba ${input.userName}, hoş geldiniz! Kontrol panelinize genel bir bakış.` };
+      }
+      return output;
+    } catch (error: any) {
+      console.error(
+        `Error calling welcomeMessagePrompt for user ${input.userName}. Error: ${error.message}. Falling back to default welcome message.`,
+        // To log the full error details if necessary for debugging, you can uncomment the next line:
+        // JSON.stringify(error, Object.getOwnPropertyNames(error))
+      );
+      
+      // Construct a user-friendly fallback message
+      let fallbackMessage = `Merhaba ${input.userName}, hoş geldiniz!`;
+      if (input.date && input.time) {
+        fallbackMessage = `Merhaba ${input.userName}, hoş geldiniz! Bugün ${input.date}, saat ${input.time}. Sistemimiz şu anda size özel bir karşılama mesajı üretemiyor, ancak harika bir gün geçirmenizi dileriz!`;
+      } else {
+        fallbackMessage = `Merhaba ${input.userName}, hoş geldiniz! Sistemimiz şu anda size özel bir karşılama mesajı üretemiyor, ancak harika bir gün geçirmenizi dileriz!`;
+      }
+      
+      // Ensure the fallback conforms to WelcomeMessageOutputSchema
+      return { message: fallbackMessage };
+    }
   }
 );
