@@ -5,7 +5,7 @@
  * @fileOverview Firestore service for managing tasks.
  */
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, where, getDoc as getFirestoreDoc } from 'firebase/firestore';
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
@@ -69,9 +69,9 @@ export async function getTasks(): Promise<Task[]> {
       } as Task;
     });
     return taskList;
-  } catch (error) {
-    console.error("Original error in getTasks:", error);
-    throw new Error("Görevler alınırken bir hata oluştu.");
+  } catch (error: any) {
+    console.error("[SERVICE_ERROR] Original error in getTasks:", error);
+    throw new Error("Görevler alınırken bir hata oluştu. Detaylar için sunucu konsolunu kontrol edin.");
   }
 }
 
@@ -83,14 +83,24 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
     const taskSnapshot = await getDocs(q);
     const taskList = taskSnapshot.docs.map(docSnap => {
       const data = docSnap.data();
+      const taskName = data.taskName || 'İsimsiz Görev';
+      const hotel = data.hotel || 'Otel Belirtilmemiş';
+      const status = data.status || 'Durum Belirtilmemiş';
+      const priority = data.priority || 'Orta';
+      
+      const dueDateString = convertToISOString(data.dueDate);
+      if (!dueDateString) {
+        console.warn(`Task with ID ${docSnap.id} for project ${projectId} has a missing or invalid dueDate. Firestore data:`, data.dueDate);
+      }
+
       return {
         id: docSnap.id,
-        taskName: data.taskName || 'İsimsiz Görev',
-        project: data.project, // Should be projectId
-        hotel: data.hotel || 'Bilinmiyor',
-        status: data.status || 'Bilinmiyor',
-        priority: data.priority || 'Orta',
-        dueDate: convertToISOString(data.dueDate)!,
+        taskName: taskName,
+        project: data.project, 
+        hotel: hotel,
+        status: status,
+        priority: priority,
+        dueDate: dueDateString!, 
         assignedTo: data.assignedTo,
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
@@ -98,26 +108,45 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
       } as Task;
     });
     return taskList;
-  } catch (error) {
-    console.error(`Error fetching tasks for project ID ${projectId}: `, error);
-    throw new Error(`Projeye ait görevler alınırken bir hata oluştu (Proje ID: ${projectId}).`);
+  } catch (error: any) {
+    console.error(`[SERVICE_ERROR] Original error in getTasksByProjectId for project ID ${projectId}:`, error);
+    let detailedMessage = `Projeye ait görevler alınırken bir hata oluştu (Proje ID: ${projectId}).`;
+    // Firestore index error codes can vary slightly or be general 'failed-precondition'
+    if (error.message && (error.message.includes("FIRESTORE_INDEX_NOT_FOUND") || error.message.toLowerCase().includes("index required") || error.message.toLowerCase().includes("ensure an index"))) {
+        detailedMessage += " Bu genellikle Firestore'da gerekli bir index'in eksik olmasından kaynaklanır. Lütfen tarayıcı konsolundaki Firestore hata mesajını kontrol edin; orada index oluşturma linki olabilir.";
+    } else if (error.code && error.code === "failed-precondition") {
+        detailedMessage += " Bu hata genellikle Firestore'da gerekli bir index'in eksik olmasından kaynaklanır. Lütfen tarayıcı konsolundaki '[SERVICE_ERROR]' ile başlayan orijinal hata mesajını kontrol edin; orada index oluşturma linki olabilir.";
+    } else {
+        detailedMessage += " Lütfen daha fazla bilgi için tarayıcı veya sunucu konsolundaki '[SERVICE_ERROR]' ile başlayan orijinal hata mesajını kontrol edin.";
+    }
+    throw new Error(detailedMessage);
   }
 }
 
 
 export async function addTask(taskData: TaskInputData): Promise<Task> {
   try {
-    const dataToSave = {
-      ...taskData,
-      project: taskData.project || '', // Ensure project is not undefined
-      dueDate: Timestamp.fromDate(taskData.dueDate),
+    const dataToSave: { [key: string]: any } = { // Use a more generic type for dataToSave
+      taskName: taskData.taskName,
+      project: taskData.project || '', 
+      hotel: taskData.hotel,
+      status: taskData.status,
+      priority: taskData.priority,
+      dueDate: Timestamp.fromDate(taskData.dueDate), 
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
+
+    if (taskData.assignedTo !== undefined) { // Only add if defined, allows empty string
+      dataToSave.assignedTo = taskData.assignedTo;
+    }
+    if (taskData.description !== undefined) { // Only add if defined, allows empty string
+      dataToSave.description = taskData.description;
+    }
+
     const docRef = await addDoc(collection(db, TASKS_COLLECTION), dataToSave);
     
-    // Fetch the just added document to get server-generated timestamps
-    const newDocSnap = await doc(db, TASKS_COLLECTION, docRef.id).get();
+    const newDocSnap = await getFirestoreDoc(doc(db, TASKS_COLLECTION, docRef.id));
     const newData = newDocSnap.data();
 
     return { 
@@ -127,18 +156,14 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
       hotel: taskData.hotel,
       status: taskData.status,
       priority: taskData.priority,
-      dueDate: taskData.dueDate.toISOString(), // Use input date for immediate consistency
+      dueDate: taskData.dueDate.toISOString(), 
       assignedTo: taskData.assignedTo,
       description: taskData.description,
-      createdAt: convertToISOString(newData?.createdAt) || new Date().toISOString(),
-      updatedAt: convertToISOString(newData?.updatedAt) || new Date().toISOString(),
+      createdAt: convertToISOString(newData?.createdAt) || new Date().toISOString(), 
+      updatedAt: convertToISOString(newData?.updatedAt) || new Date().toISOString(), 
     };
-  } catch (error) {
-    console.error("Error adding task: ", error);
-    throw new Error("Görev eklenirken bir hata oluştu.");
+  } catch (error: any) {
+    console.error(`[SERVICE_ERROR] Original error in addTask:`, error);
+    throw new Error("Görev eklenirken bir hata oluştu. Detaylar için konsolu kontrol edin.");
   }
 }
-
-// updateTask and deleteTask can be added similarly
-// export async function updateTask(id: string, taskData: Partial<TaskInputData>): Promise<void> { ... }
-// export async function deleteTask(id: string): Promise<void> { ... }
