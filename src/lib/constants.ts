@@ -7,11 +7,19 @@ export const USER_ROLES = {
   TEAM_MEMBER: 'Ekip Üyesi',
 };
 
+export const AUTHORIZATION_LEVELS = [
+  'Seviye 1 (Temel Erişim)',
+  'Seviye 2 (Orta Düzey Erişim)',
+  'Seviye 3 (Gelişmiş Erişim)',
+  'Tam Yetki (Yönetici)',
+];
+
 export const HOTEL_NAMES = [
   'Ali Bey Resort Sorgun',
   'Ali Bey Club & Park Manavgat',
   'BIJAL',
   'Ali Bey Hotels & Resorts', // Çatı marka
+  'Genel Merkez', // Kurum için ek seçenek
 ];
 
 export const PROJECT_STATUSES = [
@@ -38,8 +46,6 @@ export const TASK_PRIORITIES = [
 
 export const CURRENCIES = ['EUR', 'TRY', 'USD'];
 
-// SPENDING_CATEGORIES removed as it will be managed by Firestore
-
 export const NAV_ITEMS = [
   { name: 'Kontrol Paneli', href: '/dashboard', icon: 'LayoutDashboard' },
   { name: 'Projeler', href: '/projects', icon: 'Briefcase' },
@@ -54,4 +60,3 @@ export const ADMIN_NAV_ITEMS = [
   { name: 'Detaylı Raporlar', href: '/detailed-reports', icon: 'AreaChart' },
   { name: 'CMS', href: '/cms', icon: 'Settings2' },
 ];
-

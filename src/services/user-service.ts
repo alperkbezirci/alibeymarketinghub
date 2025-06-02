@@ -6,17 +6,21 @@
  *
  * - createUserDocumentInFirestore: Creates or updates a user document in Firestore.
  * - getAllUsers: Fetches all user documents from Firestore.
- * - updateUserProfile: Updates a user's profile (name, roles) in Firestore.
+ * - updateUserProfile: Updates a user's profile in Firestore.
  * - deleteUserDocument: Deletes a user's document from Firestore.
  */
 import { db } from '@/lib/firebase';
 import { collection, doc, setDoc, serverTimestamp, getDoc, getDocs, updateDoc, deleteDoc, orderBy, query } from 'firebase/firestore';
-import type { User } from '@/contexts/auth-context'; // Assuming User type from auth-context is suitable
+import type { User } from '@/contexts/auth-context';
 
 export interface UserProfileData {
-  name: string;
   email: string;
+  firstName: string;
+  lastName: string;
+  title?: string;
+  organization?: string;
   roles: string[];
+  authorizationLevel?: string;
   createdAt: any; // Firestore serverTimestamp placeholder
   updatedAt?: any; // Firestore serverTimestamp placeholder
   photoURL?: string | null;
@@ -27,31 +31,32 @@ const USERS_COLLECTION = 'users';
 export async function createUserDocumentInFirestore(
   uid: string,
   email: string,
-  name: string,
+  firstName: string,
+  lastName: string,
   roles: string[],
+  title?: string,
+  organization?: string,
+  authorizationLevel?: string,
   photoURL?: string | null
 ): Promise<void> {
-  if (!uid) {
-    throw new Error('UID is required to create/update a user document.');
-  }
-  if (!email) {
-    throw new Error('Email is required for the user document.');
-  }
-  if (!name) {
-    throw new Error('Name is required for the user document.');
-  }
-  if (!roles || roles.length === 0) {
-    throw new Error('At least one role is required for the user document.');
-  }
+  if (!uid) throw new Error('UID is required to create/update a user document.');
+  if (!email) throw new Error('Email is required for the user document.');
+  if (!firstName) throw new Error('First name is required for the user document.');
+  if (!lastName) throw new Error('Last name is required for the user document.');
+  if (!roles || roles.length === 0) throw new Error('At least one role is required for the user document.');
 
   const userDocRef = doc(db, USERS_COLLECTION, uid);
 
   try {
     const docSnap = await getDoc(userDocRef);
     const userData: Partial<UserProfileData> = {
-      name,
       email,
+      firstName,
+      lastName,
       roles,
+      title: title || '', // Ensure undefined is not sent if not provided
+      organization: organization || '',
+      authorizationLevel: authorizationLevel || '',
       updatedAt: serverTimestamp(),
     };
 
@@ -76,18 +81,21 @@ export async function createUserDocumentInFirestore(
 export async function getAllUsers(): Promise<User[]> {
   try {
     const usersCollection = collection(db, USERS_COLLECTION);
-    const q = query(usersCollection, orderBy("name")); // Order by name for consistency
+    const q = query(usersCollection, orderBy("firstName"), orderBy("lastName"));
     const usersSnapshot = await getDocs(q);
     const usersList = usersSnapshot.docs.map(docSnap => {
       const data = docSnap.data() as UserProfileData;
       return {
         uid: docSnap.id,
         email: data.email,
-        name: data.name,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        title: data.title,
+        organization: data.organization,
         roles: data.roles,
+        authorizationLevel: data.authorizationLevel,
         photoURL: data.photoURL,
-        // We might not have createdAt/updatedAt in User type, adjust as needed or extend User type
-      } as User; // Cast to User, ensure User type matches
+      } as User;
     });
     return usersList;
   } catch (error) {
@@ -96,24 +104,32 @@ export async function getAllUsers(): Promise<User[]> {
   }
 }
 
-export async function updateUserProfile(uid: string, name: string, roles: string[]): Promise<void> {
-  if (!uid) {
-    throw new Error('UID is required to update a user document.');
-  }
-  if (!name) {
-    throw new Error('Name is required for the user document.');
-  }
-  if (!roles || roles.length === 0) {
-    throw new Error('At least one role is required for the user document.');
-  }
-
+export async function updateUserProfile(
+  uid: string,
+  firstName: string,
+  lastName: string,
+  roles: string[],
+  title?: string,
+  organization?: string,
+  authorizationLevel?: string
+): Promise<void> {
+  if (!uid) throw new Error('UID is required to update a user document.');
+  if (!firstName) throw new Error('First name is required for the user document.');
+  if (!lastName) throw new Error('Last name is required for the user document.');
+  if (!roles || roles.length === 0) throw new Error('At least one role is required for the user document.');
+  
   const userDocRef = doc(db, USERS_COLLECTION, uid);
   try {
-    await updateDoc(userDocRef, {
-      name,
+    const updateData: Partial<UserProfileData> = {
+      firstName,
+      lastName,
       roles,
+      title: title || '',
+      organization: organization || '',
+      authorizationLevel: authorizationLevel || '',
       updatedAt: serverTimestamp(),
-    });
+    };
+    await updateDoc(userDocRef, updateData);
     console.log(`User profile for UID: ${uid} successfully updated in Firestore.`);
   } catch (error) {
     console.error('Error updating user profile in Firestore: ', error);

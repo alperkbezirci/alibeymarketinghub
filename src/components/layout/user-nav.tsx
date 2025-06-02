@@ -1,3 +1,4 @@
+
 // src/components/layout/user-nav.tsx
 "use client";
 
@@ -17,32 +18,35 @@ import { useAuth } from "@/contexts/auth-context";
 import { LogOut, User as UserIcon, Settings } from "lucide-react";
 
 export function UserNav() {
-  const { user, logout } = useAuth();
+  const { user, logout, getDisplayName } = useAuth();
 
   if (!user) {
     return null;
   }
 
-  const getInitials = (name: string) => {
-    const names = name.split(' ');
-    if (names.length === 1) return names[0][0].toUpperCase();
-    return names[0][0].toUpperCase() + names[names.length - 1][0].toUpperCase();
+  const getInitials = (firstName: string, lastName: string) => {
+    const firstInitial = firstName ? firstName[0].toUpperCase() : "";
+    const lastInitial = lastName ? lastName[0].toUpperCase() : "";
+    if (firstInitial && lastInitial) return firstInitial + lastInitial;
+    if (firstInitial) return firstInitial;
+    return "K"; // Fallback
   }
+  const displayName = getDisplayName();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.photoURL || `https://placehold.co/40x40.png`} alt={user.name} data-ai-hint="user avatar" />
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+            <AvatarImage src={user.photoURL || `https://placehold.co/40x40.png`} alt={displayName} data-ai-hint="user avatar" />
+            <AvatarFallback>{getInitials(user.firstName, user.lastName)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>

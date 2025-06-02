@@ -12,14 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { getAllUsers, createUserDocumentInFirestore } from '@/services/user-service';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"; // Removed AlertDialogTrigger import as it's not needed here
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AddUserForm } from '@/components/user-management/add-user-form';
 import { EditUserForm } from '@/components/user-management/edit-user-form';
 import { handleDeleteUserAction } from './actions';
+import { AUTHORIZATION_LEVELS, HOTEL_NAMES, USER_ROLES } from '@/lib/constants';
 
 
 export default function UserManagementPage() {
-  const { user: currentUser, isAdminOrMarketingManager } = useAuth();
+  const { user: currentUser, isAdminOrMarketingManager, getDisplayName } = useAuth();
   const { toast } = useToast();
   
   const [users, setUsers] = useState<User[]>([]);
@@ -56,21 +57,36 @@ export default function UserManagementPage() {
 
   const handleCreateAlperFirestoreProfile = async () => {
     setIsCreatingAlperProfile(true);
-    const alperUID = "XbjLMMC2ihdHjg2TBecCSdyOwKB3";
+    const alperUID = "XbjLMMC2ihdHjg2TBecCSdyOwKB3"; // Alper's actual UID from Firebase Auth
     const alperEmail = "akucukbezirci@alibey.com";
-    const alperName = "Alper Küçükbezirci";
-    const alperRoles = ["Pazarlama Müdürü", "Admin"];
+    const alperFirstName = "Alper";
+    const alperLastName = "Küçükbezirci";
+    const alperRoles = [USER_ROLES.MARKETING_MANAGER, USER_ROLES.ADMIN];
+    const alperTitle = "Pazarlama Müdürü"; // Example title
+    const alperOrganization = HOTEL_NAMES.find(h => h.includes("Resort")) || HOTEL_NAMES[0]; // Example organization
+    const alperAuthLevel = AUTHORIZATION_LEVELS.find(level => level.includes("Tam Yetki")) || AUTHORIZATION_LEVELS[AUTHORIZATION_LEVELS.length -1];
+
     try {
-      await createUserDocumentInFirestore(alperUID, alperEmail, alperName, alperRoles);
+      await createUserDocumentInFirestore(
+        alperUID, 
+        alperEmail, 
+        alperFirstName, 
+        alperLastName, 
+        alperRoles,
+        alperTitle,
+        alperOrganization,
+        alperAuthLevel
+        // photoURL can be added if available
+      );
       toast({
         title: "Profil Oluşturuldu",
-        description: `${alperName} için Firestore kullanıcı profili başarıyla oluşturuldu/güncellendi.`,
+        description: `${alperFirstName} ${alperLastName} için Firestore kullanıcı profili başarıyla oluşturuldu/güncellendi.`,
       });
       if(isAdminOrMarketingManager) fetchUsers();
     } catch (error: any) {
       toast({
         title: "Profil Oluşturma Hatası",
-        description: error.message || "Alper Küçükbezirci için Firestore profili oluşturulurken bir hata oluştu.",
+        description: error.message || `${alperFirstName} ${alperLastName} için Firestore profili oluşturulurken bir hata oluştu.`,
         variant: "destructive",
       });
     } finally {
@@ -87,7 +103,8 @@ export default function UserManagementPage() {
     if (!userToDelete) return;
     setIsDeletingUser(true);
     
-    const result = await handleDeleteUserAction(userToDelete.uid, userToDelete.name);
+    const userFullName = `${userToDelete.firstName} ${userToDelete.lastName}`;
+    const result = await handleDeleteUserAction(userToDelete.uid, userFullName);
 
     if (result.success) {
         toast({ title: "Başarılı", description: result.message });
@@ -100,7 +117,7 @@ export default function UserManagementPage() {
   };
 
 
-  if (!isAdminOrMarketingManager) {
+  if (!isAdminOrMarketingManager && !isCreatingAlperProfile) { // Allow showing Alper's button even if not admin yet
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
@@ -127,7 +144,7 @@ export default function UserManagementPage() {
               Alper K. Profilini Firestore'a Ekle/Güncelle
             </Button>
             <p className="text-xs text-muted-foreground mt-2">
-              UID: XbjLMMC2ihdHjg2TBecCSdyOwKB3, E-posta: akucukbezirci@alibey.com, Roller: Pazarlama Müdürü, Admin
+              UID: XbjLMMC2ihdHjg2TBecCSdyOwKB3, E-posta: akucukbezirci@alibey.com
             </p>
           </CardContent>
         </Card>
@@ -154,10 +171,10 @@ export default function UserManagementPage() {
                 <PlusCircle className="mr-2 h-4 w-4" /> Yeni Kullanıcı Ekle
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-headline text-2xl">Yeni Kullanıcı Ekle</DialogTitle>
-                <DialogDescription>Yeni bir kullanıcı oluşturun ve rollerini atayın.</DialogDescription>
+                <DialogDescription>Yeni bir kullanıcı oluşturun ve detaylarını atayın.</DialogDescription>
               </DialogHeader>
               <AddUserForm 
                 onSuccess={() => { setIsAddUserDialogOpen(false); fetchUsers(); }}
@@ -194,7 +211,7 @@ export default function UserManagementPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline">Kullanıcı Listesi</CardTitle>
-          <CardDescription>Sistemdeki kayıtlı kullanıcılar ve rolleri.</CardDescription>
+          <CardDescription>Sistemdeki kayıtlı kullanıcılar ve detayları.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoadingUsers && (
@@ -215,28 +232,34 @@ export default function UserManagementPage() {
                 <TableRow>
                   <TableHead>Ad Soyad</TableHead>
                   <TableHead>E-posta</TableHead>
+                  <TableHead>Ünvan</TableHead>
+                  <TableHead>Kurum</TableHead>
                   <TableHead>Roller</TableHead>
+                  <TableHead>Yetki Seviyesi</TableHead>
                   <TableHead className="text-right">Eylemler</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.uid}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell className="font-medium">{`${user.firstName} ${user.lastName}`}</TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.title || '-'}</TableCell>
+                    <TableCell>{user.organization || '-'}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {user.roles.map(role => <Badge key={role} variant="secondary">{role}</Badge>)}
                         {user.roles.length === 0 && <Badge variant="outline">Rol Atanmamış</Badge>}
                       </div>
                     </TableCell>
+                    <TableCell>{user.authorizationLevel || '-'}</TableCell>
                     <TableCell className="text-right space-x-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} disabled={user.uid === currentUser?.uid /* Admin kendini düzenleyemesin (opsiyonel) */}>
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} disabled={user.uid === currentUser?.uid && user.roles.includes(USER_ROLES.ADMIN) && users.filter(u => u.roles.includes(USER_ROLES.ADMIN)).length === 1 /* Son admin kendini düzenleyemesin */}>
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => setUserToDelete(user)} disabled={user.uid === currentUser?.uid /* Admin kendini silemesin */}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                       <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => setUserToDelete(user)} disabled={user.uid === currentUser?.uid /* Admin kendini silemesin */}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -251,10 +274,10 @@ export default function UserManagementPage() {
           if (!open) setSelectedUserToEdit(null);
           setIsEditUserDialogOpen(open);
         }}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-headline text-2xl">Kullanıcıyı Düzenle</DialogTitle>
-              <DialogDescription>{selectedUserToEdit.name} kullanıcısının bilgilerini güncelleyin.</DialogDescription>
+              <DialogDescription>{`${selectedUserToEdit.firstName} ${selectedUserToEdit.lastName}`} kullanıcısının bilgilerini güncelleyin.</DialogDescription>
             </DialogHeader>
             <EditUserForm 
               user={selectedUserToEdit}
@@ -270,7 +293,7 @@ export default function UserManagementPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Kullanıcıyı Silmek Üzeresiniz</AlertDialogTitle>
             <AlertDialogDescription>
-              "{userToDelete?.name}" adlı kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem kullanıcının Firestore verilerini silecektir.
+              "{userToDelete?.firstName} {userToDelete?.lastName}" adlı kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem kullanıcının Firestore verilerini silecektir.
               <br />
               <strong className="text-destructive">Firebase Authentication kaydının silinmesi Admin SDK gerektirir ve bu arayüzden tam olarak yapılamayabilir.</strong>
               <br />

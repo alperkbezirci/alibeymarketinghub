@@ -6,13 +6,17 @@ import React, { createContext, useState, useEffect, useCallback, useContext, Rea
 import { useRouter, usePathname } from 'next/navigation';
 import { User as FirebaseAuthUser, onAuthStateChanged, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase'; // Assuming firebase.ts is in src/lib
+import { auth, db } from '@/lib/firebase';
 
 export interface User {
-  uid: string; // Changed id to uid to match Firebase
+  uid: string;
   email: string | null;
-  name: string;
-  roles: string[];
+  firstName: string;
+  lastName: string;
+  title?: string; // Ünvan
+  organization?: string; // Kurum
+  roles: string[]; // Rol
+  authorizationLevel?: string; // Yetki Seviyesi
   photoURL?: string | null;
 }
 
@@ -22,6 +26,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAdminOrMarketingManager: boolean;
+  getDisplayName: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,11 +50,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (userDocSnap.exists()) {
             const userDataFromFirestore = userDocSnap.data();
             console.log("[AuthContext] User document found in Firestore:", userDataFromFirestore);
+            
+            let currentFirstName = userDataFromFirestore.firstName;
+            let currentLastName = userDataFromFirestore.lastName;
+
+            if (!currentFirstName && firebaseUser.displayName) {
+              const nameParts = firebaseUser.displayName.split(' ');
+              currentFirstName = nameParts[0] || "Kullanıcı";
+              currentLastName = nameParts.slice(1).join(' ') || "";
+            } else if (!currentFirstName) {
+              currentFirstName = "Kullanıcı";
+              currentLastName = "";
+            }
+
+
             const appUser: User = {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              name: userDataFromFirestore.name || firebaseUser.displayName || "Kullanıcı",
+              firstName: currentFirstName,
+              lastName: currentLastName || "",
+              title: userDataFromFirestore.title,
+              organization: userDataFromFirestore.organization,
               roles: userDataFromFirestore.roles || [],
+              authorizationLevel: userDataFromFirestore.authorizationLevel,
               photoURL: firebaseUser.photoURL || userDataFromFirestore.photoURL,
             };
             setUser(appUser);
@@ -77,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Initial user state 'user' is not a dependency here.
+  }, []);
 
   useEffect(() => {
     console.log("[AuthContext] Pathname/User/Loading effect triggered. Loading:", loading, "User:", user ? user.uid : 'null', "Pathname:", pathname);
@@ -97,35 +120,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       console.log("[AuthContext] Calling signInWithEmailAndPassword...");
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log("[AuthContext] signInWithEmailAndPassword successful. UserCredential:", userCredential?.user?.uid);
-      // onAuthStateChanged will handle setting user and redirecting, setLoading(false)
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle setting user and redirecting
     } catch (error: any) {
       console.error("[AuthContext] Login failed in signInWithEmailAndPassword. Error message:", error.message, "Error code:", error.code, "Stack:", error.stack);
-      setUser(null);
-      setLoading(false);
-      throw error;
+      setUser(null); // Ensure user is null on failed login attempt before onAuthStateChanged might run
+      setLoading(false); // Explicitly set loading to false here
+      throw error; // Re-throw the error to be caught by the calling component
     }
   }, []);
 
   const logout = useCallback(async () => {
     console.log("[AuthContext] Logout attempt.");
-    setLoading(true);
     try {
       await firebaseSignOut(auth);
       console.log("[AuthContext] firebaseSignOut successful.");
-      // onAuthStateChanged will handle setting user to null
+      setUser(null); // Explicitly set user to null
+      // onAuthStateChanged will also set user to null, but this makes it immediate
       router.replace('/login');
     } catch (error: any) {
       console.error("[AuthContext] Logout failed. Error:", error.message, error.code);
     } finally {
-      // setLoading(false) will be handled by onAuthStateChanged
+       // setLoading(false) will be handled by onAuthStateChanged if it triggers,
+       // or if not, it should be false from previous state or login failure
        console.log("[AuthContext] Logout function finished.");
     }
   }, [router]);
 
   const isAdminOrMarketingManager = user?.roles.includes('Admin') || user?.roles.includes('Pazarlama Müdürü') || false;
   
+  const getDisplayName = (): string => {
+    if (!user) return "Kullanıcı";
+    return `${user.firstName} ${user.lastName}`.trim();
+  };
+
   if (loading && pathname !== '/login') {
     console.log("[AuthContext] Render: Global loading screen (loading and not on login page).");
     return <div className="flex h-screen items-center justify-center"><p>Yükleniyor...</p></div>;
@@ -138,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   console.log("[AuthContext] Render: Providing context. User:", user ? user.uid : 'null', "Loading:", loading);
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdminOrMarketingManager }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAdminOrMarketingManager, getDisplayName }}>
       {children}
     </AuthContext.Provider>
   );

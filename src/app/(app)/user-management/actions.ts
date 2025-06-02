@@ -2,14 +2,9 @@
 // src/app/(app)/user-management/actions.ts
 "use server";
 
-import { createUserWithEmailAndPassword, deleteUser as deleteAuthUserFirebase } from "firebase/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { createUserDocumentInFirestore, deleteUserDocument, updateUserProfile } from "@/services/user-service";
-
-// IMPORTANT: Firebase Admin SDK is REQUIRED to reliably delete other users' Auth accounts.
-// Client-side SDK (firebase/auth) cannot delete another user's account.
-// This is a simplified version for the prototype. In production, deleteAuthUser
-// would call a Firebase Function or backend endpoint that uses the Admin SDK.
 
 interface AddUserResult {
   success: boolean;
@@ -18,13 +13,17 @@ interface AddUserResult {
 }
 
 export async function handleAddUserAction(prevState: any, formData: FormData): Promise<AddUserResult> {
-  const name = formData.get("name") as string;
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const firstName = formData.get("firstName") as string;
+  const lastName = formData.get("lastName") as string;
+  const title = formData.get("title") as string | undefined;
+  const organization = formData.get("organization") as string | undefined;
   const roles = formData.getAll("roles") as string[];
+  const authorizationLevel = formData.get("authorizationLevel") as string | undefined;
 
-  if (!name || !email || !password || roles.length === 0) {
-    return { success: false, message: "Lütfen tüm zorunlu alanları doldurun." };
+  if (!email || !password || !firstName || !lastName || roles.length === 0 || !authorizationLevel) {
+    return { success: false, message: "Lütfen tüm zorunlu alanları (E-posta, Şifre, İsim, Soyisim, Rol, Yetki Seviyesi) doldurun." };
   }
 
   try {
@@ -37,9 +36,18 @@ export async function handleAddUserAction(prevState: any, formData: FormData): P
     }
 
     // Step 2: Create user document in Firestore
-    await createUserDocumentInFirestore(authUser.uid, email, name, roles);
+    await createUserDocumentInFirestore(
+        authUser.uid, 
+        email, 
+        firstName, 
+        lastName, 
+        roles, 
+        title, 
+        organization, 
+        authorizationLevel
+    );
     
-    return { success: true, message: `"${name}" adlı kullanıcı başarıyla oluşturuldu.`, uid: authUser.uid };
+    return { success: true, message: `"${firstName} ${lastName}" adlı kullanıcı başarıyla oluşturuldu.`, uid: authUser.uid };
   } catch (error: any) {
     console.error("Error adding new user:", error);
     let errorMessage = "Kullanıcı oluşturulurken bir hata oluştu.";
@@ -62,16 +70,21 @@ interface UpdateUserResult {
 
 export async function handleUpdateUserAction(prevState: any, formData: FormData): Promise<UpdateUserResult> {
   const uid = formData.get("uid") as string;
-  const name = formData.get("name") as string;
+  const firstName = formData.get("firstName") as string;
+  const lastName = formData.get("lastName") as string;
+  const title = formData.get("title") as string | undefined;
+  const organization = formData.get("organization") as string | undefined;
   const roles = formData.getAll("roles") as string[];
+  const authorizationLevel = formData.get("authorizationLevel") as string | undefined;
 
-  if (!uid || !name || roles.length === 0) {
-    return { success: false, message: "Kullanıcı ID, isim ve en az bir rol zorunludur." };
+
+  if (!uid || !firstName || !lastName || roles.length === 0 || !authorizationLevel) {
+    return { success: false, message: "Kullanıcı ID, İsim, Soyisim, en az bir Rol ve Yetki Seviyesi zorunludur." };
   }
 
   try {
-    await updateUserProfile(uid, name, roles);
-    return { success: true, message: `"${name}" adlı kullanıcının bilgileri güncellendi.` };
+    await updateUserProfile(uid, firstName, lastName, roles, title, organization, authorizationLevel);
+    return { success: true, message: `"${firstName} ${lastName}" adlı kullanıcının bilgileri güncellendi.` };
   } catch (error: any) {
     console.error("Error updating user:", error);
     return { success: false, message: error.message || "Kullanıcı güncellenirken bir hata oluştu." };
@@ -83,7 +96,7 @@ interface DeleteUserResult {
   message: string;
 }
 
-export async function handleDeleteUserAction(uid: string, userName: string): Promise<DeleteUserResult> {
+export async function handleDeleteUserAction(uid: string, userFullName: string): Promise<DeleteUserResult> {
   if (!uid) {
     return { success: false, message: "Kullanıcı ID'si silme işlemi için zorunludur." };
   }
@@ -94,20 +107,11 @@ export async function handleDeleteUserAction(uid: string, userName: string): Pro
 
     // Step 2: Delete Firebase Authentication user
     // IMPORTANT TODO: THIS REQUIRES ADMIN SDK. The current user (admin) CANNOT delete another user via client SDK.
-    // This operation will likely fail or is not possible without a backend function (e.g., Firebase Function)
-    // that uses the Firebase Admin SDK.
-    // For prototype, we'll attempt it but expect issues or only Firestore deletion.
-    // const userToDelete = auth.currentUser; // This is the *currently logged in* admin, not the user to delete.
-    // Need to find a way to get the user object by UID to delete, or use Admin SDK.
-    // This is a placeholder / known limitation for client-side only app.
-    // await deleteAuthUserFirebase(userToDelete); // THIS IS WRONG - attempts to delete current admin
-
     console.warn(`TODO: Firebase Auth kullanıcısı (UID: ${uid}) silme işlemi Admin SDK gerektirir ve burada tam olarak uygulanamamıştır.`);
     
-    return { success: true, message: `"${userName}" kullanıcısının Firestore belgesi silindi. (Auth silme işlemi Admin SDK gerektirir)` };
+    return { success: true, message: `"${userFullName}" kullanıcısının Firestore belgesi silindi. (Auth silme işlemi Admin SDK gerektirir)` };
   } catch (error: any) {
     console.error("Error deleting user:", error);
-    // If Firestore deletion succeeded but Auth failed (or wasn't properly attempted), message should reflect that.
-    return { success: false, message: `"${userName}" kullanıcısı silinirken hata: ${error.message}. Auth silme Admin SDK gerektirebilir.` };
+    return { success: false, message: `"${userFullName}" kullanıcısı silinirken hata: ${error.message}. Auth silme Admin SDK gerektirebilir.` };
   }
 }
