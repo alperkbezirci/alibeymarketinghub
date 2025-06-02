@@ -9,7 +9,7 @@ import { InvoiceForm } from "@/components/budget/invoice-form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'; // Renamed to avoid conflict
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { SPENDING_CATEGORIES, HOTEL_NAMES } from "@/lib/constants";
 
 // Placeholder data
@@ -31,10 +31,17 @@ export default function BudgetPage() {
 
   const handleSaveInvoice = (formData: any) => {
     console.log("Yeni Fatura Kaydedildi:", formData);
+    if (formData.file) {
+      console.log("Yüklenen Dosya Adı:", formData.file.name);
+    }
     // Burada fatura verileriyle bütçe verilerini güncelleme mantığı eklenebilir.
     // Örnek: İlgili otelin harcanan bütçesini artır, ilgili kategorinin harcamasını artır.
     // Şimdilik sadece bir tost mesajı gösteriyoruz.
-    toast({ title: "Başarılı", description: `Fatura No: ${formData.invoiceNumber} tutarı ${formData.amount} ${formData.currency} olarak eklendi.` });
+    let description = `Fatura No: ${formData.invoiceNumber} tutarı ${formData.amount} ${formData.currency} olarak eklendi.`;
+    if (formData.file) {
+      description += ` Dosya: ${formData.file.name}`;
+    }
+    toast({ title: "Başarılı", description });
     setIsDialogOpen(false);
   };
 

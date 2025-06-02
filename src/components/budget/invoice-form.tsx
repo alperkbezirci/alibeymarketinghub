@@ -29,7 +29,7 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
   const [amount, setAmount] = useState<number | string>(initialData?.amount || "");
   const [currency, setCurrency] = useState(initialData?.currency || CURRENCIES[0]);
   const [description, setDescription] = useState(initialData?.description || "");
-  // const [file, setFile] = useState<File | null>(null); // Placeholder for file upload
+  const [file, setFile] = useState<File | null>(null); // Re-enabled file state
 
   const { toast } = useToast();
 
@@ -52,8 +52,16 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
       amount: numericAmount,
       currency,
       description,
-      // file, // Placeholder for file upload
+      file, // Pass the file object
     });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    } else {
+      setFile(null);
+    }
   };
 
   return (
@@ -122,8 +130,9 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
 
       <div>
         <Label htmlFor="fileUpload">Dosya Yükle (Opsiyonel)</Label>
-        <Input id="fileUpload" type="file" onChange={(e) => {/* setFile(e.target.files ? e.target.files[0] : null) */}} />
+        <Input id="fileUpload" type="file" onChange={handleFileChange} />
         <p className="text-xs text-muted-foreground mt-1">Fatura görseli veya ilgili belgeyi yükleyebilirsiniz.</p>
+        {file && <p className="text-xs text-green-600 dark:text-green-400 mt-1">Seçilen dosya: {file.name}</p>}
       </div>
 
       <div className="flex justify-end space-x-2 pt-4">
