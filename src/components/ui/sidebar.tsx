@@ -177,6 +177,9 @@ const Sidebar = React.forwardRef<
     ref
   ) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    // Call useId unconditionally at the top level
+    const titleId = React.useId();
+    const descriptionId = React.useId();
     
     if (collapsible === "none") {
       return (
@@ -194,8 +197,6 @@ const Sidebar = React.forwardRef<
     }
 
     if (isMobile) {
-      const titleId = React.useId();
-      const descriptionId = React.useId();
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
           <SheetContent
@@ -774,3 +775,4 @@ export {
     
 
     
+
