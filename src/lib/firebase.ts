@@ -5,45 +5,60 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
-const FIREBASE_CONFIG_VERSION = 'v13_classic_singleton'; // Ensure this is unique for logging
+const FIREBASE_CONFIG_VERSION = 'v15_functional_singleton';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCQSBJ_Et7Le_kCl_LoscVyM7sc6R86jzQ",
   authDomain: "alibey-marketing-hub.firebaseapp.com",
   projectId: "alibey-marketing-hub",
-  storageBucket: "alibey-marketing-hub.firebasestorage.app",
+  storageBucket: "alibey-marketing-hub.firebasestorage.app", // Sizin konsolunuzdan gelen doğru değer
   messagingSenderId: "666761005327",
   appId: "1:666761005327:web:81488b564f0a1a7fdd967a",
   measurementId: "G-5HWNW75QNM"
 };
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let storage: FirebaseStorage;
+interface FirebaseServices {
+  app: FirebaseApp;
+  auth: Auth;
+  db: Firestore;
+  storage: FirebaseStorage;
+}
 
-try {
-  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase module loading. Initializing services...`);
-  if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig);
-    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] New Firebase app initialized.`);
-  } else {
-    app = getApp();
-    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Existing Firebase app retrieved.`);
+let servicesCache: FirebaseServices | null = null;
+
+function initializeFirebaseServices(): FirebaseServices {
+  if (servicesCache) {
+    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Returning cached Firebase services.`);
+    return servicesCache;
   }
 
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
+  try {
+    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Initializing Firebase services...`);
+    const appInstance = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    
+    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase app instance ${getApps().length === 1 ? 'newly initialized' : 'retrieved'}.`);
 
-  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase app and services initialized and ready for export.`);
+    const authInstance = getAuth(appInstance);
+    const dbInstance = getFirestore(appInstance);
+    const storageInstance = getStorage(appInstance);
 
-} catch (error) {
-  console.error(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] CRITICAL ERROR during Firebase initialization:`, error);
-  // Hata durumunda, export edilecek değişkenlerin tanımsız kalmaması için bir fallback düşünülebilir
-  // ancak bu durumda uygulamanın Firebase özellikleri çalışmayacaktır.
-  // Şimdilik, hatayı fırlatmak ve konsolda loglamak en iyisi.
-  throw new Error(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase initialization failed. See console for details.`);
+    servicesCache = {
+      app: appInstance,
+      auth: authInstance,
+      db: dbInstance,
+      storage: storageInstance,
+    };
+    
+    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase services initialized and cached.`);
+    return servicesCache;
+  } catch (error: any) {
+    console.error(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] CRITICAL ERROR during Firebase initialization:`, error);
+    // Hatanın daha görünür olması için fırlatıyoruz
+    throw new Error(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase initialization failed. Error: ${error.message}. Check console for details and firebaseConfig in src/lib/firebase.ts.`);
+  }
 }
+
+// Servisleri başlat ve export et
+const { app, auth, db, storage } = initializeFirebaseServices();
 
 export { app, auth, db, storage };
