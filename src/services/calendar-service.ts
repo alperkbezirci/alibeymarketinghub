@@ -9,29 +9,35 @@ import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy,
 
 export interface CalendarEvent {
   id: string; // Firestore document ID
-  title: string;
-  date: Timestamp | string | Date;
-  type: "project" | "event" | "task" | string;
-  description?: string;
-  projectId?: string;
-  taskId?: string;
+  title: string; // Etkinlik Adı
+  startDate: Timestamp | string | Date; // Başlangıç Tarihi
+  endDate: Timestamp | string | Date;   // Bitiş Tarihi
+  participants?: string; // Katılımcılar
+  location?: string;     // Yer
+  description?: string;  // Açıklama
+  projectId?: string;    // Opsiyonel, eğer bir projeyle ilişkiliyse
+  taskId?: string;       // Opsiyonel, eğer bir görevle ilişkiliyse
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
 const EVENTS_COLLECTION = 'calendarEvents';
 
-export async function getEvents(startDate?: Date, endDate?: Date): Promise<CalendarEvent[]> {
+export async function getEvents(viewStartDate?: Date, viewEndDate?: Date): Promise<CalendarEvent[]> {
   try {
     const eventsCollection = collection(db, EVENTS_COLLECTION);
     let q;
-    if (startDate && endDate) {
+    if (viewStartDate && viewEndDate) {
+        // Fetch events that START within the view range, or END within the view range, or ENCOMPASS the view range
+        // This logic can be complex with Firestore. A simpler approach for now:
+        // Fetch events where startDate is within the broader view.
+        // More robust range queries might involve multiple queries or different data modeling if strict overlap is needed.
         q = query(eventsCollection, 
-                  where('date', '>=', Timestamp.fromDate(startDate)), 
-                  where('date', '<=', Timestamp.fromDate(endDate)),
-                  orderBy('date', 'asc'));
+                  where('startDate', '>=', Timestamp.fromDate(viewStartDate)), 
+                  where('startDate', '<=', Timestamp.fromDate(viewEndDate)),
+                  orderBy('startDate', 'asc'));
     } else {
-        q = query(eventsCollection, orderBy('date', 'asc'));
+        q = query(eventsCollection, orderBy('startDate', 'asc'));
     }
     
     const eventSnapshot = await getDocs(q);
@@ -40,7 +46,8 @@ export async function getEvents(startDate?: Date, endDate?: Date): Promise<Calen
       return {
         id: docSnap.id,
         ...data,
-        date: data.date instanceof Timestamp ? data.date.toDate() : data.date,
+        startDate: data.startDate instanceof Timestamp ? data.startDate.toDate() : new Date(data.startDate as string | Date),
+        endDate: data.endDate instanceof Timestamp ? data.endDate.toDate() : new Date(data.endDate as string | Date),
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
       } as CalendarEvent;
     });
@@ -53,15 +60,21 @@ export async function getEvents(startDate?: Date, endDate?: Date): Promise<Calen
 
 export async function addEvent(eventData: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>): Promise<CalendarEvent> {
   try {
+    if (!eventData.startDate || !eventData.endDate) {
+      throw new Error("Başlangıç ve bitiş tarihleri zorunludur.");
+    }
     const docRef = await addDoc(collection(db, EVENTS_COLLECTION), {
       ...eventData,
-      date: Timestamp.fromDate(new Date(eventData.date as string | Date)),
+      startDate: Timestamp.fromDate(new Date(eventData.startDate as string | Date)),
+      endDate: Timestamp.fromDate(new Date(eventData.endDate as string | Date)),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
      return { 
       id: docRef.id, 
-      ...eventData, 
+      ...eventData,
+      startDate: new Date(eventData.startDate as string | Date), // Return as Date
+      endDate: new Date(eventData.endDate as string | Date),   // Return as Date
       createdAt: Timestamp.now() // Approximate
     } as CalendarEvent;
   } catch (error) {
@@ -71,3 +84,19 @@ export async function addEvent(eventData: Omit<CalendarEvent, 'id' | 'createdAt'
 }
 
 // updateEvent and deleteEvent can be added similarly
+// export async function updateEvent(id: string, eventData: Partial<Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> {
+//   const eventDoc = doc(db, EVENTS_COLLECTION, id);
+//   const updateData: any = { ...eventData, updatedAt: serverTimestamp() };
+//   if (eventData.startDate) {
+//     updateData.startDate = Timestamp.fromDate(new Date(eventData.startDate as string | Date));
+//   }
+//   if (eventData.endDate) {
+//     updateData.endDate = Timestamp.fromDate(new Date(eventData.endDate as string | Date));
+//   }
+//   await updateDoc(eventDoc, updateData);
+// }
+
+// export async function deleteEvent(id: string): Promise<void> {
+//   const eventDoc = doc(db, EVENTS_COLLECTION, id);
+//   await deleteDoc(eventDoc);
+// }

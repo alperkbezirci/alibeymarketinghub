@@ -6,12 +6,12 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ChevronLeft, ChevronRight, Loader2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { EventForm } from "@/components/calendar/event-form"; // Import new EventForm
+import { EventForm } from "@/components/calendar/event-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, isSameDay, startOfWeek, endOfWeek } from "date-fns";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, isSameDay, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { getEvents, addEvent, type CalendarEvent } from "@/services/calendar-service"; // Import calendar service
+import { getEvents, addEvent, type CalendarEvent } from "@/services/calendar-service";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CalendarPage() {
@@ -28,14 +28,14 @@ export default function CalendarPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch events for a slightly wider range to catch events spilling from adjacent weeks
       const viewStart = startOfWeek(startOfMonth(month), { locale: tr });
-      const viewEnd = endOfWeek(endOfMonth(month), { locale: tr });
+      // Fetch a slightly wider range to catch multi-day events starting before/ending after the current view month
+      const viewEnd = endOfWeek(addDays(endOfMonth(month), 7), { locale: tr }); 
       const fetchedEvents = await getEvents(viewStart, viewEnd);
       setEvents(fetchedEvents);
     } catch (err: any) {
       setError(err.message || "Etkinlikler yüklenirken bir hata oluştu.");
-      toast({ title: "Hata", description: err.message, variant: "destructive" });
+      toast({ title: "Hata", description: err.message || "Etkinlikler yüklenirken bir hata oluştu.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -56,33 +56,25 @@ export default function CalendarPage() {
   }, [currentMonth]);
 
   const calendarDays = useMemo(() => {
-    const prefixDaysCount = startingDayIndex;
-    const suffixDaysCount = 6 - (getDay(endOfMonth(currentMonth)) === 0 ? 6 : getDay(endOfMonth(currentMonth)) -1) ;
+    let daysArray = [];
+    const firstDayOfGrid = startOfWeek(startOfMonth(currentMonth), { locale: tr });
+    const lastDayOfGrid = endOfWeek(endOfMonth(currentMonth), { locale: tr });
     
-    let daysToDisplay = [];
-    // Add days from previous month
-    for (let i = prefixDaysCount; i > 0; i--) {
-      daysToDisplay.push(subMonths(endOfMonth(subMonths(currentMonth,1)), i-1 ));
+    // Ensure 6 weeks (42 days) for consistent grid display
+    let currentDay = firstDayOfGrid;
+    while(daysArray.length < 35) { // Minimum 5 weeks
+         daysArray.push(currentDay);
+         currentDay = addDays(currentDay, 1);
     }
-    // Add days from current month
-    daysToDisplay.push(...daysInMonth);
-    // Add days from next month
-    for (let i = 1; i <= suffixDaysCount; i++) {
-      daysToDisplay.push(addMonths(startOfMonth(addMonths(currentMonth,1)), i-1));
+    // If lastDayOfGrid is after the end of 5 weeks, extend to 6 weeks
+    if (daysArray[daysArray.length-1] < lastDayOfGrid || daysArray.length < 42) {
+        while(daysArray.length < 42) {
+             daysArray.push(currentDay);
+             currentDay = addDays(currentDay, 1);
+        }
     }
-     // Ensure calendar grid is always 6 weeks (42 days)
-    const totalCells = daysToDisplay.length <= 35 ? 35 : 42;
-    const currentCells = daysToDisplay.length;
-    if(currentCells < totalCells) {
-      const lastDayInGrid = daysToDisplay[daysToDisplay.length - 1];
-      for(let i=1; i <= totalCells - currentCells; i++) {
-        daysToDisplay.push(new Date(lastDayInGrid.getFullYear(), lastDayInGrid.getMonth(), lastDayInGrid.getDate() + i));
-      }
-    }
-
-
-    return daysToDisplay;
-  }, [daysInMonth, startingDayIndex, currentMonth]);
+    return daysArray;
+  }, [currentMonth, tr]);
 
 
   const handleSaveEvent = async (formData: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -100,7 +92,22 @@ export default function CalendarPage() {
   };
 
   const getEventsForDate = (date: Date) => {
-    return events.filter(event => event.date && isSameDay(new Date(event.date), date));
+    // Show events that start on this day
+    // For multi-day events, more complex logic would be needed to show them across days
+    return events.filter(event => event.startDate && isSameDay(new Date(event.startDate), date));
+  };
+  
+  const formatDateDisplay = (dateInput: Date | string | undefined | null) => {
+    if (!dateInput) return 'N/A';
+    try {
+      return format(new Date(dateInput), 'dd MMM yyyy, HH:mm', { locale: tr });
+    } catch (e) {
+      try {
+        return format(new Date(dateInput), 'dd MMM yyyy', { locale: tr });
+      } catch (e2) {
+        return 'Geçersiz Tarih';
+      }
+    }
   };
 
   const selectedDateEvents = selectedDate ? getEventsForDate(selectedDate) : [];
@@ -115,7 +122,7 @@ export default function CalendarPage() {
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Etkinlik Ekle
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-headline text-2xl">Yeni Etkinlik</DialogTitle>
               <DialogDescription>
@@ -126,7 +133,7 @@ export default function CalendarPage() {
               onSave={handleSaveEvent} 
               onClose={() => setIsDialogOpen(false)}
               isSaving={isSaving}
-              selectedDate={selectedDate}
+              selectedDate={selectedDate} // Pass selectedDate to prefill startDate
             />
           </DialogContent>
         </Dialog>
@@ -153,7 +160,7 @@ export default function CalendarPage() {
                 {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map(day => (
                   <div key={day} className="py-2 text-center font-medium text-sm border-r border-b bg-muted/50">{day}</div>
                 ))}
-                {Array.from({ length: 35 }).map((_, index) => ( // 5 weeks of skeletons
+                {Array.from({ length: 35 }).map((_, index) => (
                   <div key={index} className="p-2 border-r border-b min-h-[100px]">
                     <Skeleton className="h-4 w-1/4 mb-2" />
                     <Skeleton className="h-3 w-full mb-1" />
@@ -187,11 +194,9 @@ export default function CalendarPage() {
                     <span className={`font-medium ${isSameMonth(day, currentMonth) ? '' : 'opacity-50'}`}>{format(day, "d")}</span>
                     <div className="mt-1 space-y-1 text-xs">
                       {getEventsForDate(day).map(event => (
-                         <div key={event.id || event.title} className={`p-1 rounded-sm truncate ${
-                          event.type === 'project' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-300' : 
-                          event.type === 'task' ? 'bg-green-500/20 text-green-700 dark:text-green-300' : 
-                          'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300'
-                        }`}>{event.title}</div>
+                         <div key={event.id || event.title} className="p-1 rounded-sm truncate bg-blue-500/20 text-blue-700 dark:text-blue-300">
+                          {event.title}
+                         </div>
                       ))}
                     </div>
                   </div>
@@ -209,12 +214,19 @@ export default function CalendarPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? <Skeleton className="h-20 w-full" /> : selectedDateEvents.length > 0 ? (
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {selectedDateEvents.map(event => (
-                  <li key={event.id || event.title} className="p-2 border rounded-md">
-                    <p className="font-medium">{event.title}</p>
-                    <p className="text-xs text-muted-foreground">Tür: {event.type.charAt(0).toUpperCase() + event.type.slice(1)}</p>
-                    {event.description && <p className="text-xs mt-1">{event.description}</p>}
+                  <li key={event.id || event.title} className="p-3 border rounded-md shadow-sm">
+                    <p className="font-semibold text-base mb-1">{event.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium">Başlangıç:</span> {formatDateDisplay(event.startDate)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium">Bitiş:</span> {formatDateDisplay(event.endDate)}
+                    </p>
+                    {event.participants && <p className="text-xs text-muted-foreground mt-1"><span className="font-medium">Katılımcılar:</span> {event.participants}</p>}
+                    {event.location && <p className="text-xs text-muted-foreground mt-1"><span className="font-medium">Yer:</span> {event.location}</p>}
+                    {event.description && <p className="text-xs mt-1 pt-1 border-t border-dashed">{event.description}</p>}
                   </li>
                 ))}
               </ul>
