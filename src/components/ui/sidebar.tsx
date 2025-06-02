@@ -177,6 +177,8 @@ const Sidebar = React.forwardRef<
     ref
   ) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const titleId = React.useId();
+    const descriptionId = React.useId();
 
     if (collapsible === "none") {
       return (
@@ -197,6 +199,8 @@ const Sidebar = React.forwardRef<
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
           <SheetContent
+            aria-labelledby={titleId}
+            aria-describedby={descriptionId}
             data-sidebar="sidebar"
             data-mobile="true"
             className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
@@ -208,8 +212,8 @@ const Sidebar = React.forwardRef<
             side={side}
           >
             <SheetHeader className="sr-only">
-              <SheetTitle>Ana Menü</SheetTitle>
-              <SheetDescription>Uygulama ana navigasyon menüsü.</SheetDescription>
+              <SheetTitle id={titleId}>Ana Menü</SheetTitle>
+              <SheetDescription id={descriptionId}>Uygulama ana navigasyon menüsü.</SheetDescription>
             </SheetHeader>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
@@ -766,5 +770,7 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
 
     
