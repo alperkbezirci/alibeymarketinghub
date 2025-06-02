@@ -4,11 +4,11 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
-import { generateWelcomeMessage } from '@/ai/flows/ai-powered-welcome'; // Assuming this path is correct
+import { generateWelcomeMessage } from '@/ai/flows/ai-powered-welcome';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function WelcomeMessage() {
-  const { user } = useAuth();
+  const { user, getDisplayName } = useAuth();
   const [welcomeText, setWelcomeText] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -30,7 +30,7 @@ export function WelcomeMessage() {
           const pendingProjects = 0;
 
           const result = await generateWelcomeMessage({
-            userName: user.name,
+            userName: getDisplayName(), // Düzeltildi: user.name yerine getDisplayName() kullanıldı
             date: currentDate,
             time: currentTime,
             pendingTasks,
@@ -39,7 +39,8 @@ export function WelcomeMessage() {
           setWelcomeText(result.message);
         } catch (error) {
           console.error("Yapay zeka karşılama mesajı oluşturulurken hata:", error);
-          setWelcomeText(`Merhaba ${user.name}, hoş geldiniz! Bugün ${currentDate}, saat ${currentTime}.`);
+          // Fallback message if AI fails, now uses getDisplayName()
+          setWelcomeText(`Merhaba ${getDisplayName()}, hoş geldiniz! Bugün ${currentDate}, saat ${currentTime}.`);
         } finally {
           setLoading(false);
         }
@@ -52,7 +53,7 @@ export function WelcomeMessage() {
       setLoading(false); // Not logged in, not loading
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentTime, currentDate]); // Removed fetchWelcomeMessage from dependencies as it's defined inside
+  }, [user, currentTime, currentDate, getDisplayName]); // getDisplayName bağımlılıklara eklendi
 
   if (!user) return null;
 
