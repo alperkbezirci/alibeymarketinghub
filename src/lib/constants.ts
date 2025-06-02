@@ -1,3 +1,4 @@
+
 // src/lib/constants.ts
 
 export const USER_ROLES = {
@@ -37,13 +38,7 @@ export const TASK_PRIORITIES = [
 
 export const CURRENCIES = ['EUR', 'TRY', 'USD'];
 
-export const SPENDING_CATEGORIES = [ // Placeholder, will be managed by CMS
-  'Dijital Reklam',
-  'Sosyal Medya',
-  'Etkinlikler',
-  'Basılı Materyal',
-  'Danışmanlık',
-];
+// SPENDING_CATEGORIES removed as it will be managed by Firestore
 
 export const NAV_ITEMS = [
   { name: 'Kontrol Paneli', href: '/dashboard', icon: 'LayoutDashboard' },
@@ -59,3 +54,4 @@ export const ADMIN_NAV_ITEMS = [
   { name: 'Detaylı Raporlar', href: '/detailed-reports', icon: 'AreaChart' },
   { name: 'CMS', href: '/cms', icon: 'Settings2' },
 ];
+

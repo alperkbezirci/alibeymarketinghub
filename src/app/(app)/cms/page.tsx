@@ -6,17 +6,25 @@ import React, { useState } from 'react';
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings, Palette, DollarSign, ListPlus, SlidersVertical, Trash2 } from "lucide-react";
+import { Settings, Palette, DollarSign, ListPlus, SlidersVertical, Edit2, Trash2, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useSpendingCategories } from '@/contexts/spending-categories-context';
+import { useSpendingCategories, type SpendingCategory } from '@/contexts/spending-categories-context';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CategoryEditForm } from "@/components/cms/category-edit-form";
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CmsPage() {
   const { isAdminOrMarketingManager } = useAuth();
   const { toast } = useToast();
-  const { categories, addCategory } = useSpendingCategories();
+  const { categories, addCategory, updateCategory, isLoading: isLoadingCategories, error: categoriesError, refetchCategories } = useSpendingCategories();
+  
   const [newCategoryNameInput, setNewCategoryNameInput] = useState("");
+  const [newCategoryLimitInput, setNewCategoryLimitInput] = useState<number | string>("");
+  
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<SpendingCategory | null>(null);
 
   if (!isAdminOrMarketingManager) {
     return (
@@ -32,10 +40,39 @@ export default function CmsPage() {
     toast({ title: "Ayarlar Kaydedildi", description: `${settingName} ayarları güncellendi (simülasyon).` });
   };
 
-  const handleAddCategory = () => {
-    addCategory(newCategoryNameInput);
-    setNewCategoryNameInput(""); // Clear input after adding
+  const handleAddCategory = async () => {
+    const numericLimit = parseFloat(String(newCategoryLimitInput));
+    if (!newCategoryNameInput.trim()) {
+        toast({ title: "Hata", description: "Kategori adı boş olamaz.", variant: "destructive" });
+        return;
+    }
+    if (isNaN(numericLimit) || numericLimit < 0) {
+        toast({ title: "Hata", description: "Limit geçerli bir sayı olmalı ve 0'dan küçük olmamalıdır.", variant: "destructive" });
+        return;
+    }
+    await addCategory(newCategoryNameInput, numericLimit);
+    setNewCategoryNameInput(""); 
+    setNewCategoryLimitInput("");
   };
+
+  const handleEditCategory = (category: SpendingCategory) => {
+    setSelectedCategory(category);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEditedCategory = async (id: string, name: string, limit: number) => {
+    await updateCategory(id, name, limit);
+    setIsEditDialogOpen(false);
+    setSelectedCategory(null);
+  };
+  
+  // Placeholder for delete - uncomment and implement when service/context supports it
+  // const handleDeleteCategory = async (id: string, name: string) => {
+  //   if (window.confirm(`"${name}" kategorisini silmek istediğinizden emin misiniz?`)) {
+  //     // await deleteCategory(id); // Assuming deleteCategory exists in context
+  //     toast({ title: "Başarılı", description: `"${name}" kategorisi silindi (simülasyon).` });
+  //   }
+  // };
 
   return (
     <div className="space-y-6">
@@ -88,21 +125,37 @@ export default function CmsPage() {
         <Card className="shadow-lg md:col-span-2">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><ListPlus className="mr-2 h-5 w-5 text-primary"/> Harcama Kategorileri</CardTitle>
-            <CardDescription>Yeni harcama kategorileri oluşturun ve mevcutları yönetin.</CardDescription>
+            <CardDescription>Yeni harcama kategorileri oluşturun ve mevcutları yönetin. Veriler Firestore'da saklanır.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <Label>Mevcut Kategoriler:</Label>
-              {categories.length > 0 ? (
-                <ul className="list-disc list-inside mt-2 space-y-1">
+              {isLoadingCategories ? (
+                <div className="space-y-2 mt-2">
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-5/6" />
+                </div>
+              ) : categoriesError ? (
+                 <p className="text-sm text-destructive mt-2">{categoriesError} <Button variant="link" size="sm" onClick={refetchCategories}>Tekrar Dene</Button></p>
+              ) : categories.length > 0 ? (
+                <ul className="list-none mt-2 space-y-1">
                   {categories.map(category => (
-                    <li key={category.id} className="text-sm flex justify-between items-center">
-                      {category.name}
-                      {/* Future: Add delete/edit buttons here
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive/80" onClick={() => console.log('Delete', category.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                      */}
+                    <li key={category.id} className="text-sm flex justify-between items-center p-2 border-b last:border-b-0 hover:bg-muted/30 rounded">
+                      <div>
+                        <span className="font-medium">{category.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2"> (Limit: {category.limit.toLocaleString('tr-TR')}€)</span>
+                      </div>
+                      <div className="space-x-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-500" onClick={() => handleEditCategory(category)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        {/* 
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/80" onClick={() => handleDeleteCategory(category.id, category.name)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        */}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -110,7 +163,7 @@ export default function CmsPage() {
                 <p className="text-sm text-muted-foreground mt-2">Henüz harcama kategorisi eklenmemiş.</p>
               )}
             </div>
-            <div className="flex items-end gap-2 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row items-end gap-2 pt-4 border-t">
               <div className="flex-grow">
                 <Label htmlFor="newCategoryNameInput">Yeni Kategori Adı</Label>
                 <Input 
@@ -120,15 +173,50 @@ export default function CmsPage() {
                   onChange={(e) => setNewCategoryNameInput(e.target.value)}
                 />
               </div>
-              <Button onClick={handleAddCategory}>Kategori Ekle</Button>
+              <div className="w-full sm:w-auto">
+                <Label htmlFor="newCategoryLimitInput">Limit (€)</Label>
+                <Input 
+                  id="newCategoryLimitInput" 
+                  type="number"
+                  placeholder="Örn: 5000" 
+                  value={newCategoryLimitInput}
+                  onChange={(e) => setNewCategoryLimitInput(e.target.value)}
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <Button onClick={handleAddCategory} disabled={isLoadingCategories}>
+                {isLoadingCategories && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Kategori Ekle
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground pt-2">Not: Eklenen kategoriler bu oturum için geçerlidir. Kalıcı depolama için veritabanı entegrasyonu gereklidir.</p>
           </CardContent>
         </Card>
       </div>
        <p className="text-center text-muted-foreground">
         Bu alanda uygulamanın çeşitli iç ayarlarını ve içeriklerini yönetebilirsiniz.
       </p>
+
+      {selectedCategory && (
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+            setIsEditDialogOpen(open);
+            if (!open) setSelectedCategory(null);
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-headline text-2xl">Kategoriyi Düzenle</DialogTitle>
+            </DialogHeader>
+            <CategoryEditForm
+              category={selectedCategory}
+              onSave={handleSaveEditedCategory}
+              onClose={() => {
+                setIsEditDialogOpen(false);
+                setSelectedCategory(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
