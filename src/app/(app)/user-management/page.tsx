@@ -6,21 +6,21 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, type User } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { PlusCircle, Edit3, Trash2, UserCog, UserPlus, Loader2, RefreshCw } from "lucide-react";
+import { PlusCircle, Edit3, Trash2, UserCog, Loader2, RefreshCw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { getAllUsers, createUserDocumentInFirestore } from '@/services/user-service';
+import { getAllUsers } from '@/services/user-service';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AddUserForm } from '@/components/user-management/add-user-form';
 import { EditUserForm } from '@/components/user-management/edit-user-form';
 import { handleDeleteUserAction } from './actions';
-import { AUTHORIZATION_LEVELS, HOTEL_NAMES, USER_ROLES } from '@/lib/constants';
+import { USER_ROLES } from '@/lib/constants';
 
 
 export default function UserManagementPage() {
-  const { user: currentUser, isAdminOrMarketingManager, getDisplayName } = useAuth();
+  const { user: currentUser, isAdminOrMarketingManager } = useAuth();
   const { toast } = useToast();
   
   const [users, setUsers] = useState<User[]>([]);
@@ -33,7 +33,6 @@ export default function UserManagementPage() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   
-  const [isCreatingAlperProfile, setIsCreatingAlperProfile] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setIsLoadingUsers(true);
@@ -41,7 +40,8 @@ export default function UserManagementPage() {
     try {
       const fetchedUsers = await getAllUsers();
       setUsers(fetchedUsers);
-    } catch (error: any)      setUsersError(error.message || "Kullanıcılar yüklenirken bir hata oluştu.");
+    } catch (error: any) {
+      setUsersError(error.message || "Kullanıcılar yüklenirken bir hata oluştu.");
       toast({ title: "Hata", description: error.message || "Kullanıcılar yüklenirken bir hata oluştu.", variant: "destructive" });
     } finally {
       setIsLoadingUsers(false);
@@ -54,65 +54,6 @@ export default function UserManagementPage() {
     }
   }, [isAdminOrMarketingManager, fetchUsers]);
 
-  const handleCreateAlperFirestoreProfile = async () => {
-    setIsCreatingAlperProfile(true);
-    
-    let targetUID = "XbjLMMC2ihdHjg2TBecCSdyOwKB3"; // Fallback, idealde Firebase Auth'dan gelen UID kullanılmalı
-    const alperEmail = "akucukbezirci@alibey.com";
-    
-    // If the currently logged-in user is Alper K., use their actual UID.
-    if (currentUser && currentUser.email === alperEmail) {
-      targetUID = currentUser.uid;
-      console.log(`[UserManagementPage] Alper K. logged in. Using actual UID: ${targetUID} for Firestore profile.`);
-    } else if (currentUser) {
-      console.warn(`[UserManagementPage] Logged in user (${currentUser.email}) is not akucukbezirci@alibey.com. This button is intended for Alper K. profile creation. Attempting with UID: ${targetUID} if current user matches fallback or for general setup.`);
-      // Proceed with fallback UID only if no user is logged in, or if it's a specific setup scenario
-      // For safety, if a different user is logged in, we might reconsider creating/overwriting a profile for `targetUID`
-      // unless this button has a very specific, documented purpose for that UID.
-      // For now, we assume if `currentUser` is not Alper, this button might be used in a specific recovery/setup state
-      // for the known Alper K. UID.
-    } else {
-        console.warn(`[UserManagementPage] No user currently logged in. Attempting to create Alper K. profile with fallback UID: ${targetUID}. This might be an issue if Alper K.'s actual Auth UID is different.`);
-    }
-
-
-    const alperFirstName = "Alper";
-    const alperLastName = "Küçükbezirci";
-    const alperRoles = [USER_ROLES.MARKETING_MANAGER, USER_ROLES.ADMIN];
-    const alperTitle = "Pazarlama Müdürü";
-    const alperOrganization = HOTEL_NAMES.find(h => h.includes("Resort")) || HOTEL_NAMES[0];
-    const alperAuthLevel = AUTHORIZATION_LEVELS.find(level => level.includes("Tam Yetki")) || AUTHORIZATION_LEVELS[AUTHORIZATION_LEVELS.length -1];
-
-    console.log("[UserManagementPage] Attempting to create/update Alper K. profile. Target UID:", targetUID, "Email:", alperEmail, "Roles to be set:", alperRoles);
-
-    try {
-      await createUserDocumentInFirestore(
-        targetUID, 
-        alperEmail, 
-        alperFirstName, 
-        alperLastName, 
-        alperRoles,
-        alperTitle,
-        alperOrganization,
-        alperAuthLevel
-      );
-      toast({
-        title: "Profil Oluşturuldu/Güncellendi",
-        description: `${alperFirstName} ${alperLastName} için Firestore kullanıcı profili başarıyla oluşturuldu/güncellendi. Değişikliklerin tam olarak yansıması için lütfen sayfayı yenileyin veya yeniden giriş yapın.`,
-        duration: 7000,
-      });
-      // fetchUsers will be called by useEffect if isAdminOrMarketingManager becomes true after context update
-      // For immediate effect, user might need to re-login or context needs a way to force refresh roles.
-    } catch (error: any) {
-      toast({
-        title: "Profil Oluşturma Hatası",
-        description: error.message || `${alperFirstName} ${alperLastName} için Firestore profili oluşturulurken bir hata oluştu.`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreatingAlperProfile(false);
-    }
-  };
 
   const openEditDialog = (userToEdit: User) => {
     setSelectedUserToEdit(userToEdit);
@@ -137,53 +78,21 @@ export default function UserManagementPage() {
   };
 
 
-  if (!isAdminOrMarketingManager && !isCreatingAlperProfile) {
-    // This block is shown when the current user is not an admin/manager
-    // AND the "Create Alper Profile" button is not currently in a loading state.
-    // This allows the button to be shown even if AuthContext hasn't yet recognized Alper as admin,
-    // giving Alper a way to create his own admin profile.
+  if (!isAdminOrMarketingManager) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
           <h1 className="text-3xl font-headline font-bold">Kullanıcı Yönetimi</h1>
         </div>
-        <Card className="bg-secondary/30 border-primary/50">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold flex items-center">
-              <UserPlus className="mr-2 h-5 w-5 text-primary" /> Özel Yönetici Profili Oluşturma (Alper K.)
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Bu bölüm, `akucukbezirci@alibey.com` e-posta adresli yönetici kullanıcısı için Firestore profil belgesini manuel olarak oluşturmak/güncellemek içindir.
-              Lütfen önce Firebase Authentication üzerinden bu kullanıcıyı oluşturduğunuzdan emin olun.
-              Eğer bu kullanıcıyla giriş yaptıysanız ve henüz yönetici yetkileriniz tanımlanmadıysa, bu butonu kullanın.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              onClick={handleCreateAlperFirestoreProfile} 
-              disabled={isCreatingAlperProfile}
-              variant="outline"
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
-            >
-              {isCreatingAlperProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Yönetici (Alper K.) Profilini Firestore'a Ekle/Güncelle
-            </Button>
-             <p className="text-xs text-muted-foreground mt-2">
-              Hedef e-posta: akucukbezirci@alibey.com. UID, bu e-posta ile giriş yapan kullanıcıdan alınacaktır.
-              İşlem sonrası tam yetki için yeniden giriş yapmanız gerekebilir.
-            </p>
-          </CardContent>
-        </Card>
          <div className="flex flex-col items-center justify-center h-64 text-center border rounded-lg p-8">
           <UserCog className="w-16 h-16 text-destructive mb-4" />
           <h1 className="text-2xl font-bold">Erişim Kısıtlı</h1>
-          <p className="text-muted-foreground">Sayfanın geri kalanını görüntülemek için yönetici olarak giriş yapmalısınız. <br/> Eğer `akucukbezirci@alibey.com` ile giriş yaptıysanız ve Firestore profiliniz (rolleriniz) henüz oluşturulmadıysa veya güncel değilse, lütfen yukarıdaki butonu kullanın ve ardından yeniden giriş yapın.</p>
+          <p className="text-muted-foreground">Bu sayfayı görüntülemek için yönetici olarak giriş yapmalısınız.</p>
         </div>
       </div>
     );
   }
 
-  // This block is shown if the user IS admin/manager
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
@@ -211,33 +120,6 @@ export default function UserManagementPage() {
           </Dialog>
         </div>
       </div>
-      
-      {/* This card is for Alper K. to create/update his profile, even if he is already admin,
-          it can be used to ensure his profile is correctly set up.
-          It's less prominent if already admin. */}
-      <Card className="bg-secondary/30 border-primary/50">
-        <CardHeader>
-          <CardTitle className="text-sm font-semibold flex items-center">
-            <UserPlus className="mr-2 h-5 w-5 text-primary" /> Yönetici Profili (Alper K.) Kontrol/Güncelleme
-          </CardTitle>
-          <CardDescription className="text-xs">
-            `akucukbezirci@alibey.com` kullanıcısı için Firestore profil belgesini oluşturur/günceller. 
-            Eğer bu kullanıcı sizseniz ve profilinizde bir sorun olduğundan şüpheleniyorsanız bu butonu kullanabilirsiniz.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button 
-            onClick={handleCreateAlperFirestoreProfile} 
-            disabled={isCreatingAlperProfile}
-            variant="outline"
-            className="bg-accent text-accent-foreground hover:bg-accent/90"
-            size="sm"
-          >
-            {isCreatingAlperProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Yönetici (Alper K.) Profilini Oluştur/Güncelle
-          </Button>
-        </CardContent>
-      </Card>
       
       <Card className="shadow-lg">
         <CardHeader>
@@ -298,7 +180,7 @@ export default function UserManagementPage() {
                             <Edit3 className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        {selectedUserToEdit?.uid === user.uid && ( // Render form only if this user is selected
+                        {selectedUserToEdit?.uid === user.uid && ( 
                             <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                                 <DialogHeader>
                                 <DialogTitle className="font-headline text-2xl">Kullanıcıyı Düzenle</DialogTitle>
@@ -314,8 +196,8 @@ export default function UserManagementPage() {
                       </Dialog>
                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" onClick={() => setUserToDelete(user)} 
                         disabled={
-                          user.uid === currentUser?.uid || // Cannot delete self
-                          (user.roles.includes(USER_ROLES.ADMIN) && users.filter(u => u.roles.includes(USER_ROLES.ADMIN)).length === 1) // Cannot delete the last admin unless it's self
+                          user.uid === currentUser?.uid || 
+                          (user.roles.includes(USER_ROLES.ADMIN) && users.filter(u => u.roles.includes(USER_ROLES.ADMIN)).length === 1) 
                         }
                       >
                         <Trash2 className="h-4 w-4" />
@@ -354,3 +236,4 @@ export default function UserManagementPage() {
     </div>
   );
 }
+
