@@ -10,7 +10,7 @@ import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy,
 export interface Project {
   id: string; // Firestore document ID
   projectName: string;
-  responsiblePersons?: string; // Comma-separated string or array of user refs
+  responsiblePersons?: string[]; // Array of user UIDs
   startDate?: Timestamp | string | Date;
   endDate: Timestamp | string | Date;
   status: string;
@@ -33,6 +33,7 @@ export async function getProjects(): Promise<Project[]> {
       return {
         id: docSnap.id,
         ...data,
+        responsiblePersons: Array.isArray(data.responsiblePersons) ? data.responsiblePersons : [], // Ensure it's an array
         startDate: data.startDate instanceof Timestamp ? data.startDate.toDate() : data.startDate,
         endDate: data.endDate instanceof Timestamp ? data.endDate.toDate() : data.endDate,
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
@@ -49,16 +50,16 @@ export async function addProject(projectData: Omit<Project, 'id' | 'createdAt' |
   try {
     const docRef = await addDoc(collection(db, PROJECTS_COLLECTION), {
       ...projectData,
+      responsiblePersons: projectData.responsiblePersons || [], // Ensure it's an array, even if empty
       startDate: projectData.startDate ? Timestamp.fromDate(new Date(projectData.startDate as string | Date)) : null,
       endDate: Timestamp.fromDate(new Date(projectData.endDate as string | Date)),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    // For returning the full project, we might need to fetch it again or construct it carefully
-    // For simplicity, returning the input data with a new ID (actual created data would have Timestamps)
-    return { 
-      id: docRef.id, 
-      ...projectData, 
+    return {
+      id: docRef.id,
+      ...projectData,
+      responsiblePersons: projectData.responsiblePersons || [],
       createdAt: Timestamp.now() // Approximate
     } as Project;
   } catch (error) {
@@ -76,6 +77,9 @@ export async function updateProject(id: string, projectData: Partial<Omit<Projec
     }
     if (projectData.endDate) {
       updateData.endDate = Timestamp.fromDate(new Date(projectData.endDate as string | Date));
+    }
+    if (projectData.responsiblePersons) {
+        updateData.responsiblePersons = projectData.responsiblePersons;
     }
     await updateDoc(projectDoc, updateData);
   } catch (error) {

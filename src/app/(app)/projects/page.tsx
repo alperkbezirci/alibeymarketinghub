@@ -13,8 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES, PROJECT_STATUSES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { getProjects, addProject, type Project } from "@/services/project-service"; // Updated import
-import { format } from 'date-fns'; // For date formatting
+import { getProjects, addProject, type Project } from "@/services/project-service";
+import { format } from 'date-fns';
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProjectsPage() {
@@ -50,13 +50,13 @@ export default function ProjectsPage() {
       toast({ title: "Başarılı", description: `${formData.projectName} adlı proje oluşturuldu.` });
       setIsDialogOpen(false);
       fetchProjects(); // Refresh the list
-    } catch (err: any) {
+    } catch (err: any)      {
       toast({ title: "Hata", description: err.message || "Proje kaydedilirken bir hata oluştu.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   const formatDateDisplay = (dateInput: Date | string | undefined | null) => {
     if (!dateInput) return 'N/A';
     try {
@@ -84,10 +84,10 @@ export default function ProjectsPage() {
                 Yeni bir proje oluşturmak için lütfen aşağıdaki alanları doldurun. Yapay zeka desteği ile açıklama oluşturabilirsiniz.
               </DialogDescription>
             </DialogHeader>
-            <ProjectForm 
-              onSave={handleSaveProject} 
+            <ProjectForm
+              onSave={handleSaveProject}
               onClose={() => setIsDialogOpen(false)}
-              isSaving={isSaving} 
+              isSaving={isSaving}
             />
           </DialogContent>
         </Dialog>
@@ -159,7 +159,7 @@ export default function ProjectsPage() {
               </CardHeader>
               <CardContent className="flex-grow">
                 <div className="space-y-2 text-sm">
-                  <p><span className="font-medium">Sorumlular:</span> {project.responsiblePersons || 'N/A'}</p>
+                  <p><span className="font-medium">Sorumlular:</span> {project.responsiblePersons && project.responsiblePersons.length > 0 ? `${project.responsiblePersons.length} kişi` : 'N/A'}</p>
                   <p><span className="font-medium">Başlangıç:</span> {formatDateDisplay(project.startDate)}</p>
                   <p><span className="font-medium">Bitiş:</span> {formatDateDisplay(project.endDate)}</p>
                   <Badge variant={project.status === "Tamamlandı" ? "default" : "secondary"}>{project.status}</Badge>
