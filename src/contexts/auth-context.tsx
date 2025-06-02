@@ -1,3 +1,4 @@
+
 // src/contexts/auth-context.tsx
 "use client";
 
@@ -32,96 +33,110 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    console.log("[AuthContext] onAuthStateChanged listener setup.");
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseAuthUser | null) => {
+      console.log("[AuthContext] onAuthStateChanged triggered. Firebase user UID:", firebaseUser ? firebaseUser.uid : 'null');
       if (firebaseUser) {
         try {
-          // Fetch user details from Firestore
+          console.log("[AuthContext] Firebase user exists. Fetching user doc from Firestore for UID:", firebaseUser.uid);
           const userDocRef = doc(db, "users", firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
 
           if (userDocSnap.exists()) {
             const userDataFromFirestore = userDocSnap.data();
-            setUser({
+            console.log("[AuthContext] User document found in Firestore:", userDataFromFirestore);
+            const appUser: User = {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               name: userDataFromFirestore.name || firebaseUser.displayName || "Kullanıcı",
               roles: userDataFromFirestore.roles || [],
               photoURL: firebaseUser.photoURL || userDataFromFirestore.photoURL,
-            });
+            };
+            setUser(appUser);
+            console.log("[AuthContext] App user set:", appUser);
           } else {
-            // User exists in Auth but not in Firestore (e.g. new signup or missing record)
-            // For now, treat as not fully logged in, or create a default user record.
-            // Here, we'll log them out as roles are essential for this app.
-            console.warn(`User document not found in Firestore for UID: ${firebaseUser.uid}. Logging out.`);
+            console.warn(`[AuthContext] User document not found in Firestore for UID: ${firebaseUser.uid}. Logging out.`);
             await firebaseSignOut(auth);
             setUser(null);
           }
-        } catch (error) {
-          console.error("Error fetching user data from Firestore:", error);
+        } catch (error: any) {
+          console.error("[AuthContext] Error in onAuthStateChanged while processing Firebase user:", error.message, error.code, error.stack);
           await firebaseSignOut(auth);
           setUser(null);
         }
       } else {
+        console.log("[AuthContext] No Firebase user in onAuthStateChanged. Setting app user to null.");
         setUser(null);
       }
       setLoading(false);
+      console.log("[AuthContext] onAuthStateChanged finished. Loading set to false. Current app user:", user ? user.uid : 'null');
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      console.log("[AuthContext] onAuthStateChanged listener cleanup.");
+      unsubscribe();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Initial user state 'user' is not a dependency here.
 
   useEffect(() => {
+    console.log("[AuthContext] Pathname/User/Loading effect triggered. Loading:", loading, "User:", user ? user.uid : 'null', "Pathname:", pathname);
     if (!loading) {
       if (!user && pathname !== '/login') {
+        console.log("[AuthContext] No user, not on login page. Redirecting to /login.");
         router.replace('/login');
       } else if (user && pathname === '/login') {
-        router.replace('/dashboard'); // Default page after login
+        console.log("[AuthContext] User exists, on login page. Redirecting to /dashboard.");
+        router.replace('/dashboard');
       }
     }
   }, [user, loading, pathname, router]);
 
   const login = useCallback(async (email: string, password: string) => {
+    console.log(`[AuthContext] Login attempt for email: ${email}`);
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting user and redirecting
+      console.log("[AuthContext] Calling signInWithEmailAndPassword...");
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("[AuthContext] signInWithEmailAndPassword successful. UserCredential:", userCredential?.user?.uid);
+      // onAuthStateChanged will handle setting user and redirecting, setLoading(false)
     } catch (error: any) {
-      console.error("Login failed:", error);
-      // alert('Giriş bilgileri hatalı veya kullanıcı bulunamadı.'); 
-      // A toast notification would be better here
-      setUser(null); // Ensure user state is cleared on failed login
-      setLoading(false); // Stop loading on error
-      throw error; // Re-throw to allow LoginPage to catch it
+      console.error("[AuthContext] Login failed in signInWithEmailAndPassword. Error message:", error.message, "Error code:", error.code, "Stack:", error.stack);
+      setUser(null);
+      setLoading(false);
+      throw error;
     }
-    // setLoading(false) will be handled by onAuthStateChanged's setLoading(false)
   }, []);
 
   const logout = useCallback(async () => {
+    console.log("[AuthContext] Logout attempt.");
     setLoading(true);
     try {
       await firebaseSignOut(auth);
+      console.log("[AuthContext] firebaseSignOut successful.");
       // onAuthStateChanged will handle setting user to null
       router.replace('/login');
-    } catch (error) {
-      console.error("Logout failed:", error);
+    } catch (error: any) {
+      console.error("[AuthContext] Logout failed. Error:", error.message, error.code);
     } finally {
-       // setUser(null) and setLoading(false) will be handled by onAuthStateChanged
+      // setLoading(false) will be handled by onAuthStateChanged
+       console.log("[AuthContext] Logout function finished.");
     }
   }, [router]);
 
   const isAdminOrMarketingManager = user?.roles.includes('Admin') || user?.roles.includes('Pazarlama Müdürü') || false;
   
-  // This loading screen logic might need adjustment depending on desired UX
-  // If loading and not on login, show loading. This prevents flicker during initial auth check.
   if (loading && pathname !== '/login') {
+    console.log("[AuthContext] Render: Global loading screen (loading and not on login page).");
     return <div className="flex h-screen items-center justify-center"><p>Yükleniyor...</p></div>;
   }
   
-  // If not loading, and no user, and not on login (this case should be handled by redirection useEffect, but as a fallback)
   if (!loading && !user && pathname !== '/login') {
+    console.log("[AuthContext] Render: Global redirecting screen (not loading, no user, not on login page).");
      return <div className="flex h-screen items-center justify-center"><p>Yönlendiriliyor...</p></div>;
   }
 
+  console.log("[AuthContext] Render: Providing context. User:", user ? user.uid : 'null', "Loading:", loading);
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, isAdminOrMarketingManager }}>
       {children}
