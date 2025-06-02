@@ -60,3 +60,17 @@ export const ADMIN_NAV_ITEMS = [
   { name: 'Detaylı Raporlar', href: '/detailed-reports', icon: 'AreaChart' },
   { name: 'CMS', href: '/cms', icon: 'Settings2' },
 ];
+
+export const EVENT_TYPES = [
+  'Organizasyon',
+  'Turnuva',
+  'Info/FamTrip',
+  'Özel Misafir',
+  'Influencer',
+  'Basın',
+  'Seyahat',
+  'Salescall',
+  'Fuar',
+  'Toplantı',
+];
+

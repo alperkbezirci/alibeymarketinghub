@@ -8,11 +8,37 @@ import { PlusCircle, ChevronLeft, ChevronRight, Loader2, AlertTriangle } from "l
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { EventForm } from "@/components/calendar/event-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge"; // Added Badge for event type display
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, isSameDay, startOfWeek, endOfWeek, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { getEvents, addEvent, type CalendarEvent } from "@/services/calendar-service";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EVENT_TYPES } from "@/lib/constants"; // For coloring logic
+
+// Helper for event type colors (can be expanded)
+const getEventTypeColor = (eventType?: string) => {
+  if (!eventType) return "bg-gray-500/20 text-gray-700 dark:text-gray-300"; // Default
+  switch (eventType) {
+    case EVENT_TYPES[0]: // Organizasyon
+    case EVENT_TYPES[8]: // Fuar
+    case EVENT_TYPES[9]: // Toplantı
+      return "bg-blue-500/20 text-blue-700 dark:text-blue-300";
+    case EVENT_TYPES[1]: // Turnuva
+      return "bg-green-500/20 text-green-700 dark:text-green-300";
+    case EVENT_TYPES[2]: // Info/FamTrip
+    case EVENT_TYPES[3]: // Özel Misafir
+    case EVENT_TYPES[4]: // Influencer
+    case EVENT_TYPES[5]: // Basın
+      return "bg-purple-500/20 text-purple-700 dark:text-purple-300";
+    case EVENT_TYPES[6]: // Seyahat
+    case EVENT_TYPES[7]: // Salescall
+      return "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300";
+    default:
+      return "bg-gray-500/20 text-gray-700 dark:text-gray-300";
+  }
+};
+
 
 export default function CalendarPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -29,8 +55,7 @@ export default function CalendarPage() {
     setError(null);
     try {
       const viewStart = startOfWeek(startOfMonth(month), { locale: tr });
-      // Fetch a slightly wider range to catch multi-day events starting before/ending after the current view month
-      const viewEnd = endOfWeek(addDays(endOfMonth(month), 7), { locale: tr }); 
+      const viewEnd = endOfWeek(addDays(endOfMonth(month), 7), { locale: tr });
       const fetchedEvents = await getEvents(viewStart, viewEnd);
       setEvents(fetchedEvents);
     } catch (err: any) {
@@ -59,14 +84,12 @@ export default function CalendarPage() {
     let daysArray = [];
     const firstDayOfGrid = startOfWeek(startOfMonth(currentMonth), { locale: tr });
     const lastDayOfGrid = endOfWeek(endOfMonth(currentMonth), { locale: tr });
-    
-    // Ensure 6 weeks (42 days) for consistent grid display
+
     let currentDay = firstDayOfGrid;
-    while(daysArray.length < 35) { // Minimum 5 weeks
+    while(daysArray.length < 35) {
          daysArray.push(currentDay);
          currentDay = addDays(currentDay, 1);
     }
-    // If lastDayOfGrid is after the end of 5 weeks, extend to 6 weeks
     if (daysArray[daysArray.length-1] < lastDayOfGrid || daysArray.length < 42) {
         while(daysArray.length < 42) {
              daysArray.push(currentDay);
@@ -74,7 +97,7 @@ export default function CalendarPage() {
         }
     }
     return daysArray;
-  }, [currentMonth, tr]);
+  }, [currentMonth]);
 
 
   const handleSaveEvent = async (formData: Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -83,7 +106,7 @@ export default function CalendarPage() {
       await addEvent(formData);
       toast({ title: "Başarılı", description: `${formData.title} adlı etkinlik oluşturuldu.` });
       setIsDialogOpen(false);
-      fetchEventsForMonth(currentMonth); // Refresh the list
+      fetchEventsForMonth(currentMonth);
     } catch (err: any) {
       toast({ title: "Hata", description: err.message || "Etkinlik kaydedilirken bir hata oluştu.", variant: "destructive" });
     } finally {
@@ -92,23 +115,24 @@ export default function CalendarPage() {
   };
 
   const getEventsForDate = (date: Date) => {
-    // Show events that start on this day
-    // For multi-day events, more complex logic would be needed to show them across days
     return events.filter(event => event.startDate && isSameDay(new Date(event.startDate), date));
   };
-  
+
   const formatDateDisplay = (dateInput: Date | string | undefined | null) => {
     if (!dateInput) return 'N/A';
     try {
-      return format(new Date(dateInput), 'dd MMM yyyy, HH:mm', { locale: tr });
-    } catch (e) {
-      try {
-        return format(new Date(dateInput), 'dd MMM yyyy', { locale: tr });
-      } catch (e2) {
-        return 'Geçersiz Tarih';
+      const date = new Date(dateInput);
+      if (isNaN(date.getTime())) return 'Geçersiz Tarih';
+      // Check if time is midnight (likely only date was set)
+      if (date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0) {
+        return format(date, 'dd MMM yyyy', { locale: tr });
       }
+      return format(date, 'dd MMM yyyy, HH:mm', { locale: tr });
+    } catch (e) {
+        return 'Geçersiz Tarih';
     }
   };
+
 
   const selectedDateEvents = selectedDate ? getEventsForDate(selectedDate) : [];
 
@@ -129,11 +153,11 @@ export default function CalendarPage() {
                 Takvime yeni bir etkinlik veya görev ekleyin.
               </DialogDescription>
             </DialogHeader>
-            <EventForm 
-              onSave={handleSaveEvent} 
+            <EventForm
+              onSave={handleSaveEvent}
               onClose={() => setIsDialogOpen(false)}
               isSaving={isSaving}
-              selectedDate={selectedDate} // Pass selectedDate to prefill startDate
+              selectedDate={selectedDate}
             />
           </DialogContent>
         </Dialog>
@@ -184,17 +208,17 @@ export default function CalendarPage() {
                 {calendarDays.map((day, index) => (
                   <div
                     key={index}
-                    className={`p-2 border-r border-b min-h-[100px] transition-colors cursor-pointer hover:bg-accent/50
-                      ${isSameMonth(day, currentMonth) ? 'bg-background' : 'bg-muted/20 text-muted-foreground/50'}
-                      ${isToday(day) ? 'ring-2 ring-primary' : ''}
-                      ${selectedDate && isSameDay(day, selectedDate) ? 'bg-accent' : ''}
-                    `}
+                    className={cn(`p-2 border-r border-b min-h-[100px] transition-colors cursor-pointer hover:bg-accent/50`,
+                      isSameMonth(day, currentMonth) ? 'bg-background' : 'bg-muted/20 text-muted-foreground/50',
+                      isToday(day) ? 'ring-2 ring-primary' : '',
+                      selectedDate && isSameDay(day, selectedDate) ? 'bg-accent' : ''
+                    )}
                     onClick={() => setSelectedDate(day)}
                   >
                     <span className={`font-medium ${isSameMonth(day, currentMonth) ? '' : 'opacity-50'}`}>{format(day, "d")}</span>
                     <div className="mt-1 space-y-1 text-xs">
                       {getEventsForDate(day).map(event => (
-                         <div key={event.id || event.title} className="p-1 rounded-sm truncate bg-blue-500/20 text-blue-700 dark:text-blue-300">
+                         <div key={event.id || event.title} className={cn("p-1 rounded-sm truncate", getEventTypeColor(event.eventType))}>
                           {event.title}
                          </div>
                       ))}
@@ -217,7 +241,10 @@ export default function CalendarPage() {
               <ul className="space-y-3">
                 {selectedDateEvents.map(event => (
                   <li key={event.id || event.title} className="p-3 border rounded-md shadow-sm">
-                    <p className="font-semibold text-base mb-1">{event.title}</p>
+                    <div className="flex justify-between items-start mb-1">
+                      <p className="font-semibold text-base">{event.title}</p>
+                      {event.eventType && <Badge variant="secondary">{event.eventType}</Badge>}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       <span className="font-medium">Başlangıç:</span> {formatDateDisplay(event.startDate)}
                     </p>

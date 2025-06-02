@@ -10,6 +10,7 @@ import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy,
 export interface CalendarEvent {
   id: string; // Firestore document ID
   title: string; // Etkinlik Adı
+  eventType?: string; // Etkinlik Türü
   startDate: Timestamp | string | Date; // Başlangıç Tarihi
   endDate: Timestamp | string | Date;   // Bitiş Tarihi
   participants?: string; // Katılımcılar
@@ -28,24 +29,21 @@ export async function getEvents(viewStartDate?: Date, viewEndDate?: Date): Promi
     const eventsCollection = collection(db, EVENTS_COLLECTION);
     let q;
     if (viewStartDate && viewEndDate) {
-        // Fetch events that START within the view range, or END within the view range, or ENCOMPASS the view range
-        // This logic can be complex with Firestore. A simpler approach for now:
-        // Fetch events where startDate is within the broader view.
-        // More robust range queries might involve multiple queries or different data modeling if strict overlap is needed.
-        q = query(eventsCollection, 
-                  where('startDate', '>=', Timestamp.fromDate(viewStartDate)), 
+        q = query(eventsCollection,
+                  where('startDate', '>=', Timestamp.fromDate(viewStartDate)),
                   where('startDate', '<=', Timestamp.fromDate(viewEndDate)),
                   orderBy('startDate', 'asc'));
     } else {
         q = query(eventsCollection, orderBy('startDate', 'asc'));
     }
-    
+
     const eventSnapshot = await getDocs(q);
     const eventList = eventSnapshot.docs.map(docSnap => {
       const data = docSnap.data();
       return {
         id: docSnap.id,
         ...data,
+        eventType: data.eventType || '',
         startDate: data.startDate instanceof Timestamp ? data.startDate.toDate() : new Date(data.startDate as string | Date),
         endDate: data.endDate instanceof Timestamp ? data.endDate.toDate() : new Date(data.endDate as string | Date),
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
@@ -65,14 +63,16 @@ export async function addEvent(eventData: Omit<CalendarEvent, 'id' | 'createdAt'
     }
     const docRef = await addDoc(collection(db, EVENTS_COLLECTION), {
       ...eventData,
+      eventType: eventData.eventType || '',
       startDate: Timestamp.fromDate(new Date(eventData.startDate as string | Date)),
       endDate: Timestamp.fromDate(new Date(eventData.endDate as string | Date)),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-     return { 
-      id: docRef.id, 
+     return {
+      id: docRef.id,
       ...eventData,
+      eventType: eventData.eventType || '',
       startDate: new Date(eventData.startDate as string | Date), // Return as Date
       endDate: new Date(eventData.endDate as string | Date),   // Return as Date
       createdAt: Timestamp.now() // Approximate
@@ -92,6 +92,9 @@ export async function addEvent(eventData: Omit<CalendarEvent, 'id' | 'createdAt'
 //   }
 //   if (eventData.endDate) {
 //     updateData.endDate = Timestamp.fromDate(new Date(eventData.endDate as string | Date));
+//   }
+//   if (eventData.eventType) { // Handle eventType update
+//     updateData.eventType = eventData.eventType;
 //   }
 //   await updateDoc(eventDoc, updateData);
 // }
