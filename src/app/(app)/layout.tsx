@@ -1,11 +1,10 @@
 // src/app/(app)/layout.tsx
 "use client";
-import type React from 'react';
+import React, { useEffect } from 'react'; // Changed from "import type React"
 import { Header } from '@/components/layout/header';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarInset, SidebarHeader, SidebarFooter, SidebarTrigger } from '@/components/ui/sidebar';
 import { Mountain } from 'lucide-react';
 import Link from 'next/link';
