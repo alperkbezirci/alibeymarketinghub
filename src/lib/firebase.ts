@@ -1,61 +1,75 @@
 
 // src/lib/firebase.ts
-// IMPORTANT: We are relying on Next.js's built-in support for .env files.
-// Ensure your Firebase credentials are in a .env or .env.local file in the project root.
-// Specifically, /workspace/.env is targeted by these instructions.
-
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
+import dotenv from 'dotenv';
+import path from 'path';
 
-// --- BEGIN ENHANCED DIAGNOSTIC LOG ---
-console.log("!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Evaluating Firebase configuration from process.env. Expecting .env file at /workspace/.env to be loaded by Next.js !!!!!!!!!!");
+// Explicitly load the .env file from /workspace/.env
+// This is crucial if Next.js isn't picking it up automatically in this environment.
+// Note: In a standard Next.js setup, this explicit dotenv call might not be necessary
+// as Next.js has built-in .env loading. However, for specific environments like Firebase Studio,
+// being explicit can help ensure variables are loaded.
+const envPath = '/workspace/.env'; // Assuming .env is in the workspace root.
+const dotenvResult = dotenv.config({ path: envPath, override: true }); // override: true ensures these values take precedence.
 
-const requiredEnvVars: Record<string, string | undefined> = {
-  NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-let criticalConfigError = false;
-let missingVarsMessage = 'Firebase Initialization Failed:';
-
-for (const varName in requiredEnvVars) {
-  const value = requiredEnvVars[varName];
-  if (!value) {
-    console.error(`ERROR: Missing Firebase environment variable: ${varName}. This MUST be set in your /workspace/.env file and the server restarted.`);
-    missingVarsMessage += ` ${varName} is missing.`;
-    criticalConfigError = true;
-  } else if ((varName === 'NEXT_PUBLIC_FIREBASE_APP_ID' && (value.includes('YOUR_') || value.includes('placeholder') || value.includes('REPLACE_')))) {
-    console.error(`ERROR: Firebase environment variable ${varName} in /workspace/.env is still a placeholder: '${value}'. Please replace it with your actual Firebase App ID and restart the server.`);
-    missingVarsMessage += ` ${varName} is still a placeholder.`;
-    criticalConfigError = true;
+if (dotenvResult.error) {
+  console.warn(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Warning: Error loading .env file from ${envPath}: ${dotenvResult.error.message}. This might be okay if variables are set via other platform-specific mechanisms. Will proceed to check process.env directly. !!!!!!!!!!`);
+} else {
+  if (dotenvResult.parsed) {
+    console.log(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Successfully loaded and parsed .env file from ${envPath}. Variables loaded by dotenv:`, Object.keys(dotenvResult.parsed).join(', '));
   } else {
-    console.log(`Firebase environment variable ${varName} is: SET (Length: ${value.length})`);
+    console.log(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Loaded .env file from ${envPath}, but no variables were parsed (is the file empty or only comments?).`);
+  }
+}
+
+console.log("!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Checking Firebase Environment Variables from process.env (after attempting to load .env) !!!!!!!!!!");
+
+const requiredEnvVarKeys = [
+  'NEXT_PUBLIC_FIREBASE_API_KEY',
+  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+  'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  'NEXT_PUBLIC_FIREBASE_APP_ID',
+];
+
+let missingVarsMessage = '';
+let criticalConfigError = false;
+const placeholderSubstrings = ['YOUR_', 'placeholder', 'REPLACE_'];
+
+const firebaseConfigValues: Record<string, string | undefined> = {};
+
+for (const varName of requiredEnvVarKeys) {
+  const value = process.env[varName];
+  firebaseConfigValues[varName] = value;
+  console.log(`!!!!!!!!!! FIREBASE DEBUG (src/lib/firebase.ts) - Var: ${varName}, Value from process.env: ${value ? 'SET (first few chars: ' + String(value).substring(0,5) + '...)' : 'UNDEFINED or EMPTY'}`);
+  if (!value) {
+    missingVarsMessage += `${varName} is missing. `;
+    criticalConfigError = true;
+  } else if (varName === 'NEXT_PUBLIC_FIREBASE_APP_ID' && placeholderSubstrings.some(p => value.toUpperCase().includes(p))) {
+    missingVarsMessage += `${varName} is still a placeholder: '${value}'. You MUST replace the placeholder in /workspace/.env and restart the server. `;
+    criticalConfigError = true;
   }
 }
 
 if (criticalConfigError) {
-  const fullErrorMsg = missingVarsMessage + " Check your /workspace/.env file, ensure all placeholders (especially App ID) are replaced with actual values, and restart the server.";
+  const fullErrorMsg = `Firebase Initialization Failed: ${missingVarsMessage}Check your /workspace/.env file, ensure all placeholders (especially App ID) are replaced with actual values, and restart the server.`;
   console.error("!!!!!!!!!! " + fullErrorMsg.toUpperCase() + " !!!!!!!!!!!");
   throw new Error(fullErrorMsg);
 }
 
-console.log("!!!!!!!!!! FIREBASE CONFIG PRE-CHECK PASSED (all required env vars found and App ID is not a placeholder) !!!!!!!!!!!");
-// --- END ENHANCED DIAGNOSTIC LOG ---
-
+console.log("!!!!!!!!!! FIREBASE CONFIG PRE-CHECK PASSED (all required env vars found in process.env, and App ID is not a placeholder) !!!!!!!!!!!");
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+  appId: firebaseConfigValues.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
 let app: FirebaseApp;
@@ -63,56 +77,29 @@ let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
 
-// This check is for client-side rendering to prevent re-initialization
-// For server-side, getApps().length will likely be 0 on first import per request.
-if (typeof window !== 'undefined' && getApps().length > 0) {
-  console.log("Firebase app already initialized (client-side getApps().length > 0), getting existing app.");
-  app = getApp();
-} else if (getApps().length === 0) { // Server-side or first client-side init
-  try {
-    console.log("Attempting to initialize Firebase app with config (values from process.env):", {
-        apiKey: firebaseConfig.apiKey ? 'SET' : 'UNDEFINED',
-        authDomain: firebaseConfig.authDomain,
-        projectId: firebaseConfig.projectId,
-        storageBucket: firebaseConfig.storageBucket,
-        messagingSenderId: firebaseConfig.messagingSenderId,
-        appId: firebaseConfig.appId && !firebaseConfig.appId.includes('REPLACE_') ? 'SET' : 'UNDEFINED/PLACEHOLDER',
-    });
+try {
+  if (getApps().length === 0) {
+    console.log("Attempting to initialize Firebase app with resolved config:", firebaseConfig);
     app = initializeApp(firebaseConfig);
     console.log("Firebase app initialized successfully via initializeApp().");
-  } catch (error: any) {
-    console.error("!!!!!!!!!! FIREBASE SDK initializeApp FAILED !!!!!!!!!!! This usually means the provided config values (though present and checked by pre-check) are incorrect for your Firebase project (e.g., wrong API key for the project ID) or the API key has restrictions preventing its use.", error);
-    // To prevent further errors down the line if app is not initialized,
-    // we assign dummy objects but still re-throw the error.
-    app = {} as FirebaseApp;
-    auth = {} as Auth;
-    db = {} as Firestore;
-    storage = {} as FirebaseStorage;
-    console.warn("Assigned dummy Firebase service objects due to initializeApp failure.");
-    throw error; // Re-throw the original Firebase SDK error
+  } else {
+    console.log("Firebase app already initialized (getApps().length > 0), getting existing app.");
+    app = getApp();
   }
-} else { // Fallback for any other scenario where getApps().length > 0 (likely server-side subsequent calls within same request lifecycle if modules are cached)
-  console.log("Firebase app already initialized (getApps().length > 0, not necessarily client-side), getting existing app.");
-  app = getApp();
-}
 
-// These will throw if 'app' is not a valid FirebaseApp (e.g. if initializeApp failed and threw)
-try {
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
   console.log("Firebase services (Auth, Firestore, Storage) obtained successfully.");
-} catch (serviceError: any) {
-   console.error("!!!!!!!!!! ERROR GETTING FIREBASE SERVICES (getAuth, getFirestore, getStorage) AFTER APP INITIALIZATION ATTEMPT !!!!!!!!!!! This can happen if initializeApp() failed silently or `app` is not a valid FirebaseApp object.", serviceError);
-   // Ensure dummy objects if they weren't set before, but this path means 'app' was likely problematic.
-   auth = auth || {} as Auth;
-   db = db || {} as Firestore;
-   storage = storage || {} as FirebaseStorage;
-   if (app && Object.keys(app).length > 0 && !(app instanceof Error) ) { // Check if app is not an error itself
-        // Only re-throw if app was somewhat valid but services failed. If app itself was the problem, the init error was primary.
-        // This helps avoid masking the original initializeApp error if it occurred.
-        if (!criticalConfigError) throw serviceError; // If criticalConfigError was false, the initial pre-check passed.
-   }
+} catch (error: any) {
+  console.error("!!!!!!!!!! FIREBASE SDK INITIALIZATION OR SERVICE GET FAILED !!!!!!!!!!! This usually means the provided config values (though present and checked by pre-check) are incorrect for your Firebase project OR the API key has restrictions preventing its use.", error);
+  console.error("Firebase config used during failed attempt:", firebaseConfig);
+  // Re-throw the original Firebase error if it's a Firebase specific error, otherwise our custom one.
+  if (error.code && error.code.startsWith('auth/')) {
+    throw error;
+  } else {
+     throw new Error(`Firebase SDK error after config pre-check: ${error.message}. Config used: ${JSON.stringify(firebaseConfig)}`);
+  }
 }
 
 export { app, auth, db, storage };
