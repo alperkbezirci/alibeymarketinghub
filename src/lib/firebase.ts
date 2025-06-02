@@ -5,61 +5,88 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
-const FIREBASE_CONFIG_VERSION = "v6_hardcoded_again"; // Yeni versiyon etiketi
+const FIREBASE_CONFIG_VERSION = "v8_hardcoded_again"; 
 
-console.log(`!!!!!!!!!! FIREBASE DEBUG (${FIREBASE_CONFIG_VERSION} - src/lib/firebase.ts) - KODA GÖMÜLÜ yapılandırma KULLANILIYOR. BU GÜVENLİ DEĞİLDİR VE YALNIZCA GEÇİCİ BİR ÇÖZÜMDÜR. !!!!!!!!!!`);
-
-// Firebase yapılandırma bilgilerinizi doğrudan buraya girin:
+// !!!!!!!!!! GEÇİCİ ÇÖZÜM: Firebase yapılandırması doğrudan koda gömüldü !!!!!!!!!!
+// Firebase Studio'daki ortam değişkeni yükleme sorunları nedeniyle bu yöntem kullanılıyor.
+// UZUN VADEDE BU GÜVENLİ DEĞİLDİR. API anahtarlarınızı ve diğer hassas bilgileri
+// .env.local veya platformun ortam değişkeni yönetimi aracılığıyla sağlamalısınız.
 const firebaseConfig = {
-  apiKey: "AIzaSyCQSBJ_Et7Le_kCl_LoscVyM7sc6R86jzQ",
-  authDomain: "alibey-marketing-hub.firebaseapp.com",
-  projectId: "alibey-marketing-hub",
-  storageBucket: "alibey-marketing-hub.appspot.com",
-  messagingSenderId: "666761005327",
-  appId: "1:666761005327:web:81488b564f0a1a7fdd967a",
+  apiKey: "YOUR_API_KEY", // GERÇEK API ANAHTARINIZI BURAYA GİRİN
+  authDomain: "YOUR_AUTH_DOMAIN", // GERÇEK AUTH DOMAIN'İNİZİ BURAYA GİRİN
+  projectId: "YOUR_PROJECT_ID", // GERÇEK PROJE ID'NİZİ BURAYA GİRİN
+  storageBucket: "YOUR_STORAGE_BUCKET", // GERÇEK STORAGE BUCKET'INIZI BURAYA GİRİN
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // GERÇEK MESSAGING SENDER ID'NİZİ BURAYA GİRİN
+  appId: "1:666761005327:web:81488b564f0a1a7fdd967a", // BU APP ID DOĞRU GÖRÜNÜYOR
 };
+// !!!!!!!!!! YUKARIDAKİ PLACEHOLDERLARI KENDİ GERÇEK DEĞERLERİNİZLE DEĞİŞTİRDİĞİNİZDEN EMİN OLUN !!!!!!!!!!
 
-console.log(`!!!!!!!!!! Kullanılan Firebase Yapılandırması (${FIREBASE_CONFIG_VERSION} - API Anahtarı gizlendi):`, { ...firebaseConfig, apiKey: firebaseConfig.apiKey ? "LOGGED_BUT_HIDDEN" : "MISSING_API_KEY_IN_CONFIG_OBJECT" });
+
+// Yapılandırmadaki tüm anahtarların dolu olup olmadığını kontrol et
+const expectedKeys = [
+  "apiKey", 
+  "authDomain", 
+  "projectId", 
+  "storageBucket", 
+  "messagingSenderId", 
+  "appId"
+];
+const missingHardcodedKeys: string[] = [];
+const placeholderValuesPresent: string[] = [];
+
+expectedKeys.forEach(key => {
+  const value = firebaseConfig[key as keyof typeof firebaseConfig];
+  if (!value) {
+    missingHardcodedKeys.push(key);
+  } else if (value.startsWith("YOUR_") || value.startsWith("GERÇEK")) {
+    placeholderValuesPresent.push(key);
+  }
+});
 
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
 
-try {
-  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase servisleri başlatılmaya çalışılıyor...`);
-  if (getApps().length === 0) {
-    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Hiç Firebase uygulaması başlatılmamış. initializeApp çağrılıyor...`);
-    app = initializeApp(firebaseConfig);
-    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] initializeApp başarılı. App nesnesi:`, app ? "OK" : "FAILED");
-  } else {
-    app = getApp();
-    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase uygulaması zaten mevcut. App örneği alındı. App nesnesi:`, app ? "OK" : "FAILED");
+if (missingHardcodedKeys.length > 0 || placeholderValuesPresent.length > 0) {
+  let errorMessage = `Firebase Initialization Failed (${FIREBASE_CONFIG_VERSION}): Koda gömülü yapılandırmada eksik veya placeholder değerler var. `;
+  if (missingHardcodedKeys.length > 0) {
+    errorMessage += `Eksik anahtarlar: ${missingHardcodedKeys.join(", ")}. `;
   }
+  if (placeholderValuesPresent.length > 0) {
+    errorMessage += `Placeholder değerler: ${placeholderValuesPresent.join(", ")}. Lütfen src/lib/firebase.ts dosyasındaki değerleri gerçek Firebase proje bilgilerinizle güncelleyin.`;
+  }
+  console.error(`!!!!!!!!!! ${errorMessage} !!!!!!!!!!`);
+  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Koda Gömülü Yapılandırma Durumu:`);
+  expectedKeys.forEach(key => {
+    const val = firebaseConfig[key as keyof typeof firebaseConfig];
+    let status = "Yüklendi";
+    if (!val) status = "EKSİK";
+    else if (val.startsWith("YOUR_") || val.startsWith("GERÇEK")) status = "PLACEHOLDER";
+    console.log(`  ${key}: ${status}`);
+  });
+  throw new Error(errorMessage);
+} else {
+  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Tüm Firebase yapılandırma değerleri koda gömülü olarak sağlandı. Başlatma deneniyor...`);
+  try {
+    if (getApps().length === 0) {
+      app = initializeApp(firebaseConfig);
+      console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase uygulaması KODA GÖMÜLÜ yapılandırma kullanılarak başarıyla başlatıldı.`);
+    } else {
+      app = getApp();
+      console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Mevcut Firebase uygulama örneği alındı (koda gömülü yapılandırma).`);
+    }
 
-  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Auth servisi alınmaya çalışılıyor...`);
-  auth = getAuth(app);
-  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] getAuth başarılı. Auth nesnesi:`, auth ? "OK" : "FAILED");
-
-  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firestore servisi alınmaya çalışılıyor...`);
-  db = getFirestore(app);
-  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] getFirestore başarılı. Firestore nesnesi:`, db ? "OK" : "FAILED");
-
-  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Storage servisi alınmaya çalışılıyor...`);
-  storage = getStorage(app);
-  console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] getStorage başarılı. Storage nesnesi:`, storage ? "OK" : "FAILED");
-
-  console.log(`!!!!!!!!!! Firebase servisleri (Auth, Firestore, Storage) KODA GÖMÜLÜ yapılandırma ile başarıyla alındı (${FIREBASE_CONFIG_VERSION}). !!!!!!!!!!`);
-
-} catch (error: any) {
-  console.error(`!!!!!!!!!! FIREBASE SDK BAŞLATMA VEYA SERVİS ALMA BAŞARISIZ OLDU (KODA GÖMÜLÜ - ${FIREBASE_CONFIG_VERSION}) !!!!!!!!!`, error);
-  console.error("!!!!!!!!!! Hata mesajı:", error.message);
-  console.error("!!!!!!!!!! Hata kodu:", error.code);
-  const safeConfigForLogging = { ...firebaseConfig, apiKey: firebaseConfig.apiKey ? "LOGGED_BUT_HIDDEN" : "MISSING_API_KEY_IN_CONFIG_OBJECT" };
-  console.error(`!!!!!!!!!! Başarısız denemede kullanılan Firebase yapılandırması (API Anahtarı gizlendi - ${FIREBASE_CONFIG_VERSION}):`, JSON.stringify(safeConfigForLogging, null, 2));
-  throw new Error(`Firebase Core Initialization Failed (${FIREBASE_CONFIG_VERSION}): ${error.message}. Check console for details and hardcoded config in src/lib/firebase.ts.`);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Auth, Firestore ve Storage servisleri KODA GÖMÜLÜ yapılandırma ile başarıyla alındı.`);
+  } catch (error: any) {
+    console.error(`!!!!!!!!!! FIREBASE SDK BAŞLATMA HATASI (${FIREBASE_CONFIG_VERSION}) - KODA GÖMÜLÜ YAPILANDIRMA KULLANILIRKEN. Hata: !!!!!!!!!!`, error);
+    const detailedConfigForError = { ...firebaseConfig, apiKey: firebaseConfig.apiKey ? "********" : "API_KEY_EKSİK" };
+    console.error(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Hata sırasında kullanılan Firebase yapılandırması (API Anahtarı gizlendi):`, JSON.stringify(detailedConfigForError, null, 2));
+    throw new Error(`Firebase Core Başlatma Hatası (${FIREBASE_CONFIG_VERSION}) - Koda gömülü yapılandırma: ${error.message}. Detaylar için konsolu kontrol edin.`);
+  }
 }
 
 export { app, auth, db, storage };
-
-    
