@@ -3,7 +3,8 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+// import { useFormState, useFormStatus } from 'react-dom'; // Eski import
+import { useActionState, useFormStatus } from 'react'; // Yeni import React 19+ için
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +37,7 @@ function SubmitButton() {
 }
 
 export function AddUserForm({ onSuccess, onClose }: AddUserFormProps) {
-  const [state, formAction] = useFormState(handleAddUserAction, initialState);
+  const [state, formAction] = useActionState(handleAddUserAction, initialState); // useFormState -> useActionState
   const { toast } = useToast();
 
   useEffect(() => {

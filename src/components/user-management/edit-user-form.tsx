@@ -3,7 +3,8 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+// import { useFormState, useFormStatus } from 'react-dom'; // Eski import
+import { useActionState, useFormStatus } from 'react'; // Yeni import React 19+ için
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +38,7 @@ function SubmitButton() {
 }
 
 export function EditUserForm({ user, onSuccess, onClose }: EditUserFormProps) {
-  const [state, formAction] = useFormState(handleUpdateUserAction, initialState);
+  const [state, formAction] = useActionState(handleUpdateUserAction, initialState); // useFormState -> useActionState
   const { toast } = useToast();
   const [selectedRoles, setSelectedRoles] = useState<string[]>(user.roles || []);
 

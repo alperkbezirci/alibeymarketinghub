@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, TrendingUp, Layers, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { InvoiceForm } from "@/components/budget/invoice-form"; 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -84,6 +84,9 @@ export default function BudgetPage() {
           <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-headline text-2xl">Yeni Fatura</DialogTitle>
+              <DialogDescription>
+                Yeni bir fatura kaydı oluşturmak için lütfen fatura detaylarını girin.
+              </DialogDescription>
             </DialogHeader>
             <InvoiceForm onSave={handleSaveInvoice} onClose={() => setIsDialogOpen(false)} />
           </DialogContent>

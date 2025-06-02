@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ChevronLeft, ChevronRight } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 // import { EventForm } from "@/components/calendar/event-form"; // To be created
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar as ShadcnCalendar } from "@/components/ui/calendar"; // For single date picking
@@ -61,6 +61,9 @@ export default function CalendarPage() {
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="font-headline text-2xl">Yeni Etkinlik</DialogTitle>
+              <DialogDescription>
+                Takvime yeni bir etkinlik veya görev ekleyin.
+              </DialogDescription>
             </DialogHeader>
             {/* <EventForm onSave={handleSaveEvent} onClose={() => setIsDialogOpen(false)} /> */}
              <p className="p-4 text-center text-muted-foreground">Etkinlik formu buraya eklenecek.</p>

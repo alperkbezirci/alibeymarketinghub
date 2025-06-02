@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 // import { TaskForm } from "@/components/tasks/task-form"; // To be created
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,9 @@ export default function TasksPage() {
           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-headline text-2xl">Yeni Görev</DialogTitle>
+              <DialogDescription>
+                Yeni bir görev oluşturmak için lütfen ilgili alanları doldurun.
+              </DialogDescription>
             </DialogHeader>
             {/* <TaskForm onSave={handleSaveTask} onClose={() => setIsDialogOpen(false)} /> */}
             <p className="p-4 text-center text-muted-foreground">Görev formu buraya eklenecek.</p>
