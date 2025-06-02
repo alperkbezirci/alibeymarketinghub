@@ -75,9 +75,13 @@ export default function DetailedReportsPage() {
               <SelectTrigger><SelectValue placeholder="Çalışan Seçin" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tüm Çalışanlar</SelectItem>
-                {/* TODO: Populate with users from Firebase */}
-                <SelectItem value="alper">Alper Küçükbezirci (Örnek)</SelectItem>
-                <SelectItem value="ayse">Ayşe Yılmaz (Örnek)</SelectItem>
+                {/* TODO: Populate with users from Firebase (e.g., fetched from 'users' collection) */}
+                {/* 
+                  Example of how to populate once users are fetched:
+                  {usersFromFirebase.map(user => (
+                    <SelectItem key={user.uid} value={user.uid}>{user.firstName} {user.lastName}</SelectItem>
+                  ))}
+                */}
               </SelectContent>
             </Select>
             <Select>
