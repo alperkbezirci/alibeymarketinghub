@@ -4,7 +4,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { addProjectActivity, updateProjectActivity, type ProjectActivityInputData, type ProjectActivityStatus, type ProjectActivityType, type ProjectActivity } from '@/services/project-activity-service';
-// import { auth } from '@/lib/firebase'; // Not directly used here, user info comes from form
 
 interface AddActivityFormState {
   success: boolean;
@@ -21,7 +20,7 @@ export async function handleAddProjectActivityAction(
   const projectId = formData.get('projectId') as string;
   const userId = formData.get('userId') as string; 
   const userName = formData.get('userName') as string; 
-  const userPhotoURL = formData.get('userPhotoURL') as string | null; // Can be null
+  const userPhotoURL = formData.get('userPhotoURL') as string | null;
   const content = formData.get('content') as string;
   const fileInput = formData.get('file') as File | null;
 
@@ -42,18 +41,16 @@ export async function handleAddProjectActivityAction(
     activityType = 'file_upload';
     fileName = fileInput.name;
     fileType = fileInput.type;
-    // TODO: Actual file upload to Firebase Storage would happen here if implemented
     console.log(`[Action Log] File detected: ${fileName}, Type: ${fileType}. Actual upload to Storage not implemented yet.`);
   }
 
-  // New activities (comments/files) will default to 'draft' status
   const initialStatus: ProjectActivityStatus = 'draft';
 
   const activityData: ProjectActivityInputData = {
     projectId,
     userId,
     userName,
-    userPhotoURL: userPhotoURL || undefined, // Send undefined if null or empty
+    userPhotoURL: userPhotoURL || undefined,
     type: activityType,
     status: initialStatus, 
     content: content || undefined,
@@ -68,7 +65,6 @@ export async function handleAddProjectActivityAction(
     return { success: true, message: `${activityType === 'comment' ? 'Yorum taslağı' : 'Dosya taslağı'} başarıyla eklendi. Onaya gönderebilirsiniz.`, activityId: newActivity.id };
   } catch (error: any) {
     console.error("[Action Log] Error in handleAddProjectActivityAction when calling service:", error);
-    // Log the full error object for more details, especially for Firebase errors
     console.error("Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return { success: false, message: `Aktivite eklenirken bir hata oluştu: ${error.message || "Bilinmeyen bir sunucu hatası oluştu."}` };
   }
@@ -96,8 +92,7 @@ export async function handleUpdateActivityStatusAction(
         if (messageForManager && messageForManager.trim() !== "") {
             updates.messageForManager = messageForManager.trim();
         } else {
-            // If message is empty or whitespace, set field to null instead of undefined
-            updates.messageForManager = null as any; // Cast to any to satisfy Partial, or adjust ProjectActivity interface
+            updates.messageForManager = null as any; 
         }
         
         await updateProjectActivity(activityId, updates);
@@ -110,3 +105,50 @@ export async function handleUpdateActivityStatusAction(
     }
 }
 
+export async function handleApproveActivityAction(
+    activityId: string,
+    projectId: string,
+    managerFeedback?: string
+): Promise<UpdateActivityStatusFormState> {
+    if (!activityId || !projectId) {
+        return { success: false, message: "Aktivite ID ve Proje ID zorunludur." };
+    }
+    try {
+        const updates: Partial<ProjectActivity> = { 
+            status: 'approved',
+            managerFeedback: managerFeedback && managerFeedback.trim() !== "" ? managerFeedback.trim() : null
+        };
+        await updateProjectActivity(activityId, updates);
+        revalidatePath(`/projects/${projectId}`);
+        return { success: true, message: "Aktivite başarıyla onaylandı." };
+    } catch (error: any) {
+        console.error("[Action Log] Error in handleApproveActivityAction:", error);
+        return { success: false, message: `Aktivite onaylanırken bir hata oluştu: ${error.message || "Bilinmeyen bir sunucu hatası oluştu."}` };
+    }
+}
+
+export async function handleRejectActivityAction(
+    activityId: string,
+    projectId: string,
+    managerFeedback?: string
+): Promise<UpdateActivityStatusFormState> {
+    if (!activityId || !projectId) {
+        return { success: false, message: "Aktivite ID ve Proje ID zorunludur." };
+    }
+    if (!managerFeedback || managerFeedback.trim() === "") {
+        // Forcing feedback on rejection might be a good practice
+        // return { success: false, message: "Reddetme işlemi için geri bildirim zorunludur." };
+    }
+    try {
+        const updates: Partial<ProjectActivity> = { 
+            status: 'rejected',
+            managerFeedback: managerFeedback && managerFeedback.trim() !== "" ? managerFeedback.trim() : null
+        };
+        await updateProjectActivity(activityId, updates);
+        revalidatePath(`/projects/${projectId}`);
+        return { success: true, message: "Aktivite reddedildi." };
+    } catch (error: any) {
+        console.error("[Action Log] Error in handleRejectActivityAction:", error);
+        return { success: false, message: `Aktivite reddedilirken bir hata oluştu: ${error.message || "Bilinmeyen bir sunucu hatası oluştu."}` };
+    }
+}

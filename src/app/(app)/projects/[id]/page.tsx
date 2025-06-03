@@ -2,14 +2,14 @@
 // src/app/(app)/projects/[id]/page.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback, useActionState } from 'react';
+import React, { useEffect, useState, useCallback, useActionState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFormStatus } from 'react-dom';
 import { getProjectById, type Project } from '@/services/project-service';
 import { getAllUsers, type User as AppUser } from '@/services/user-service';
 import { getTasksByProjectId, type Task } from '@/services/task-service';
 import { getProjectActivities, type ProjectActivity, type ProjectActivityStatus } from '@/services/project-activity-service';
-import { handleAddProjectActivityAction, handleUpdateActivityStatusAction } from './actions';
+import { handleAddProjectActivityAction, handleUpdateActivityStatusAction, handleApproveActivityAction, handleRejectActivityAction } from './actions';
 import { useAuth } from '@/contexts/auth-context';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +42,7 @@ function SubmitActivityButton() {
 export default function ProjectDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { user: currentUser, getDisplayName } = useAuth();
+  const { user: currentUser, getDisplayName, isAdminOrMarketingManager } = useAuth();
   const { toast } = useToast();
   const projectId = typeof params.id === 'string' ? params.id : undefined;
 
@@ -65,6 +65,12 @@ export default function ProjectDetailsPage() {
   const [approvalMessage, setApprovalMessage] = useState("");
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
 
+  // State for manager's decision (approve/reject)
+  const [activityForDecision, setActivityForDecision] = useState<ProjectActivity | null>(null);
+  const [decisionType, setDecisionType] = useState<'approve' | 'reject' | null>(null);
+  const [managerFeedbackInput, setManagerFeedbackInput] = useState("");
+  const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
+
 
   const fetchProjectDetails = useCallback(async () => {
     if (!projectId) {
@@ -77,7 +83,6 @@ export default function ProjectDetailsPage() {
     try {
       const fetchedProject = await getProjectById(projectId);
       setProject(fetchedProject);
-      // Always fetch users if project exists, as they are needed for activities and tasks display
       if (fetchedProject) {
         const fetchedUsers = await getAllUsers();
         setUsers(fetchedUsers);
@@ -157,13 +162,36 @@ export default function ProjectDetailsPage() {
     const result = await handleUpdateActivityStatusAction(activityToApprove.id, projectId, 'pending_approval', approvalMessage);
     if (result.success) {
         toast({ title: "Başarılı", description: result.message });
-        fetchActivitiesForProject(); // Refresh activities to show new status
-        setActivityToApprove(null); // Close dialog
-        setApprovalMessage("");     // Reset message
+        fetchActivitiesForProject(); 
+        setActivityToApprove(null); 
+        setApprovalMessage("");     
     } else {
         toast({ title: "Hata", description: result.message, variant: "destructive" });
     }
     setIsSubmittingApproval(false);
+  };
+
+  const handleManagerDecision = async () => {
+    if (!activityForDecision || !decisionType || !projectId) return;
+    setIsSubmittingDecision(true);
+
+    let result;
+    if (decisionType === 'approve') {
+      result = await handleApproveActivityAction(activityForDecision.id, projectId, managerFeedbackInput);
+    } else { // decisionType === 'reject'
+      result = await handleRejectActivityAction(activityForDecision.id, projectId, managerFeedbackInput);
+    }
+
+    if (result.success) {
+      toast({ title: "Başarılı", description: result.message });
+      fetchActivitiesForProject();
+      setActivityForDecision(null);
+      setDecisionType(null);
+      setManagerFeedbackInput("");
+    } else {
+      toast({ title: "Hata", description: result.message, variant: "destructive" });
+    }
+    setIsSubmittingDecision(false);
   };
 
 
@@ -267,7 +295,6 @@ export default function ProjectDetailsPage() {
       </Button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Sol Sütun: Proje Detayları ve Görevler */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg print:shadow-none">
             <CardHeader>
@@ -316,7 +343,7 @@ export default function ProjectDetailsPage() {
 
           <Card className="shadow-lg print:shadow-none">
             <CardHeader>
-              <CardTitle className="font-headline text-xl flex items-center"><GitBranch className="mr-2 h-5 w-5 text-primary"/>Bağlı Görevler</CardTitle>
+              <CardTitle className="font-headline text-xl flex items-center"><GitBranch className="mr-2 h-5 w-5 text-primary" />Bağlı Görevler</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoadingTasks ? (
@@ -351,13 +378,12 @@ export default function ProjectDetailsPage() {
           </Card>
         </div>
 
-        {/* Sağ Sütun: İşbirliği Alanı */}
         <div className="lg:col-span-1 space-y-6 print:hidden">
           <Card className="shadow-lg sticky top-20">
             <CardHeader>
               <CardTitle className="font-headline text-xl flex items-center"><MessageSquare className="mr-2 h-5 w-5 text-primary" />Proje Akışı & Yorumlar</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0"> {/* pt-0 to align with new form structure */}
+            <CardContent className="pt-0">
               <form action={handleAddActivitySubmit} ref={activityFormRef} className="space-y-4 mb-6 p-4 border rounded-lg bg-muted/20">
                 <input type="hidden" name="projectId" value={projectId} />
                 {currentUser && (
@@ -437,7 +463,7 @@ export default function ProjectDetailsPage() {
                               </div>
                             )}
 
-                            <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-dashed">
+                            <div className={cn("flex items-center justify-between mt-2.5 pt-2 border-t border-dashed", activity.status === 'pending_approval' && isAdminOrMarketingManager ? "flex-wrap gap-y-2" : "")}>
                                 <Badge variant="outline" className={cn("text-xs font-medium py-0.5 px-2", activityStatusInfo.color)}>
                                     <Icon className={cn("mr-1.5 h-3.5 w-3.5", activityStatusInfo.iconColor)} />
                                     {activityStatusInfo.text}
@@ -446,7 +472,7 @@ export default function ProjectDetailsPage() {
                                     <Dialog open={activityToApprove?.id === activity.id} onOpenChange={(open) => {
                                         if (open) {
                                             setActivityToApprove(activity);
-                                            setApprovalMessage(activity.messageForManager || ""); // Pre-fill message if any
+                                            setApprovalMessage(activity.messageForManager || "");
                                         } else {
                                             setActivityToApprove(null);
                                             setApprovalMessage("");
@@ -481,7 +507,7 @@ export default function ProjectDetailsPage() {
                                             </div>
                                             <DialogFooter>
                                                 <DialogClose asChild>
-                                                    <Button variant="ghost">İptal</Button>
+                                                    <Button variant="ghost" disabled={isSubmittingApproval}>İptal</Button>
                                                 </DialogClose>
                                                 <Button onClick={handleSendForApproval} disabled={isSubmittingApproval}>
                                                     {isSubmittingApproval && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -491,6 +517,18 @@ export default function ProjectDetailsPage() {
                                         </DialogContent>
                                     </Dialog>
                                 )}
+                                {activity.status === 'pending_approval' && isAdminOrMarketingManager && (
+                                    <div className="flex space-x-2 mt-2 sm:mt-0 w-full sm:w-auto justify-end">
+                                        <Button variant="outline" size="xs" className="text-xs h-7 px-2 py-1 text-red-600 hover:bg-red-500/10 border-red-500/50"
+                                            onClick={() => { setActivityForDecision(activity); setDecisionType('reject'); setManagerFeedbackInput(activity.managerFeedback || ""); }}>
+                                            <ThumbsDown className="mr-1 h-3.5 w-3.5" /> Reddet
+                                        </Button>
+                                        <Button variant="outline" size="xs" className="text-xs h-7 px-2 py-1 text-green-600 hover:bg-green-500/10 border-green-500/50"
+                                            onClick={() => { setActivityForDecision(activity); setDecisionType('approve'); setManagerFeedbackInput(activity.managerFeedback || ""); }}>
+                                            <ThumbsUp className="mr-1 h-3.5 w-3.5" /> Onayla
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                             {activity.status === 'pending_approval' && activity.messageForManager && (
                                 <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-orange-400 dark:border-orange-600 pl-2 py-1 bg-orange-50 dark:bg-orange-900/30 rounded-r-md">
@@ -499,6 +537,11 @@ export default function ProjectDetailsPage() {
                             )}
                              {activity.status === 'rejected' && activity.managerFeedback && (
                                 <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-red-400 dark:border-red-600 pl-2 py-1 bg-red-50 dark:bg-red-900/30 rounded-r-md">
+                                  <span className="font-semibold not-italic">Yönetici Geri Bildirimi:</span> {activity.managerFeedback}
+                                </p>
+                            )}
+                             {activity.status === 'approved' && activity.managerFeedback && (
+                                <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-green-400 dark:border-green-600 pl-2 py-1 bg-green-50 dark:bg-green-900/30 rounded-r-md">
                                   <span className="font-semibold not-italic">Yönetici Geri Bildirimi:</span> {activity.managerFeedback}
                                 </p>
                             )}
@@ -519,6 +562,52 @@ export default function ProjectDetailsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Manager Decision Dialog */}
+      <Dialog open={!!activityForDecision && !!decisionType} onOpenChange={(open) => {
+        if (!open) {
+          setActivityForDecision(null);
+          setDecisionType(null);
+          setManagerFeedbackInput("");
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-headline text-xl">Aktiviteyi {decisionType === 'approve' ? 'Onayla' : 'Reddet'}</DialogTitle>
+            <DialogDescription>
+              Aşağıdaki aktivite için kararınızı ve isteğe bağlı olarak geri bildiriminizi girin.
+              <blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">
+                Kullanıcı: {activityForDecision?.userName} <br />
+                İçerik: {activityForDecision?.content ? `"${activityForDecision.content.substring(0,100)}${activityForDecision.content.length > 100 ? "..." : ""}"`
+                                  : `Dosya: "${activityForDecision?.fileName}"`}
+                {activityForDecision?.messageForManager && <><br/>Kullanıcı Notu: {activityForDecision.messageForManager}</>}
+              </blockquote>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label htmlFor="managerFeedback" className="text-sm font-medium">Geri Bildirim (Opsiyonel)</Label>
+            <Textarea
+              id="managerFeedback"
+              placeholder="Onay veya red için kullanıcıya iletmek istediğiniz notlar..."
+              value={managerFeedbackInput}
+              onChange={(e) => setManagerFeedbackInput(e.target.value)}
+              rows={3}
+              className="mt-1"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setActivityForDecision(null); setDecisionType(null); setManagerFeedbackInput("");}} disabled={isSubmittingDecision}>İptal</Button>
+            <Button 
+              onClick={handleManagerDecision} 
+              disabled={isSubmittingDecision}
+              className={cn(decisionType === 'approve' ? "bg-green-600 hover:bg-green-700" : "bg-destructive hover:bg-destructive/90")}
+            >
+              {isSubmittingDecision && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {decisionType === 'approve' ? 'Onayla' : 'Reddet'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
