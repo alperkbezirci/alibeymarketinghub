@@ -16,6 +16,7 @@ import { getEvents, addEvent, type CalendarEvent, type CalendarEventInputData } 
 import { Skeleton } from "@/components/ui/skeleton";
 import { EVENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 // Helper for event type colors
 const getEventTypeColor = (eventType?: string) => {
@@ -42,7 +43,7 @@ const getEventTypeColor = (eventType?: string) => {
 
 
 export default function CalendarPage() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEventDialogOpen, setIsEventDialogOpen] = useState(false); // Renamed for clarity
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -50,6 +51,10 @@ export default function CalendarPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const fetchEventsForMonth = useCallback(async (month: Date) => {
     setIsLoading(true);
@@ -71,6 +76,14 @@ export default function CalendarPage() {
     fetchEventsForMonth(currentMonth);
   }, [currentMonth, fetchEventsForMonth]);
 
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new') {
+      setIsEventDialogOpen(true);
+      router.replace(pathname, { scroll: false });
+    }
+  }, [searchParams, router, pathname, setIsEventDialogOpen]);
+
   const calendarDays = useMemo(() => {
     let daysArray = [];
     const firstDayOfGrid = startOfWeek(startOfMonth(currentMonth), { locale: tr });
@@ -90,7 +103,7 @@ export default function CalendarPage() {
     try {
       await addEvent(formData);
       toast({ title: "Başarılı", description: `${formData.title} adlı etkinlik oluşturuldu.` });
-      setIsDialogOpen(false);
+      setIsEventDialogOpen(false);
       fetchEventsForMonth(currentMonth);
     } catch (err: any) {
       toast({ title: "Hata", description: err.message || "Etkinlik kaydedilirken bir hata oluştu.", variant: "destructive" });
@@ -126,7 +139,7 @@ export default function CalendarPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
         <h1 className="text-3xl font-headline font-bold">Takvim</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Etkinlik Ekle
@@ -141,7 +154,7 @@ export default function CalendarPage() {
             </DialogHeader>
             <EventForm
               onSave={handleSaveEvent}
-              onClose={() => setIsDialogOpen(false)}
+              onClose={() => setIsEventDialogOpen(false)}
               isSaving={isSaving}
               selectedDate={selectedDate}
             />

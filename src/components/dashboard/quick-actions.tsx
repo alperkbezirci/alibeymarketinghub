@@ -5,17 +5,13 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, FilePlus, CalendarPlus, Receipt } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useRouter } from 'next/navigation';
 
 export function QuickActions() {
-  const { toast } = useToast();
+  const router = useRouter();
 
-  const handleActionClick = (actionName: string) => {
-    // In a real app, this would open a modal or navigate to a page
-    toast({
-      title: "Eylem Başlatıldı",
-      description: `${actionName} işlemi için arayüz açılacak. (Bu bir demo mesajıdır)`,
-    });
+  const handleActionClick = (path: string) => {
+    router.push(`${path}?action=new`);
   };
 
   return (
@@ -24,19 +20,19 @@ export function QuickActions() {
         <CardTitle className="font-headline">Hızlı Eylemler</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Button variant="outline" className="flex flex-col h-24 items-center justify-center space-y-1 p-2 sm:p-4" onClick={() => handleActionClick("Proje Oluştur")}>
+        <Button variant="outline" className="flex flex-col h-24 items-center justify-center space-y-1 p-2 sm:p-4" onClick={() => handleActionClick("/projects")}>
           <PlusCircle className="h-6 w-6 mb-1 text-primary" />
           <span className="text-center text-xs sm:text-sm">Proje Oluştur</span>
         </Button>
-        <Button variant="outline" className="flex flex-col h-24 items-center justify-center space-y-1 p-2 sm:p-4" onClick={() => handleActionClick("Görev Ekle")}>
+        <Button variant="outline" className="flex flex-col h-24 items-center justify-center space-y-1 p-2 sm:p-4" onClick={() => handleActionClick("/tasks")}>
           <FilePlus className="h-6 w-6 mb-1 text-primary" />
           <span className="text-center text-xs sm:text-sm">Görev Ekle</span>
         </Button>
-        <Button variant="outline" className="flex flex-col h-24 items-center justify-center space-y-1 p-2 sm:p-4" onClick={() => handleActionClick("Fatura Ekle")}>
+        <Button variant="outline" className="flex flex-col h-24 items-center justify-center space-y-1 p-2 sm:p-4" onClick={() => handleActionClick("/budget")}>
           <Receipt className="h-6 w-6 mb-1 text-primary" />
           <span className="text-center text-xs sm:text-sm">Fatura Ekle</span>
         </Button>
-        <Button variant="outline" className="flex flex-col h-24 items-center justify-center space-y-1 p-2 sm:p-4" onClick={() => handleActionClick("Etkinlik Ekle")}>
+        <Button variant="outline" className="flex flex-col h-24 items-center justify-center space-y-1 p-2 sm:p-4" onClick={() => handleActionClick("/calendar")}>
           <CalendarPlus className="h-6 w-6 mb-1 text-primary" />
           <span className="text-center text-xs sm:text-sm">Etkinlik Ekle</span>
         </Button>

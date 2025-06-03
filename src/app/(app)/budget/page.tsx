@@ -1,3 +1,4 @@
+
 // src/app/(app)/budget/page.tsx
 "use client";
 
@@ -13,6 +14,7 @@ import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip
 import { HOTEL_NAMES } from "@/lib/constants";
 import { useSpendingCategories, type SpendingCategory } from "@/contexts/spending-categories-context";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 // TODO: Define proper types for BudgetSummaryItem
 interface BudgetSummaryItem {
@@ -29,10 +31,14 @@ interface SpendingCategoryDisplayData extends SpendingCategory {
 }
 
 export default function BudgetPage() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false); // Renamed for clarity
   const { toast } = useToast();
   const { categories: spendingCategoriesFromContext, isLoading: isLoadingCategories, error: categoriesError, refetchCategories } = useSpendingCategories();
   const [budgetSummaryData, setBudgetSummaryData] = useState<BudgetSummaryItem[]>(initialBudgetSummaryData);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   // TODO: Fetch invoices/expenses from Firebase to calculate actual 'spent' amounts for categories and budget summary.
   // This useEffect is a placeholder for that logic.
@@ -49,6 +55,14 @@ export default function BudgetPage() {
     //   calculateBudgets();
     // }
   }, [spendingCategoriesFromContext]);
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new') {
+      setIsInvoiceDialogOpen(true);
+      router.replace(pathname, { scroll: false });
+    }
+  }, [searchParams, router, pathname, setIsInvoiceDialogOpen]);
 
   const spendingCategoriesData = useMemo(() => {
     // TODO: Calculate real spent amounts based on invoices from Firebase.
@@ -79,7 +93,7 @@ export default function BudgetPage() {
     }
     
     toast({ title: "Başarılı (Yerel)", description: `${description} Firebase'e kaydedilecek.` });
-    setIsDialogOpen(false);
+    setIsInvoiceDialogOpen(false);
     // After saving to Firebase, trigger a recalculation of budgetSummaryData and spendingCategoriesData's 'spent' amounts.
   };
 
@@ -92,7 +106,7 @@ export default function BudgetPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
         <h1 className="text-3xl font-headline font-bold">Bütçe Yönetimi</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Fatura Ekle
@@ -105,7 +119,7 @@ export default function BudgetPage() {
                 Yeni bir fatura kaydı oluşturmak için lütfen fatura detaylarını girin.
               </DialogDescription>
             </DialogHeader>
-            <InvoiceForm onSave={handleSaveInvoice} onClose={() => setIsDialogOpen(false)} />
+            <InvoiceForm onSave={handleSaveInvoice} onClose={() => setIsInvoiceDialogOpen(false)} />
           </DialogContent>
         </Dialog>
       </div>

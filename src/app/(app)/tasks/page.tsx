@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getTasks, addTask, type Task, type TaskInputData } from "@/services/task-service";
 import { format } from 'date-fns';
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 export default function TasksPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -24,6 +25,10 @@ export default function TasksPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const fetchTasks = useCallback(async () => {
     setIsLoading(true);
@@ -42,6 +47,14 @@ export default function TasksPage() {
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new') {
+      setIsDialogOpen(true);
+      router.replace(pathname, { scroll: false });
+    }
+  }, [searchParams, router, pathname, setIsDialogOpen]);
 
   const handleSaveTask = async (formData: TaskInputData) => {
     setIsSaving(true);

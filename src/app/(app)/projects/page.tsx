@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -27,6 +28,10 @@ export default function ProjectsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
   const fetchProjects = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -44,6 +49,15 @@ export default function ProjectsPage() {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new') {
+      setIsDialogOpen(true);
+      // Clear the query parameter to prevent re-opening on refresh/navigation
+      router.replace(pathname, { scroll: false });
+    }
+  }, [searchParams, router, pathname, setIsDialogOpen]);
 
   const handleSaveProject = async (formData: ProjectInputData) => {
     setIsSaving(true);
@@ -182,4 +196,3 @@ export default function ProjectsPage() {
     </div>
   );
 }
-
