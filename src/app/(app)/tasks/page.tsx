@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { HOTEL_NAMES, TASK_STATUSES, TASK_PRIORITIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { getTasks, addTask, type Task, type TaskInputData } from "@/services/task-service";
+import { getProjects, type Project } from "@/services/project-service"; // Projeleri çekmek için eklendi
+import { getAllUsers, type User as AppUser } from "@/services/user-service"; // Kullanıcıları çekmek için eklendi
 import { format } from 'date-fns';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -21,7 +23,13 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 export default function TasksPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [projectsList, setProjectsList] = useState<Project[]>([]);
+  const [usersList, setUsersList] = useState<AppUser[]>([]);
+  
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -30,23 +38,39 @@ export default function TasksPage() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  const fetchTasks = useCallback(async () => {
-    setIsLoading(true);
+  const fetchPageData = useCallback(async () => {
+    setIsLoadingTasks(true);
+    setIsLoadingProjects(true);
+    setIsLoadingUsers(true);
     setError(null);
     try {
-      const fetchedTasks = await getTasks();
+      const tasksPromise = getTasks();
+      const projectsPromise = getProjects();
+      const usersPromise = getAllUsers();
+
+      const [fetchedTasks, fetchedProjects, fetchedUsers] = await Promise.all([
+        tasksPromise,
+        projectsPromise,
+        usersPromise,
+      ]);
+      
       setTasks(fetchedTasks);
+      setProjectsList(fetchedProjects);
+      setUsersList(fetchedUsers);
+
     } catch (err: any) {
-      setError(err.message || "Görevler yüklenirken bir hata oluştu.");
+      setError(err.message || "Veriler yüklenirken bir hata oluştu.");
       toast({ title: "Hata", description: err.message, variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      setIsLoadingTasks(false);
+      setIsLoadingProjects(false);
+      setIsLoadingUsers(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    fetchPageData();
+  }, [fetchPageData]);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -62,7 +86,7 @@ export default function TasksPage() {
       await addTask(formData);
       toast({ title: "Başarılı", description: `${formData.taskName} adlı görev oluşturuldu.` });
       setIsDialogOpen(false);
-      fetchTasks(); // Refresh the list
+      fetchPageData(); // Refresh all data
     } catch (err: any) {
       toast({ title: "Hata", description: err.message || "Görev kaydedilirken bir hata oluştu.", variant: "destructive" });
     } finally {
@@ -79,6 +103,24 @@ export default function TasksPage() {
       return 'Geçersiz Tarih';
     }
   };
+
+  const getProjectNameById = (projectId?: string): string => {
+    if (!projectId) return 'Genel';
+    if (isLoadingProjects) return 'Yükleniyor...';
+    const project = projectsList.find(p => p.id === projectId);
+    return project?.projectName || `Proje ID: ${projectId.substring(0,6)}...`;
+  };
+
+  const getAssignedUserNames = (assignedToUids?: string[]): string => {
+    if (!assignedToUids || assignedToUids.length === 0) return 'N/A';
+    if (isLoadingUsers) return 'Yükleniyor...';
+    return assignedToUids.map(uid => {
+      const user = usersList.find(u => u.uid === uid);
+      return user ? `${user.firstName} ${user.lastName}` : `Kullanıcı (${uid.substring(0,6)}...)`;
+    }).join(', ');
+  };
+
+  const isLoading = isLoadingTasks || isLoadingProjects || isLoadingUsers;
 
   return (
     <div className="space-y-6">
@@ -164,7 +206,7 @@ export default function TasksPage() {
         <div className="text-center py-8 text-destructive">
           <AlertTriangle className="mx-auto h-12 w-12 mb-2" />
           <p>{error}</p>
-          <Button onClick={fetchTasks} variant="outline" className="mt-4">Tekrar Dene</Button>
+          <Button onClick={fetchPageData} variant="outline" className="mt-4">Tekrar Dene</Button>
         </div>
       )}
       
@@ -179,12 +221,12 @@ export default function TasksPage() {
               <CardHeader>
                 <CardTitle className="font-headline text-lg">{task.taskName}</CardTitle>
                 <CardDescription>
-                  {task.project ? `Proje: ${task.project === "" ? "Genel" : task.project } | ` : 'Proje: Genel | '}Otel: {task.hotel}
+                  Proje: {getProjectNameById(task.project)} | Otel: {task.hotel}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <div className="space-y-2 text-sm">
-                  <p><span className="font-medium">Atanan:</span> {task.assignedTo || 'N/A'}</p>
+                  <p><span className="font-medium">Atanan:</span> {getAssignedUserNames(task.assignedTo)}</p>
                   <p><span className="font-medium">Bitiş Tarihi:</span> {formatDateDisplay(task.dueDate)}</p>
                   <div className="flex space-x-2">
                     <Badge variant={task.status === "Tamamlandı" ? "default" : "secondary"}>{task.status}</Badge>
@@ -204,3 +246,5 @@ export default function TasksPage() {
     </div>
   );
 }
+
+    
