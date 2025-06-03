@@ -3,26 +3,33 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link"; // Link import edildi
+// Link importu kaldırıldı, çünkü artık dialog kullanıyoruz.
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, AlertTriangle } from "lucide-react";
+import { PlusCircle, Loader2, AlertTriangle, Eye } from "lucide-react"; // Eye ikonu eklendi
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { TaskForm } from "@/components/tasks/task-form";
+import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog"; // Yeni dialog bileşeni import edildi
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES, TASK_STATUSES, TASK_PRIORITIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { getTasks, addTask, type Task, type TaskInputData } from "@/services/task-service";
-import { getProjects, type Project } from "@/services/project-service"; 
+import { getTasks, addTask, deleteTask, type Task, type TaskInputData } from "@/services/task-service"; // deleteTask import edildi
+import { getProjects, getProjectById, type Project } from "@/services/project-service"; 
 import { getAllUsers, type User as AppUser } from "@/services/user-service"; 
 import { format } from 'date-fns';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context"; // useAuth import edildi
 
 export default function TasksPage() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false); // Form dialogu için state
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false); // Detay dialogu için state
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<Task | null>(null);
+  const [selectedTaskProject, setSelectedTaskProject] = useState<Project | null>(null);
+  const [isLoadingSelectedTaskProject, setIsLoadingSelectedTaskProject] = useState(false);
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projectsList, setProjectsList] = useState<Project[]>([]);
   const [usersList, setUsersList] = useState<AppUser[]>([]);
@@ -34,6 +41,7 @@ export default function TasksPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { isAdminOrMarketingManager } = useAuth(); // Yetki kontrolü için
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -76,24 +84,55 @@ export default function TasksPage() {
   useEffect(() => {
     const action = searchParams.get('action');
     if (action === 'new') {
-      setIsDialogOpen(true);
+      setIsFormDialogOpen(true); // Form dialogunu aç
       router.replace(pathname, { scroll: false });
     }
-  }, [searchParams, router, pathname, setIsDialogOpen]);
+  }, [searchParams, router, pathname, setIsFormDialogOpen]);
 
   const handleSaveTask = async (formData: TaskInputData) => {
     setIsSaving(true);
     try {
       await addTask(formData);
       toast({ title: "Başarılı", description: `${formData.taskName} adlı görev oluşturuldu.` });
-      setIsDialogOpen(false);
-      fetchPageData(); // Refresh all data
+      setIsFormDialogOpen(false);
+      fetchPageData(); 
     } catch (err: any) {
       toast({ title: "Hata", description: err.message || "Görev kaydedilirken bir hata oluştu.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
   };
+
+  const handleOpenDetailDialog = async (task: Task) => {
+    setSelectedTaskForDetail(task);
+    setSelectedTaskProject(null); // Reset project details
+    if (task.project) {
+      setIsLoadingSelectedTaskProject(true);
+      try {
+        const projectDetails = await getProjectById(task.project);
+        setSelectedTaskProject(projectDetails);
+      } catch (err) {
+        console.error("Error fetching project details for task dialog:", err);
+        // Optionally show a toast or set an error state for the dialog
+      } finally {
+        setIsLoadingSelectedTaskProject(false);
+      }
+    }
+    setIsDetailDialogOpen(true);
+  };
+
+  const handleDeleteTaskInDialog = async (taskId: string) => {
+    try {
+      await deleteTask(taskId);
+      toast({ title: "Başarılı", description: "Görev başarıyla silindi." });
+      fetchPageData(); // Refresh list
+      setIsDetailDialogOpen(false); // Close dialog
+      setSelectedTaskForDetail(null);
+    } catch (err: any) {
+      toast({ title: "Silme Hatası", description: err.message || "Görev silinirken bir hata oluştu.", variant: "destructive" });
+    }
+  };
+
 
   const formatDateDisplay = (dateInput: string | undefined | null) => {
     if (!dateInput) return 'N/A';
@@ -113,7 +152,7 @@ export default function TasksPage() {
   };
 
   const getAssignedUserNames = (assignedToUids?: string[]): string => {
-    if (!assignedToUids || assignedToUids.length === 0) return 'N/A';
+    if (!assignedToUids || assignedToUids.length === 0) return 'Atanmamış';
     if (isLoadingUsers) return 'Yükleniyor...';
     return assignedToUids.map(uid => {
       const user = usersList.find(u => u.uid === uid);
@@ -127,7 +166,7 @@ export default function TasksPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
         <h1 className="text-3xl font-headline font-bold">Görevler</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Görev Oluştur
@@ -142,7 +181,7 @@ export default function TasksPage() {
             </DialogHeader>
             <TaskForm 
               onSave={handleSaveTask} 
-              onClose={() => setIsDialogOpen(false)}
+              onClose={() => setIsFormDialogOpen(false)}
               isSaving={isSaving}
             />
           </DialogContent>
@@ -236,15 +275,29 @@ export default function TasksPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                 <Button asChild variant="outline" size="sm" className="w-full">
-                   <Link href={`/tasks/${task.id}`}>
-                     Detayları Gör
-                   </Link>
+                 <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenDetailDialog(task)}>
+                   <Eye className="mr-2 h-4 w-4" /> Detayları Gör
                  </Button>
               </CardFooter>
             </Card>
           ))}
         </div>
+      )}
+
+      {selectedTaskForDetail && (
+        <TaskDetailDialog
+          task={selectedTaskForDetail}
+          project={selectedTaskProject}
+          assignedUsers={usersList}
+          isOpen={isDetailDialogOpen}
+          onOpenChange={(open) => {
+            setIsDetailDialogOpen(open);
+            if (!open) setSelectedTaskForDetail(null);
+          }}
+          onDeleteTask={handleDeleteTaskInDialog}
+          isAdminOrManager={isAdminOrMarketingManager}
+          isLoadingProject={isLoadingSelectedTaskProject}
+        />
       )}
     </div>
   );

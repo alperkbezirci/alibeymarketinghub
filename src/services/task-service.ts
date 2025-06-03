@@ -31,6 +31,7 @@ export interface Task {
   description?: string;
   createdAt?: string; 
   updatedAt?: string; 
+  turqualityTaskId?: string; // Added from invoice-service for potential cross-check, though task service might not directly use it.
 }
 
 export interface TaskInputData {
@@ -65,6 +66,7 @@ export async function getTasks(): Promise<Task[]> {
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
+        turqualityTaskId: data.turqualityTaskId,
       } as Task;
     });
     return taskList;
@@ -93,6 +95,7 @@ export async function getTaskById(id: string): Promise<Task | null> {
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
+        turqualityTaskId: data.turqualityTaskId,
       } as Task;
     } else {
       return null;
@@ -124,6 +127,7 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
+        turqualityTaskId: data.turqualityTaskId,
       } as Task;
     });
     return taskList;
@@ -176,6 +180,7 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
       description: taskData.description,
       createdAt: convertToISOString(newData?.createdAt) || new Date().toISOString(), 
       updatedAt: convertToISOString(newData?.updatedAt) || new Date().toISOString(), 
+      turqualityTaskId: newData?.turqualityTaskId,
     };
   } catch (error: any) {
     console.error(`[SERVICE_ERROR] Original error in addTask:`, error); 
@@ -321,6 +326,7 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
+        turqualityTaskId: data.turqualityTaskId,
       } as Task);
     });
     return taskList;
@@ -395,6 +401,7 @@ export async function getActiveTasks(limitCount: number = 5): Promise<Task[]> {
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
+        turqualityTaskId: data.turqualityTaskId,
       } as Task;
     });
     return taskList;
@@ -437,6 +444,7 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
+        turqualityTaskId: data.turqualityTaskId,
       } as Task;
     });
     return taskList;
@@ -449,4 +457,3 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
     throw new Error(userMessage);
   }
 }
-
