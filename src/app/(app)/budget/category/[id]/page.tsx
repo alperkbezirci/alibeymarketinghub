@@ -1,3 +1,4 @@
+
 // src/app/(app)/budget/category/[id]/page.tsx
 "use client";
 
@@ -5,8 +6,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import { useSpendingCategories, type SpendingCategory } from '@/contexts/spending-categories-context';
 import { getAllInvoices, deleteInvoice, type Invoice } from '@/services/invoice-service';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from \"@/components/ui/card\";
-import {Button} from \"@/components/ui/button\";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ArrowLeft, AlertTriangle, LineChart, ListFilter, Edit2, Trash2, Loader2 } from "lucide-react";
@@ -23,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface MonthlySpending {
   monthYear: string; // Format "YYYY-MM" for sorting
@@ -85,7 +87,7 @@ export default function SpendingCategoryDetailPage() {
       const allInvoicesData = await getAllInvoices();
       const filtered = allInvoicesData.filter(inv => inv.spendingCategoryName === selectedCategory.name);
       setInvoicesForCategory(filtered);
-    } catch (err: Error) {
+    } catch (err: any) {
       console.error("Error fetching invoices for category:", err);
       const errorMsg = err.message || "Bu kategoriye ait faturalar yüklenirken bir sorun oluştu.";
       setPageError(errorMsg);
@@ -110,7 +112,7 @@ export default function SpendingCategoryDetailPage() {
             const date = parseISO(invoice.invoiceDate);
             const monthYearKey = format(date, 'yyyy-MM');
             spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
-          } catch (_e: Error) {
+          } catch (_e: any) {
              console.warn(`Geçersiz fatura tarihi: ${invoice.invoiceDate} (ID: ${invoice.id})`);
           }
         }
@@ -119,7 +121,7 @@ export default function SpendingCategoryDetailPage() {
       const chartDataFormatted: MonthlySpending[] = Object.entries(spendingByMonth)
         .map(([monthYear, totalSpent]) => ({
           monthYear: monthYear,
-          displayMonth: format(parseISO(`${monthYear}-01`), 'MMMM yyyy'), // Removed locale: tr
+          displayMonth: format(parseISO(`${monthYear}-01`), 'MMMM yyyy'),
           totalSpent: totalSpent,
         }))
         .sort((a, b) => a.monthYear.localeCompare(b.monthYear));
@@ -140,7 +142,7 @@ export default function SpendingCategoryDetailPage() {
     try {
       await deleteInvoice(invoiceToDelete.id);
       setInvoicesForCategory(prev => prev.filter(inv => inv.id !== invoiceToDelete.id));
-      // Re-calculate chart data, could be more optimized for large datasets
+      
       const updatedInvoices = invoicesForCategory.filter(inv => inv.id !== invoiceToDelete!.id);
        if (updatedInvoices.length > 0) {
         const spendingByMonth: Record<string, number> = {};
@@ -150,7 +152,7 @@ export default function SpendingCategoryDetailPage() {
                 const date = parseISO(invoice.invoiceDate);
                 const monthYearKey = format(date, 'yyyy-MM');
                 spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
-            } catch (_e: Error) {
+            } catch (_e: any) {
                 console.warn(`Geçersiz fatura tarihi: ${invoice.invoiceDate} (ID: ${invoice.id})`);
             }
             }
@@ -158,7 +160,7 @@ export default function SpendingCategoryDetailPage() {
         const chartDataFormatted: MonthlySpending[] = Object.entries(spendingByMonth)
             .map(([monthYear, totalSpent]) => ({
             monthYear: monthYear,
-            displayMonth: format(parseISO(`${monthYear}-01`), 'MMMM yyyy'), // Removed locale: tr
+            displayMonth: format(parseISO(`${monthYear}-01`), 'MMMM yyyy'),
             totalSpent: totalSpent,
             }))
             .sort((a, b) => a.monthYear.localeCompare(b.monthYear));
@@ -169,7 +171,7 @@ export default function SpendingCategoryDetailPage() {
 
       toast({ title: "Başarılı", description: `Fatura "${invoiceToDelete.invoiceNumber}" başarıyla silindi.` });
       setInvoiceToDelete(null);
-    } catch (error: Error) {
+    } catch (error: any) {
       toast({ title: "Silme Hatası", description: error.message || "Fatura silinirken bir hata oluştu.", variant: "destructive" });
     } finally {
       setIsDeletingInvoice(false);
@@ -184,8 +186,8 @@ export default function SpendingCategoryDetailPage() {
       <div className="space-y-6 p-4 animate-pulse">
         <Skeleton className="h-8 w-1/4 mb-2" />
         <Skeleton className="h-10 w-1/3 mb-6" />
-        <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent><Skeleton className=\"h-64 w-full\" /></CardContent></Card>
-        <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent><Skeleton className=\"h-40 w-full\" /></CardContent></Card>
+        <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent><Skeleton className="h-64 w-full" /></CardContent></Card>
+        <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent><Skeleton className="h-40 w-full" /></CardContent></Card>
       </div>
     );
   }
@@ -269,14 +271,14 @@ export default function SpendingCategoryDetailPage() {
                   <TableHead>Şirket</TableHead>
                   <TableHead className="text-right">Orj. Tutar</TableHead>
                   <TableHead className="text-right">EUR Karşılığı</TableHead>
-                  {isAdminOrMarketingManager && <TableHead className="text-right print:hidden">Eylemler</TableHead>}\
+                  {isAdminOrMarketingManager && <TableHead className="text-right print:hidden">Eylemler</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invoicesForCategory.map(invoice => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                    <TableCell>{format(parseISO(invoice.invoiceDate), 'dd.MM.yyyy')}</TableCell> {/* Removed locale: tr */}
+                    <TableCell>{format(parseISO(invoice.invoiceDate), 'dd.MM.yyyy')}</TableCell>
                     <TableCell>{invoice.companyName}</TableCell>
                     <TableCell className="text-right">
                       {invoice.originalAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {invoice.originalCurrency}
@@ -284,38 +286,38 @@ export default function SpendingCategoryDetailPage() {
                     <TableCell className="text-right">
                       {invoice.amountInEur?.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' }) ?? 'N/A'}
                     </TableCell>
-                    {isAdminOrMarketingManager && (\
-                      <TableCell className="text-right space-x-1 print:hidden">\
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-500" onClick={() => handleEditInvoice(invoice.id)}>\
-                          <Edit2 className="h-4 w-4" />\
-                        </Button>\
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/80" onClick={() => setInvoiceToDelete(invoice)}>\
-                          <Trash2 className="h-4 w-4" />\
-                        </Button>\
-                      </TableCell>\
-                    )}\
-                  </TableRow>\
-                ))}\
-              </TableBody>\
-            </Table>\
-          ) : (\
-             <p className="text-sm text-muted-foreground text-center py-8">Bu kategoriye ait fatura bulunmamaktadır.</p>\
-          )}\
-        </CardContent>\
-      </Card>\
-\
-      {isAdminOrMarketingManager && invoiceToDelete && (\
-        <AlertDialog open={!!invoiceToDelete} onOpenChange={(open) => { if (!open) setInvoiceToDelete(null); }}>\
-          <AlertDialogContent>\
-            <AlertDialogHeader>\
-              <AlertDialogTitle>Faturayı Silmek Üzeresiniz</AlertDialogTitle>\
-              <AlertDialogDescription>\
-                &quot;{invoiceToDelete.invoiceNumber}&quot; numaralı, {invoiceToDelete.companyName} adına kesilmiş faturayı silmek istediğinizden emin misiniz?\
-                Bu işlem geri alınamaz.\
-              </AlertDialogDescription>\
-            </AlertDialogHeader>\
-            <AlertDialogFooter>\
-              <AlertDialogCancel onClick={() => setInvoiceToDelete(null)} disabled={isDeletingInvoice}>İptal</AlertDialogCancel>\
+                    {isAdminOrMarketingManager && (
+                      <TableCell className="text-right space-x-1 print:hidden">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-500" onClick={() => handleEditInvoice(invoice.id)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/80" onClick={() => setInvoiceToDelete(invoice)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+             <p className="text-sm text-muted-foreground text-center py-8">Bu kategoriye ait fatura bulunmamaktadır.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {isAdminOrMarketingManager && invoiceToDelete && (
+        <AlertDialog open={!!invoiceToDelete} onOpenChange={(open) => { if (!open) setInvoiceToDelete(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Faturayı Silmek Üzeresiniz</AlertDialogTitle>
+              <AlertDialogDescription>
+                &quot;{invoiceToDelete.invoiceNumber}&quot; numaralı, {invoiceToDelete.companyName} adına kesilmiş faturayı silmek istediğinizden emin misiniz?
+                Bu işlem geri alınamaz.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setInvoiceToDelete(null)} disabled={isDeletingInvoice}>İptal</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeleteInvoice}
                 disabled={isDeletingInvoice}
@@ -324,10 +326,10 @@ export default function SpendingCategoryDetailPage() {
                 {isDeletingInvoice && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Evet, Sil
               </AlertDialogAction>
-            </AlertDialogFooter>\
-          </AlertDialogContent>\
-        </AlertDialog>\
-      )}\
-    </div>\
-  );\
-}\
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </div>
+  );
+}
