@@ -2,7 +2,7 @@
 // src/app/(app)/cms/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useActionState } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useActionState, startTransition } from 'react'; // Added startTransition
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -18,8 +18,8 @@ import { getHotelBudgetLimitsForCms, saveHotelBudgetLimitsCms, type BudgetConfig
 import { getUiSettings, saveUiSettings, type UiSettings } from '@/services/ui-config-service';
 import { cn } from '@/lib/utils';
 import { AppLogo } from '@/components/layout/app-logo';
-import { handleUpdateActivitiesWithHotelInfoAction } from './actions'; // Yeni action'ı import et
-import { auth } from '@/lib/firebase'; // ID Token almak için
+import { handleUpdateActivitiesWithHotelInfoAction } from './actions';
+import { auth } from '@/lib/firebase';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,7 +58,11 @@ export default function CmsPage() {
   const [selectedLogoFileName, setSelectedLogoFileName] = useState<string | null>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [updateActivitiesState, handleUpdateActivitiesSubmit, isUpdatingActivitiesPending] = useActionState(handleUpdateActivitiesWithHotelInfoAction, undefined);
+  // useActionState hook
+  const [updateActivitiesState, handleUpdateActivitiesSubmit, isUpdatingActivitiesPending] = useActionState(
+    handleUpdateActivitiesWithHotelInfoAction, // Server action
+    undefined // Initial state for the action's return value
+  );
 
 
   const fetchBudgetLimits = useCallback(async () => {
@@ -79,6 +83,7 @@ export default function CmsPage() {
       const settings = await getUiSettings();
       setUiSettings(settings);
       if (settings.logoUrl && !settings.logoUrl.startsWith('https://placehold.co')) {
+        // Potentially set selectedLogoFileName if parsing from URL
       }
     } catch (error: any) {
       toast({ title: "Hata", description: error.message || "Arayüz ayarları yüklenemedi.", variant: "destructive" });
@@ -151,6 +156,8 @@ export default function CmsPage() {
         mainTitle: uiSettings.mainTitle,
         logoUrl: uiSettings.logoUrl || 'https://placehold.co/150x50.png?text=LOGO' 
       };
+      // TODO: Actual file upload logic to Firebase Storage if a new logo file is selected
+      // For now, we are just saving the URL (which might be a placeholder or an old one if not updated)
       await saveUiSettings(settingsToSave);
       toast({ title: "Başarılı", description: "Arayüz ayarları kaydedildi." });
       setSelectedLogoFileName(null); 
@@ -199,23 +206,28 @@ export default function CmsPage() {
     setSelectedCategory(null);
   };
 
-  const onRunActivityUpdate = async () => {
+  const onRunActivityUpdate = () => { // Removed async here
     if (!currentUser) {
       toast({ title: "Hata", description: "İşlemi yapmak için kullanıcı bilgisi bulunamadı.", variant: "destructive" });
       return;
     }
-    try {
-      const idToken = await auth.currentUser?.getIdToken(true);
-      if (!idToken) {
-        toast({ title: "Kimlik Doğrulama Hatası", description: "İşlem için kimlik doğrulama token'ı alınamadı.", variant: "destructive" });
-        return;
-      }
-      const formData = new FormData();
-      formData.append('idToken', idToken);
-      handleUpdateActivitiesSubmit(formData);
-    } catch (error: any) {
-      toast({ title: "Token Hatası", description: `Kimlik token'ı alınırken hata: ${error.message}`, variant: "destructive" });
-    }
+    
+    auth.currentUser?.getIdToken(true)
+      .then(idToken => {
+        if (!idToken) {
+          toast({ title: "Kimlik Doğrulama Hatası", description: "İşlem için kimlik doğrulama token'ı alınamadı.", variant: "destructive" });
+          return;
+        }
+        const formData = new FormData();
+        formData.append('idToken', idToken);
+        
+        startTransition(() => { // Wrap the action dispatch in startTransition
+          handleUpdateActivitiesSubmit(formData);
+        });
+      })
+      .catch((error: any) => {
+        toast({ title: "Token Hatası", description: `Kimlik token'ı alınırken hata: ${error.message}`, variant: "destructive" });
+      });
   };
   
   return (
@@ -238,7 +250,7 @@ export default function CmsPage() {
             ) : (
               <>
                 <div>
-                  <Label htmlFor="mainTitle">Ana Başlık</Label>
+                  <Label htmlFor="mainTitle">Ana Başlık <span className="text-destructive">*</span></Label>
                   <Input 
                     id="mainTitle" 
                     placeholder="Örn: Ali Bey Marketing Hub" 
@@ -307,7 +319,7 @@ export default function CmsPage() {
             ) : (
               <>
                 <div>
-                  <Label htmlFor="sorgunBudget">Ali Bey Resort Sorgun Bütçe Limiti (€)</Label>
+                  <Label htmlFor="sorgunBudget">Ali Bey Resort Sorgun Bütçe Limiti (€) <span className="text-destructive">*</span></Label>
                   <Input 
                     id="sorgunBudget" 
                     type="number" 
@@ -318,7 +330,7 @@ export default function CmsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="manavgatBudget">Ali Bey Club & Park Manavgat Bütçe Limiti (€)</Label>
+                  <Label htmlFor="manavgatBudget">Ali Bey Club & Park Manavgat Bütçe Limiti (€) <span className="text-destructive">*</span></Label>
                   <Input 
                     id="manavgatBudget" 
                     type="number" 
@@ -329,7 +341,7 @@ export default function CmsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="bijalBudget">BIJAL Bütçe Limiti (€)</Label>
+                  <Label htmlFor="bijalBudget">BIJAL Bütçe Limiti (€) <span className="text-destructive">*</span></Label>
                   <Input 
                     id="bijalBudget" 
                     type="number" 
@@ -414,7 +426,7 @@ export default function CmsPage() {
           </CardContent>
         </Card>
 
-        {isAdminOrMarketingManager && ( // Sadece adminler bu bölümü görsün
+        {isAdminOrMarketingManager && (
             <Card className="shadow-lg md:col-span-2">
                 <CardHeader>
                 <CardTitle className="font-headline flex items-center"><DatabaseZap className="mr-2 h-5 w-5 text-primary"/> Veri Güncelleme Araçları</CardTitle>
@@ -461,7 +473,7 @@ export default function CmsPage() {
       {selectedCategory && (
         <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
             if (!open) setSelectedCategory(null);
-            setIsEditDialogOpen(open); // isEditDialogOpen state'ini senkronize et
+            setIsEditDialogOpen(open);
         }}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -484,3 +496,4 @@ export default function CmsPage() {
     </div>
   );
 }
+
