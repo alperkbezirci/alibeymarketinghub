@@ -5,7 +5,7 @@
  * @fileOverview Firestore service for managing invoices.
  */
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, serverTimestamp, Timestamp, query, orderBy, doc, updateDoc, getDoc as getFirestoreDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp, Timestamp, query, orderBy, doc, updateDoc, getDoc as getFirestoreDoc, deleteDoc } from 'firebase/firestore';
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
@@ -68,8 +68,8 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
         console.warn("Calculated EUR amount is zero or negative for non-EUR currency. Original:", invoiceData.originalAmount, invoiceData.originalCurrency);
     }
 
-    let filePathToSave: string | null = null; // Initialize to null
-    if (invoiceData.file && invoiceData.file.name) { // Check for file and file.name
+    let filePathToSave: string | null = null;
+    if (invoiceData.file && invoiceData.file.name) {
         filePathToSave = `simulated/path/to/${invoiceData.file.name}`;
     }
 
@@ -82,16 +82,15 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
       originalAmount: invoiceData.originalAmount,
       originalCurrency: invoiceData.originalCurrency,
       description: invoiceData.description || '',
-      filePath: filePathToSave, // Will be string or null
+      filePath: filePathToSave,
       amountInEur: invoiceData.amountInEur,
-      exchangeRateToEur: invoiceData.exchangeRateToEur === undefined ? null : invoiceData.exchangeRateToEur, // Handle undefined
+      exchangeRateToEur: invoiceData.exchangeRateToEur === undefined ? null : invoiceData.exchangeRateToEur,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
     const docRef = await addDoc(collection(db, INVOICES_COLLECTION), dataToSave);
 
-    // Fetch the newly created document to get server-generated timestamps
     const newDocSnap = await getFirestoreDoc(doc(db, INVOICES_COLLECTION, docRef.id));
     const savedData = newDocSnap.data();
 
@@ -137,9 +136,9 @@ export async function getAllInvoices(): Promise<Invoice[]> {
         originalAmount: data.originalAmount,
         originalCurrency: data.originalCurrency,
         description: data.description,
-        filePath: data.filePath, // This can be string or null now
+        filePath: data.filePath,
         amountInEur: data.amountInEur,
-        exchangeRateToEur: data.exchangeRateToEur, // This can be number or null
+        exchangeRateToEur: data.exchangeRateToEur,
         createdAt: convertToISOString(data.createdAt)!,
         updatedAt: convertToISOString(data.updatedAt)!,
         turqualityApplicable: data.turqualityApplicable,
@@ -172,4 +171,18 @@ export async function updateInvoice(id: string, updates: Partial<Omit<Invoice, '
     dataToUpdate.exchangeRateToEur = null;
   }
   await updateDoc(invoiceDoc, dataToUpdate);
+}
+
+export async function deleteInvoice(id: string): Promise<void> {
+  if (!id) {
+    throw new Error("Fatura ID'si silme işlemi için zorunludur.");
+  }
+  try {
+    const invoiceDoc = doc(db, INVOICES_COLLECTION, id);
+    await deleteDoc(invoiceDoc);
+    console.log(`Invoice with ID: ${id} successfully deleted from Firestore.`);
+  } catch (error: any) {
+    console.error(`Error deleting invoice with ID ${id} from Firestore: `, error);
+    throw new Error(`Fatura (ID: ${id}) Firestore'dan silinirken bir hata oluştu: ${error.message || 'Bilinmeyen sunucu hatası'}`);
+  }
 }

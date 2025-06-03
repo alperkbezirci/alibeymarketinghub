@@ -4,9 +4,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-// import Link from 'next/link'; // Not used directly in this version for edit/delete
 import { useSpendingCategories, type SpendingCategory } from '@/contexts/spending-categories-context';
-import { getAllInvoices, type Invoice } from '@/services/invoice-service'; // Assuming deleteInvoice and updateInvoice will be added here or actions
+import { getAllInvoices, deleteInvoice, type Invoice } from '@/services/invoice-service';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from '@/components/ui/skeleton';
@@ -62,7 +61,6 @@ export default function SpendingCategoryDetailPage() {
       return;
     }
     if (isLoadingCategoriesContext) {
-      // Still waiting for categories from context
       return;
     }
     if (categoriesContextError) {
@@ -87,7 +85,7 @@ export default function SpendingCategoryDetailPage() {
     setIsLoadingInvoices(true);
     setPageError(null);
     try {
-      const allInvoicesData = await getAllInvoices(); // Renamed to avoid conflict with invoices state
+      const allInvoicesData = await getAllInvoices(); 
       const filtered = allInvoicesData.filter(inv => inv.spendingCategoryName === selectedCategory.name);
       setInvoicesForCategory(filtered);
     } catch (err: any) {
@@ -112,8 +110,8 @@ export default function SpendingCategoryDetailPage() {
       invoicesForCategory.forEach(invoice => {
         if (invoice.invoiceDate && invoice.amountInEur) {
           try {
-            const date = parseISO(invoice.invoiceDate); // invoiceDate is already ISO string
-            const monthYearKey = format(date, 'yyyy-MM'); // Key for sorting
+            const date = parseISO(invoice.invoiceDate); 
+            const monthYearKey = format(date, 'yyyy-MM'); 
             spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
           } catch (e) {
              console.warn(`Geçersiz fatura tarihi: ${invoice.invoiceDate} (ID: ${invoice.id})`);
@@ -124,10 +122,10 @@ export default function SpendingCategoryDetailPage() {
       const chartDataFormatted: MonthlySpending[] = Object.entries(spendingByMonth)
         .map(([monthYear, totalSpent]) => ({
           monthYear: monthYear,
-          displayMonth: format(parseISO(`${monthYear}-01`), 'MMMM yyyy', { locale: tr }), // Create a valid date for formatting
+          displayMonth: format(parseISO(`${monthYear}-01`), 'MMMM yyyy', { locale: tr }),
           totalSpent: totalSpent,
         }))
-        .sort((a, b) => a.monthYear.localeCompare(b.monthYear)); // Sort by YYYY-MM
+        .sort((a, b) => a.monthYear.localeCompare(b.monthYear));
 
       setMonthlyChartData(chartDataFormatted);
     } else {
@@ -136,8 +134,6 @@ export default function SpendingCategoryDetailPage() {
   }, [invoicesForCategory]);
 
   const handleEditInvoice = (invoiceId: string) => {
-    // TODO: Implement navigation to an edit page or open an edit dialog
-    // For now, just a toast. A new InvoiceForm instance could be used in a Dialog.
     toast({ title: "Düzenle (Yapım Aşamasında)", description: `Fatura ID: ${invoiceId} için düzenleme formu açılacak.` });
   };
 
@@ -145,16 +141,37 @@ export default function SpendingCategoryDetailPage() {
     if (!invoiceToDelete) return;
     setIsDeletingInvoice(true);
     try {
-      // TODO: Implement actual deletion by calling a service function.
-      // Example: await deleteInvoiceFromDb(invoiceToDelete.id); from invoice-service.ts
-      // For now, this is a simulation.
-      console.log(`Simulating delete for invoice ID: ${invoiceToDelete.id}`);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate async operation
+      await deleteInvoice(invoiceToDelete.id);
+      setInvoicesForCategory(prev => prev.filter(inv => inv.id !== invoiceToDelete.id)); 
+      // Re-calculate chart data, could be more optimized for large datasets
+      const updatedInvoices = invoicesForCategory.filter(inv => inv.id !== invoiceToDelete!.id);
+       if (updatedInvoices.length > 0) {
+        const spendingByMonth: Record<string, number> = {};
+        updatedInvoices.forEach(invoice => {
+            if (invoice.invoiceDate && invoice.amountInEur) {
+            try {
+                const date = parseISO(invoice.invoiceDate);
+                const monthYearKey = format(date, 'yyyy-MM');
+                spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
+            } catch (e) {
+                console.warn(`Geçersiz fatura tarihi: ${invoice.invoiceDate} (ID: ${invoice.id})`);
+            }
+            }
+        });
+        const chartDataFormatted: MonthlySpending[] = Object.entries(spendingByMonth)
+            .map(([monthYear, totalSpent]) => ({
+            monthYear: monthYear,
+            displayMonth: format(parseISO(`${monthYear}-01`), 'MMMM yyyy', { locale: tr }),
+            totalSpent: totalSpent,
+            }))
+            .sort((a, b) => a.monthYear.localeCompare(b.monthYear));
+        setMonthlyChartData(chartDataFormatted);
+        } else {
+            setMonthlyChartData([]);
+        }
 
-      setInvoicesForCategory(prev => prev.filter(inv => inv.id !== invoiceToDelete.id)); // Optimistic UI update
-      setMonthlyChartData([]); // Force chart data recalculation if needed, or update it more intelligently
-      toast({ title: "Başarılı (Simülasyon)", description: `Fatura "${invoiceToDelete.invoiceNumber}" silindi.` });
-      setInvoiceToDelete(null); // Close dialog
+      toast({ title: "Başarılı", description: `Fatura "${invoiceToDelete.invoiceNumber}" başarıyla silindi.` });
+      setInvoiceToDelete(null); 
     } catch (error: any) {
       toast({ title: "Silme Hatası", description: error.message || "Fatura silinirken bir hata oluştu.", variant: "destructive" });
     } finally {
