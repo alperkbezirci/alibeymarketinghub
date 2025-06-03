@@ -222,7 +222,7 @@ export default function BudgetPage() {
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Fatura Ekle
-            </Button> // Removed trailing whitespace
+            </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -386,7 +386,7 @@ export default function BudgetPage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base font-medium">{category.name}</CardTitle>
                 </CardHeader>
-                <CardContent className="flex-grow"> // Removed trailing whitespace
+                <CardContent className="flex-grow">
                   <Progress value={(category.limit > 0 ? (category.spent / category.limit) * 100 : 0)} className="h-2 mb-1" 
                     aria-label={`${category.name} bütçe kullanımı: ${(category.limit > 0 ? (category.spent / category.limit) * 100 : 0).toFixed(1)}%`}
                   />
@@ -407,3 +407,4 @@ export default function BudgetPage() {
       
 
     
+
