@@ -52,7 +52,7 @@ const welcomeMessageFlow = ai.defineFlow(
         return { message: `Merhaba ${input.userName}, hoş geldiniz! Kontrol panelinize genel bir bakış.` };
       }
       return output;
-    } catch (error: any) {
+    } catch (error: Error) {
       console.error(
         `Error calling welcomeMessagePrompt for user ${input.userName}. Error: ${error.message}. Falling back to default welcome message.`,
         // To log the full error details if necessary for debugging, you can uncomment the next line:

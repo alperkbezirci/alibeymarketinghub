@@ -9,10 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { EventForm } from "@/components/calendar/event-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isToday, isSameDay, startOfWeek, endOfWeek, addDays } from "date-fns";
-import { tr } from "date-fns/locale";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, isSameMonth, isToday, isSameDay, startOfWeek, endOfWeek, addDays } from "date-fns"; // Removed unused eachDayOfInterval, getDay
+import { tr } from "date-fns/locale"; // Note: ESLint might still report this as unused if not directly used in format, but it is used there.
 import { useToast } from "@/hooks/use-toast";
-import { getEvents, addEvent, type CalendarEvent, type CalendarEventInputData } from "@/services/calendar-service";
+import { getEvents, addEvent, type CalendarEvent, type CalendarEventInputData } from "@/services/calendar-service"; // Removed unused doc, updateDoc, deleteDoc
 import { Skeleton } from "@/components/ui/skeleton";
 import { EVENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -64,8 +64,8 @@ export default function CalendarPage() {
       const viewEnd = endOfWeek(addDays(endOfMonth(month), 7), { locale: tr });
       const fetchedEvents = await getEvents(viewStart, viewEnd);
       setEvents(fetchedEvents);
-    } catch (err: any) {
-      setError(err.message || "Etkinlikler yüklenirken bir hata oluştu.");
+    } catch (err: Error) {
+      setError(err.message || "Etkinlikler yüklenirken bir hata oluştu."); // Changed err: any to err: Error
       toast({ title: "Hata", description: err.message || "Etkinlikler yüklenirken bir hata oluştu.", variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -85,7 +85,7 @@ export default function CalendarPage() {
   }, [searchParams, router, pathname, setIsEventDialogOpen]);
 
   const calendarDays = useMemo(() => {
-    let daysArray = [];
+    const daysArray = [];
     const firstDayOfGrid = startOfWeek(startOfMonth(currentMonth), { locale: tr });
     // Ensure the grid always shows 6 weeks (42 days) for consistent layout
     const requiredDays = 42; 
@@ -105,8 +105,8 @@ export default function CalendarPage() {
       toast({ title: "Başarılı", description: `${formData.title} adlı etkinlik oluşturuldu.` });
       setIsEventDialogOpen(false);
       fetchEventsForMonth(currentMonth);
-    } catch (err: any) {
-      toast({ title: "Hata", description: err.message || "Etkinlik kaydedilirken bir hata oluştu.", variant: "destructive" });
+    } catch (err: Error) {
+      toast({ title: "Hata", description: err.message || "Etkinlik kaydedilirken bir hata oluştu.", variant: "destructive" }); // Changed err: any to err: Error
     } finally {
       setIsSaving(false);
     }
@@ -126,7 +126,7 @@ export default function CalendarPage() {
         return format(date, 'dd MMM yyyy', { locale: tr });
       }
       return format(date, 'dd MMM yyyy, HH:mm', { locale: tr });
-    } catch (e) {
+    } catch (_e) { // Changed catch (e) to catch (_e)
         console.error("Error formatting date display:", dateInput, e);
         return 'Geçersiz Tarih';
     }

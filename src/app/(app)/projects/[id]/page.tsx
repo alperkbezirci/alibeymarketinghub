@@ -10,24 +10,25 @@ import { getTasksByProjectId, type Task } from '@/services/task-service';
 import { getProjectActivities, type ProjectActivity, type ProjectActivityStatus } from '@/services/project-activity-service';
 import { handleAddProjectActivityAction, handleUpdateActivityStatusAction, handleApproveActivityAction, handleRejectActivityAction } from './actions';
 import { useAuth } from '@/contexts/auth-context';
+import { auth } from '@/lib/firebase'; // Import Firebase auth
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from "@/components/ui/button"; 
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud } from 'lucide-react'; 
+import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
-import { AppLogo } from '@/components/layout/app-logo'; // AppLogo import edildi
-import { GlobalLoader } from '@/components/layout/global-loader'; // GlobalLoader import edildi
+import { AppLogo } from '@/components/layout/app-logo';
+import { GlobalLoader } from '@/components/layout/global-loader';
 
 
 function SubmitActivityButton() {
@@ -43,7 +44,7 @@ function SubmitActivityButton() {
 export default function ProjectDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { user: currentUser, isAdminOrMarketingManager } = useAuth(); 
+  const { user: currentUser, isAdminOrMarketingManager } = useAuth();
   const { toast } = useToast();
   const projectId = typeof params.id === 'string' ? params.id : undefined;
 
@@ -74,15 +75,17 @@ export default function ProjectDetailsPage() {
   const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
 
   useEffect(() => {
-    if (currentUser) {
-      currentUser.getIdToken().then(token => {
+    if (auth.currentUser) { // Check auth.currentUser instead of currentUser from useAuth context for getIdToken
+      auth.currentUser.getIdToken().then(token => {
         setIdTokenForActivityForm(token);
       }).catch(err => {
         console.error("Error getting ID token for activity form:", err);
         toast({ title: "Kimlik Doğrulama Hatası", description: "Form gönderimi için kullanıcı kimliği alınamadı.", variant: "destructive" });
       });
+    } else if (currentUser) { // Fallback or initial check if currentUser from context exists
+        console.warn("currentUser (from context) exists, but auth.currentUser (from SDK) is null. Token might not be available immediately.");
     }
-  }, [currentUser, toast]);
+  }, [currentUser, toast]); // Depend on currentUser from context to re-run when auth state might have settled
 
 
   const fetchProjectDetails = useCallback(async () => {
@@ -161,10 +164,10 @@ export default function ProjectDetailsPage() {
         toast({ title: "Başarılı", description: addActivityState.message });
         activityFormRef.current?.reset();
         if(fileInputRef.current) fileInputRef.current.value = "";
-        setSelectedActivityFileName(null); 
+        setSelectedActivityFileName(null);
         fetchActivitiesForProject();
-        if (currentUser) {
-          currentUser.getIdToken(true).then(token => { 
+        if (auth.currentUser) { // Use auth.currentUser for getIdToken
+          auth.currentUser.getIdToken(true).then(token => {
             setIdTokenForActivityForm(token);
           }).catch(err => console.error("Error refreshing ID token:", err));
         }
@@ -172,7 +175,7 @@ export default function ProjectDetailsPage() {
         toast({ title: "Hata", description: addActivityState.message, variant: "destructive" });
       }
     }
-  }, [addActivityState, toast, fetchActivitiesForProject, currentUser]);
+  }, [addActivityState, toast, fetchActivitiesForProject]); // Removed currentUser dependency as auth.currentUser is used directly
 
 
   const handleSendForApproval = async () => {
@@ -181,9 +184,9 @@ export default function ProjectDetailsPage() {
     const result = await handleUpdateActivityStatusAction(activityToApprove.id, projectId, 'pending_approval', approvalMessage);
     if (result.success) {
         toast({ title: "Başarılı", description: result.message });
-        fetchActivitiesForProject(); 
-        setActivityToApprove(null); 
-        setApprovalMessage("");     
+        fetchActivitiesForProject();
+        setActivityToApprove(null);
+        setApprovalMessage("");
     } else {
         toast({ title: "Hata", description: result.message, variant: "destructive" });
     }
@@ -197,7 +200,7 @@ export default function ProjectDetailsPage() {
     let result;
     if (decisionType === 'approve') {
       result = await handleApproveActivityAction(activityForDecision.id, projectId, managerFeedbackInput);
-    } else { 
+    } else {
       result = await handleRejectActivityAction(activityForDecision.id, projectId, managerFeedbackInput);
     }
 
@@ -408,11 +411,11 @@ export default function ProjectDetailsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-end gap-3">
                     <div className="flex-grow space-y-1">
                         <Label htmlFor="activityFile" className="text-xs font-medium">Dosya Ekle (Opsiyonel)</Label>
-                        <Input 
-                            id="activityFile" 
-                            name="file" 
-                            type="file" 
-                            ref={fileInputRef} 
+                        <Input
+                            id="activityFile"
+                            name="file"
+                            type="file"
+                            ref={fileInputRef}
                             className="hidden"
                             onChange={(e) => setSelectedActivityFileName(e.target.files?.[0]?.name || null)}
                         />
@@ -420,7 +423,7 @@ export default function ProjectDetailsPage() {
                             htmlFor="activityFile"
                             className={cn(
                                 buttonVariants({ variant: "outline" }),
-                                "cursor-pointer w-full sm:w-auto justify-center flex items-center" 
+                                "cursor-pointer w-full sm:w-auto justify-center flex items-center"
                             )}
                         >
                             <UploadCloud className="mr-2 h-4 w-4" />
@@ -620,8 +623,8 @@ export default function ProjectDetailsPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setActivityForDecision(null); setDecisionType(null); setManagerFeedbackInput("");}} disabled={isSubmittingDecision}>İptal</Button>
-            <Button 
-              onClick={handleManagerDecision} 
+            <Button
+              onClick={handleManagerDecision}
               disabled={isSubmittingDecision}
               className={cn(decisionType === 'approve' ? "bg-green-600 hover:bg-green-700" : "bg-destructive hover:bg-destructive/90")}
             >

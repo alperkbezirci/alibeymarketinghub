@@ -1,6 +1,6 @@
 
 // src/components/calendar/event-form.tsx
-"use client";
+// src/components/calendar/event-form.tsx
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";

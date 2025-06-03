@@ -56,7 +56,7 @@ const generateDescriptionFlow = ai.defineFlow(
       console.warn("AI description generation returned unexpected or empty output:", modelOutput);
       return { error: "Yapay zeka beklenmedik bir formatta yanıt verdi veya boş yanıt döndü." };
 
-    } catch (err: any) {
+    } catch (err: Error) {
       console.error("Error calling generateDescriptionPrompt:", err);
       if (err.message && err.message.includes('503 Service Unavailable')) {
         return { error: "Yapay zeka modeli şu anda aşırı yüklenmiş durumda. Lütfen daha sonra tekrar deneyin." };

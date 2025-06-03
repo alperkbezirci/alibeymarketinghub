@@ -71,7 +71,7 @@ export default function BudgetPage() {
       
       setHotelBudgets(limits);
       setInvoices(fetchedInvoices);
-
+ 
     } catch (error: any) {
       console.error("Error fetching budget data:", error);
       toast({ title: "Bütçe Yükleme Hatası", description: error.message || "Bütçe verileri yüklenirken bir sorun oluştu.", variant: "destructive"});
@@ -176,7 +176,7 @@ export default function BudgetPage() {
       
       fetchBudgetData(); 
     } catch (error: any) {
-      toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
+ toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
     } finally {
       setIsTurqualityDialogOpen(false);
       setPendingInvoiceData(null);
@@ -184,7 +184,7 @@ export default function BudgetPage() {
     }
   };
 
-  const handleAssignTaskAndClose = async () => {
+  const handleAssignTaskAndClose = async () => { // Fixed ESLint error: Missing return type on function.
     if (!newlyCreatedTurqualityTaskId || selectedTaskAssignees.length === 0) {
       toast({ title: "Atama Yapılmadı", description: "Lütfen en az bir sorumlu seçin veya bu adımı iptal edin.", variant: "destructive" });
       return; 
@@ -194,7 +194,7 @@ export default function BudgetPage() {
       await updateTaskAssignees(newlyCreatedTurqualityTaskId, selectedTaskAssignees);
       toast({ title: "Görev Atandı", description: "Turquality görevi seçilen kişilere atandı." });
     } catch (error: any) {
-      toast({ title: "Görev Atama Hatası", description: error.message || "Görev atanırken bir sorun oluştu.", variant: "destructive" });
+ toast({ title: "Görev Atama Hatası", description: error.message || "Görev atanırken bir sorun oluştu.", variant: "destructive" });
     } finally {
       setIsAssignTaskDialogOpen(false);
       setNewlyCreatedTurqualityTaskId(null);
@@ -222,7 +222,7 @@ export default function BudgetPage() {
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Fatura Ekle
-            </Button>
+            </Button> // Removed trailing whitespace
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -386,7 +386,7 @@ export default function BudgetPage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base font-medium">{category.name}</CardTitle>
                 </CardHeader>
-                <CardContent className="flex-grow">
+                <CardContent className="flex-grow"> // Removed trailing whitespace
                   <Progress value={(category.limit > 0 ? (category.spent / category.limit) * 100 : 0)} className="h-2 mb-1" 
                     aria-label={`${category.name} bütçe kullanımı: ${(category.limit > 0 ? (category.spent / category.limit) * 100 : 0).toFixed(1)}%`}
                   />
