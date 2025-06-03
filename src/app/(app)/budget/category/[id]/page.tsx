@@ -1,4 +1,3 @@
-
 // src/app/(app)/budget/category/[id]/page.tsx
 "use client";
 
@@ -10,7 +9,7 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import {Button} from "@/components/ui/button";
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ArrowLeft, AlertTriangle, LineChart, ListFilter, Edit2, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, AlertTriangle, LineChart, ListFilter, Edit2, Trash2, Loader2, Download } from "lucide-react";
 import { format, parseISO } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
@@ -141,9 +140,12 @@ export default function SpendingCategoryDetailPage() {
     setIsDeletingInvoice(true);
     try {
       await deleteInvoice(invoiceToDelete.id);
-      setInvoicesForCategory(prev => prev.filter(inv => inv.id !== invoiceToDelete.id));
       
+      // Optimistically update UI
       const updatedInvoices = invoicesForCategory.filter(inv => inv.id !== invoiceToDelete!.id);
+      setInvoicesForCategory(updatedInvoices);
+      
+      // Recalculate chart data
        if (updatedInvoices.length > 0) {
         const spendingByMonth: Record<string, number> = {};
         updatedInvoices.forEach(invoice => {
@@ -173,6 +175,8 @@ export default function SpendingCategoryDetailPage() {
       setInvoiceToDelete(null);
     } catch (error: any) {
       toast({ title: "Silme Hatası", description: error.message || "Fatura silinirken bir hata oluştu.", variant: "destructive" });
+      // Re-fetch if deletion failed to ensure data consistency
+      fetchInvoicesForCategory();
     } finally {
       setIsDeletingInvoice(false);
     }
@@ -271,6 +275,7 @@ export default function SpendingCategoryDetailPage() {
                   <TableHead>Şirket</TableHead>
                   <TableHead className="text-right">Orj. Tutar</TableHead>
                   <TableHead className="text-right">EUR Karşılığı</TableHead>
+                  <TableHead>Dosya</TableHead>
                   {isAdminOrMarketingManager && <TableHead className="text-right print:hidden">Eylemler</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -285,6 +290,15 @@ export default function SpendingCategoryDetailPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       {invoice.amountInEur?.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' }) ?? 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {invoice.fileURL ? (
+                        <a href={invoice.fileURL} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
+                          <Download className="mr-1 h-4 w-4" /> İndir
+                        </a>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                     {isAdminOrMarketingManager && (
                       <TableCell className="text-right space-x-1 print:hidden">
@@ -313,7 +327,7 @@ export default function SpendingCategoryDetailPage() {
               <AlertDialogTitle>Faturayı Silmek Üzeresiniz</AlertDialogTitle>
               <AlertDialogDescription>
                 &quot;{invoiceToDelete.invoiceNumber}&quot; numaralı, {invoiceToDelete.companyName} adına kesilmiş faturayı silmek istediğinizden emin misiniz?
-                Bu işlem geri alınamaz.
+                Bu işlem geri alınamaz. Varsa, ilişkili dosya da Storage'dan silinecektir.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

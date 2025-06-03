@@ -1,10 +1,10 @@
-
 // src/services/invoice-service.ts
 'use server';
 /**
  * @fileOverview Firestore service for managing invoices.
  */
-import { db } from '@/lib/firebase';
+import { db, storage as clientStorage } from '@/lib/firebase'; // clientStorage for potential client-side URL generation if needed, not for upload here
+import { admin } from '@/lib/firebase-admin';
 import { collection, getDocs, addDoc, serverTimestamp, Timestamp, query, orderBy, doc, updateDoc, getDoc as getFirestoreDoc, deleteDoc } from 'firebase/firestore';
 import { deleteTask } from './task-service'; // Import deleteTask
 
@@ -32,7 +32,8 @@ export interface Invoice {
   originalAmount: number;
   originalCurrency: string;
   description?: string;
-  filePath?: string | null; // Path to uploaded file in Firebase Storage, can be null
+  fileURL?: string;      // URL to access the file
+  storagePath?: string;  // Path in Firebase Storage
   amountInEur?: number; // Calculated amount in EUR
   exchangeRateToEur?: number | null; // Rate used for conversion to EUR (1 original currency = X EUR)
   createdAt: string; // ISO String
@@ -41,23 +42,28 @@ export interface Invoice {
   turqualityTaskId?: string;
 }
 
-export interface InvoiceInputData {
+// This is the data structure the service expects for adding/updating.
+// The client-side form might have a File object, but that's handled before calling the service.
+export interface InvoiceInputDataForService {
   invoiceNumber: string;
-  invoiceDate: Date; // Expect Date from form
+  invoiceDate: Date; // Expect Date from form, will be converted to Timestamp
   hotel: string;
   spendingCategoryName: string;
   companyName: string;
   originalAmount: number;
   originalCurrency: string;
   description?: string;
-  file?: File | null; // For potential file upload
-  amountInEur: number; // Calculated amount in EUR, must be provided
+  amountInEur: number;
   exchangeRateToEur?: number | null;
+  fileURL?: string;      // Optional: URL if file is already uploaded
+  storagePath?: string;  // Optional: Storage path if file is already uploaded
 }
 
 const INVOICES_COLLECTION = 'invoices';
+const STORAGE_BUCKET_NAME = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'alibey-marketing-hub.appspot.com';
 
-export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice> {
+
+export async function addInvoice(invoiceData: InvoiceInputDataForService): Promise<Invoice> {
   try {
     if (!invoiceData.invoiceNumber || !invoiceData.invoiceDate || !invoiceData.companyName || !invoiceData.spendingCategoryName) {
       throw new Error("Fatura numarası, tarih, şirket adı ve kategori zorunludur.");
@@ -69,11 +75,6 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
         console.warn("Calculated EUR amount is zero or negative for non-EUR currency. Original:", invoiceData.originalAmount, invoiceData.originalCurrency);
     }
 
-    let filePathToSave: string | null = null;
-    if (invoiceData.file && invoiceData.file.name) {
-        filePathToSave = `simulated/path/to/${invoiceData.file.name}`;
-    }
-
     const dataToSave = {
       invoiceNumber: invoiceData.invoiceNumber,
       invoiceDate: Timestamp.fromDate(invoiceData.invoiceDate),
@@ -83,16 +84,15 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
       originalAmount: invoiceData.originalAmount,
       originalCurrency: invoiceData.originalCurrency,
       description: invoiceData.description || '',
-      filePath: filePathToSave,
+      fileURL: invoiceData.fileURL || null,
+      storagePath: invoiceData.storagePath || null,
       amountInEur: invoiceData.amountInEur,
       exchangeRateToEur: invoiceData.exchangeRateToEur === undefined ? null : invoiceData.exchangeRateToEur,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      // turqualityTaskId will be linked later
     };
 
     const docRef = await addDoc(collection(db, INVOICES_COLLECTION), dataToSave);
-
     const newDocSnap = await getFirestoreDoc(doc(db, INVOICES_COLLECTION, docRef.id));
     const savedData = newDocSnap.data();
 
@@ -106,13 +106,14 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
       originalAmount: invoiceData.originalAmount,
       originalCurrency: invoiceData.originalCurrency,
       description: invoiceData.description,
-      filePath: filePathToSave,
+      fileURL: savedData?.fileURL,
+      storagePath: savedData?.storagePath,
       amountInEur: invoiceData.amountInEur,
       exchangeRateToEur: invoiceData.exchangeRateToEur === undefined ? null : invoiceData.exchangeRateToEur,
       createdAt: convertToISOString(savedData?.createdAt) || new Date().toISOString(),
       updatedAt: convertToISOString(savedData?.updatedAt) || new Date().toISOString(),
-      turqualityApplicable: savedData?.turqualityApplicable, // This might not be set at initial save
-      turqualityTaskId: savedData?.turqualityTaskId, // This will be undefined at initial save
+      turqualityApplicable: savedData?.turqualityApplicable,
+      turqualityTaskId: savedData?.turqualityTaskId,
     };
   } catch (error: any) {
     console.error("Error adding invoice: ", error);
@@ -128,7 +129,7 @@ export async function linkTaskToInvoice(invoiceId: string, turqualityTaskId: str
     const invoiceDocRef = doc(db, INVOICES_COLLECTION, invoiceId);
     await updateDoc(invoiceDocRef, {
       turqualityTaskId: turqualityTaskId,
-      turqualityApplicable: true, // Mark as applicable if a task is linked
+      turqualityApplicable: true,
       updatedAt: serverTimestamp()
     });
     console.log(`Task ${turqualityTaskId} successfully linked to invoice ${invoiceId}.`);
@@ -156,7 +157,8 @@ export async function getAllInvoices(): Promise<Invoice[]> {
         originalAmount: data.originalAmount,
         originalCurrency: data.originalCurrency,
         description: data.description,
-        filePath: data.filePath,
+        fileURL: data.fileURL,
+        storagePath: data.storagePath,
         amountInEur: data.amountInEur,
         exchangeRateToEur: data.exchangeRateToEur,
         createdAt: convertToISOString(data.createdAt)!,
@@ -184,15 +186,15 @@ export async function updateInvoice(id: string, updates: Partial<Omit<Invoice, '
   } else if (updates.invoiceDate && updates.invoiceDate instanceof Date) { 
     dataToUpdate.invoiceDate = Timestamp.fromDate(updates.invoiceDate);
   }
-  if (updates.filePath === undefined) {
-    dataToUpdate.filePath = null;
+  if (updates.fileURL === undefined && updates.storagePath === undefined) {
+    // If only one is undefined, we might want to clear both or handle specifically.
+    // For now, if filePath (old logic) was being cleared, we clear new fields too.
   }
   if (updates.exchangeRateToEur === undefined) {
     dataToUpdate.exchangeRateToEur = null;
   }
-  // If turqualityApplicable is explicitly set to false, ensure turqualityTaskId is cleared
   if (updates.turqualityApplicable === false) {
-    dataToUpdate.turqualityTaskId = null; // Or deleteField() if you prefer
+    dataToUpdate.turqualityTaskId = null;
   }
   await updateDoc(invoiceDoc, dataToUpdate);
 }
@@ -201,30 +203,48 @@ export async function deleteInvoice(id: string): Promise<void> {
   if (!id) {
     throw new Error("Fatura ID'si silme işlemi için zorunludur.");
   }
+  const invoiceDocRef = doc(db, INVOICES_COLLECTION, id);
   try {
-    const invoiceDocRef = doc(db, INVOICES_COLLECTION, id);
-    const invoiceSnap = await getFirestoreDoc(invoiceDocRef); // Fetch the doc first
+    const invoiceSnap = await getFirestoreDoc(invoiceDocRef);
 
     if (invoiceSnap.exists()) {
-      const invoiceData = invoiceSnap.data(); 
-      if (invoiceData && invoiceData.turqualityTaskId) {
+      const invoiceData = invoiceSnap.data() as Invoice;
+      
+      // Delete associated task first
+      if (invoiceData.turqualityTaskId) {
         try {
-          await deleteTask(invoiceData.turqualityTaskId); 
+          await deleteTask(invoiceData.turqualityTaskId);
           console.log(`Associated task ${invoiceData.turqualityTaskId} for invoice ${id} deleted.`);
         } catch (taskDeleteError: any) {
           console.error(`Failed to delete associated task ${invoiceData.turqualityTaskId} for invoice ${id}:`, taskDeleteError);
-          // Continue to delete invoice even if task deletion fails, but log error.
-          // Optionally, rethrow or handle more gracefully.
+        }
+      }
+
+      // Delete file from Firebase Storage if storagePath exists
+      if (invoiceData.storagePath) {
+        try {
+          if (!admin.apps.length) {
+            console.warn("Firebase Admin SDK not initialized. Cannot delete file from Storage for invoice:", id);
+          } else {
+            const bucket = admin.storage().bucket(STORAGE_BUCKET_NAME);
+            await bucket.file(invoiceData.storagePath).delete();
+            console.log(`File ${invoiceData.storagePath} for invoice ${id} deleted from Firebase Storage.`);
+          }
+        } catch (storageError: any) {
+          console.error(`Failed to delete file ${invoiceData.storagePath} from Storage for invoice ${id}:`, storageError);
+          // Decide if you want to stop invoice deletion if file deletion fails.
+          // For now, we'll log and continue.
         }
       }
     } else {
-      console.warn(`Invoice ${id} not found during deletion check, cannot check for associated task.`);
+      console.warn(`Invoice ${id} not found during deletion, cannot check for associated task or file.`);
     }
 
-    await deleteDoc(invoiceDocRef); // Delete the invoice itself
+    // Delete the invoice document from Firestore
+    await deleteDoc(invoiceDocRef);
     console.log(`Invoice with ID: ${id} successfully deleted from Firestore.`);
   } catch (error: any) {
-    console.error(`Error deleting invoice with ID ${id} from Firestore: `, error);
-    throw new Error(`Fatura (ID: ${id}) Firestore'dan silinirken bir hata oluştu: ${error.message || 'Bilinmeyen sunucu hatası'}`);
+    console.error(`Error deleting invoice with ID ${id}: `, error);
+    throw new Error(`Fatura (ID: ${id}) silinirken bir hata oluştu: ${error.message || 'Bilinmeyen sunucu hatası'}`);
   }
 }
