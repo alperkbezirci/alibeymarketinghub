@@ -2,7 +2,7 @@
 // src/app/(app)/cms/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { useSpendingCategories, type SpendingCategory } from '@/contexts/spendin
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { CategoryEditForm } from "@/components/cms/category-edit-form";
 import { Skeleton } from '@/components/ui/skeleton';
+import { getHotelBudgetLimitsForCms, saveHotelBudgetLimitsCms, type BudgetConfigData } from '@/services/budget-config-service';
 
 export default function CmsPage() {
   const { isAdminOrMarketingManager } = useAuth();
@@ -26,6 +27,59 @@ export default function CmsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<SpendingCategory | null>(null);
 
+  const [budgetLimits, setBudgetLimits] = useState<BudgetConfigData>({
+    aliBeyResortSorgunBudget: 0,
+    aliBeyClubManavgatBudget: 0,
+    bijalBudget: 0,
+  });
+  const [isLoadingBudgetLimits, setIsLoadingBudgetLimits] = useState(true);
+  const [isSavingBudgetLimits, setIsSavingBudgetLimits] = useState(false);
+
+  const fetchBudgetLimits = useCallback(async () => {
+    setIsLoadingBudgetLimits(true);
+    try {
+      const limits = await getHotelBudgetLimitsForCms();
+      setBudgetLimits(limits);
+    } catch (error: any) {
+      toast({ title: "Hata", description: error.message || "Bütçe limitleri yüklenemedi.", variant: "destructive" });
+    } finally {
+      setIsLoadingBudgetLimits(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (isAdminOrMarketingManager) {
+      fetchBudgetLimits();
+    }
+  }, [isAdminOrMarketingManager, fetchBudgetLimits]);
+
+  const handleBudgetLimitChange = (hotelKey: keyof BudgetConfigData, value: string) => {
+    const numericValue = parseFloat(value);
+    setBudgetLimits(prev => ({
+      ...prev,
+      [hotelKey]: isNaN(numericValue) ? "" : numericValue // Store as number or empty string if NaN for input control
+    }));
+  };
+
+  const handleSaveBudgetLimits = async () => {
+    setIsSavingBudgetLimits(true);
+    try {
+      // Ensure values are numbers, default to 0 if empty string or NaN
+      const limitsToSave: BudgetConfigData = {
+        aliBeyResortSorgunBudget: Number(budgetLimits.aliBeyResortSorgunBudget) || 0,
+        aliBeyClubManavgatBudget: Number(budgetLimits.aliBeyClubManavgatBudget) || 0,
+        bijalBudget: Number(budgetLimits.bijalBudget) || 0,
+      };
+      await saveHotelBudgetLimitsCms(limitsToSave);
+      toast({ title: "Başarılı", description: "Otel bütçe limitleri kaydedildi." });
+    } catch (error: any) {
+      toast({ title: "Hata", description: error.message || "Bütçe limitleri kaydedilemedi.", variant: "destructive" });
+    } finally {
+      setIsSavingBudgetLimits(false);
+    }
+  };
+
+
   if (!isAdminOrMarketingManager) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
@@ -36,8 +90,7 @@ export default function CmsPage() {
     );
   }
 
-  const handleSaveSettings = (settingName: string) => {
-    // TODO: In a real app, this would save to Firestore (e.g., a 'settings' collection or specific documents)
+  const handleSaveUISettings = (settingName: string) => {
     toast({ title: "Ayarlar Kaydedildi", description: `${settingName} ayarları güncellendi (simülasyon). Firebase'e kaydedilecek.` });
   };
 
@@ -67,14 +120,6 @@ export default function CmsPage() {
     setSelectedCategory(null);
   };
   
-  // Placeholder for delete - uncomment and implement when service/context supports it
-  // const handleDeleteCategory = async (id: string, name: string) => {
-  //   if (window.confirm(`"${name}" kategorisini silmek istediğinizden emin misiniz?`)) {
-  //     // await deleteCategory(id); // Assuming deleteCategory exists in context
-  //     toast({ title: "Başarılı", description: `"${name}" kategorisi silindi (simülasyon).` });
-  //   }
-  // };
-
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-headline font-bold">İçerik Yönetim Sistemi (CMS)</h1>
@@ -95,30 +140,65 @@ export default function CmsPage() {
               <Label htmlFor="logoUpload">Logo Yükle (PNG, JPG)</Label>
               <Input id="logoUpload" type="file" />
             </div>
-            <Button onClick={() => handleSaveSettings("Arayüz")}>Arayüz Ayarlarını Kaydet</Button>
+            <Button onClick={() => handleSaveUISettings("Arayüz")}>Arayüz Ayarlarını Kaydet</Button>
           </CardContent>
         </Card>
 
-        {/* Budget Management Placeholder */}
+        {/* Budget Management */}
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="font-headline flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/> Bütçe Yönetimi</CardTitle>
-            <CardDescription>Ana bütçe limitleri ve otel bazlı atamalar.</CardDescription>
+            <CardTitle className="font-headline flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/> Ana Bütçe Limitleri</CardTitle>
+            <CardDescription>Otel bazlı ana bütçe limitlerini (EUR) güncelleyin. Veriler Firestore'da saklanır.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="sorgunBudget">Ali Bey Resort Sorgun Bütçe Limiti (€)</Label>
-              <Input id="sorgunBudget" type="number" placeholder="Örn: 50000" />
-            </div>
-             <div>
-              <Label htmlFor="manavgatBudget">Ali Bey Club & Park Manavgat Bütçe Limiti (€)</Label>
-              <Input id="manavgatBudget" type="number" placeholder="Örn: 75000" />
-            </div>
-             <div>
-              <Label htmlFor="bijalBudget">BIJAL Bütçe Limiti (€)</Label>
-              <Input id="bijalBudget" type="number" placeholder="Örn: 120000" />
-            </div>
-            <Button onClick={() => handleSaveSettings("Bütçe")}>Bütçe Ayarlarını Kaydet</Button>
+            {isLoadingBudgetLimits ? (
+              <>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-1/3" />
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="sorgunBudget">Ali Bey Resort Sorgun Bütçe Limiti (€)</Label>
+                  <Input 
+                    id="sorgunBudget" 
+                    type="number" 
+                    placeholder="Örn: 50000" 
+                    value={budgetLimits.aliBeyResortSorgunBudget}
+                    onChange={(e) => handleBudgetLimitChange('aliBeyResortSorgunBudget', e.target.value)} 
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="manavgatBudget">Ali Bey Club & Park Manavgat Bütçe Limiti (€)</Label>
+                  <Input 
+                    id="manavgatBudget" 
+                    type="number" 
+                    placeholder="Örn: 75000" 
+                    value={budgetLimits.aliBeyClubManavgatBudget}
+                    onChange={(e) => handleBudgetLimitChange('aliBeyClubManavgatBudget', e.target.value)}
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bijalBudget">BIJAL Bütçe Limiti (€)</Label>
+                  <Input 
+                    id="bijalBudget" 
+                    type="number" 
+                    placeholder="Örn: 120000" 
+                    value={budgetLimits.bijalBudget}
+                    onChange={(e) => handleBudgetLimitChange('bijalBudget', e.target.value)}
+                    min="0"
+                  />
+                </div>
+                <Button onClick={handleSaveBudgetLimits} disabled={isSavingBudgetLimits}>
+                  {isSavingBudgetLimits && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Bütçe Limitlerini Kaydet
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -224,5 +304,3 @@ export default function CmsPage() {
     </div>
   );
 }
-
-    

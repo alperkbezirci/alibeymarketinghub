@@ -2,7 +2,7 @@
 // src/app/(app)/budget/page.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, TrendingUp, Layers, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -11,50 +11,75 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { HOTEL_NAMES } from "@/lib/constants";
+import { HOTEL_NAMES } from "@/lib/constants"; // Will be filtered by MANAGED_BUDGET_HOTELS
 import { useSpendingCategories, type SpendingCategory } from "@/contexts/spending-categories-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { getHotelBudgetLimits, type HotelBudgetLimits, MANAGED_BUDGET_HOTELS } from "@/services/budget-config-service";
+// TODO: Import getInvoices and Invoice type from a new invoice-service.ts
+// For now, we'll mock invoice data handling.
 
-// TODO: Define proper types for BudgetSummaryItem
 interface BudgetSummaryItem {
   name: string;
   totalBudget: number;
   spent: number;
   remaining: number;
 }
-// Data will be fetched/calculated from Firebase
-const initialBudgetSummaryData: BudgetSummaryItem[] = [];
 
 interface SpendingCategoryDisplayData extends SpendingCategory {
   spent: number;
 }
 
 export default function BudgetPage() {
-  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false); // Renamed for clarity
+  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const { toast } = useToast();
   const { categories: spendingCategoriesFromContext, isLoading: isLoadingCategories, error: categoriesError, refetchCategories } = useSpendingCategories();
-  const [budgetSummaryData, setBudgetSummaryData] = useState<BudgetSummaryItem[]>(initialBudgetSummaryData);
+  
+  const [budgetSummaryData, setBudgetSummaryData] = useState<BudgetSummaryItem[]>([]);
+  const [isLoadingBudgetConfig, setIsLoadingBudgetConfig] = useState(true);
+  // const [invoices, setInvoices] = useState<Invoice[]>([]); // Placeholder for invoices
+  // const [isLoadingInvoices, setIsLoadingInvoices] = useState(true); // Placeholder
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // TODO: Fetch invoices/expenses from Firebase to calculate actual 'spent' amounts for categories and budget summary.
-  // This useEffect is a placeholder for that logic.
+  const fetchBudgetData = useCallback(async () => {
+    setIsLoadingBudgetConfig(true);
+    // setIsLoadingInvoices(true); 
+    try {
+      const limits = await getHotelBudgetLimits();
+      // const fetchedInvoices = await getInvoices(); // TODO: Implement getInvoices
+      // setInvoices(fetchedInvoices);
+
+      const summaryItems: BudgetSummaryItem[] = MANAGED_BUDGET_HOTELS.map(hotelName => {
+        const totalBudget = limits[hotelName] || 0;
+        // TODO: Calculate spent amount from fetchedInvoices for this hotelName
+        const spent = 0; // Placeholder until invoice service is integrated
+        // const spent = fetchedInvoices.filter(inv => inv.hotel === hotelName).reduce((sum, inv) => sum + (inv.amountInEur || 0), 0);
+        return {
+          name: hotelName,
+          totalBudget: totalBudget,
+          spent: spent,
+          remaining: totalBudget - spent,
+        };
+      });
+      setBudgetSummaryData(summaryItems);
+
+    } catch (error: any) {
+      console.error("Error fetching budget data:", error);
+      toast({ title: "Bütçe Yükleme Hatası", description: error.message || "Bütçe verileri yüklenirken bir sorun oluştu.", variant: "destructive"});
+      // Fallback: Populate with hotel names and zero budgets if fetching fails
+      setBudgetSummaryData(MANAGED_BUDGET_HOTELS.map(name => ({ name, totalBudget: 0, spent: 0, remaining: 0 })));
+    } finally {
+      setIsLoadingBudgetConfig(false);
+      // setIsLoadingInvoices(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
-    console.log("BudgetPage: useEffect - A_FETCH_INVOICES_AND_CALCULATE_BUDGETS from Firebase");
-    // Example:
-    // const calculateBudgets = async () => {
-    //   // const invoices = await getInvoicesFromFirestore();
-    //   // const calculatedSummary = calculateBudgetSummary(invoices, spendingCategoriesFromContext);
-    //   // setBudgetSummaryData(calculatedSummary);
-    //   // Update spendingCategoriesData with actual spent amounts as well
-    // };
-    // if (spendingCategoriesFromContext.length > 0) {
-    //   calculateBudgets();
-    // }
-  }, [spendingCategoriesFromContext]);
+    fetchBudgetData();
+  }, [fetchBudgetData]);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -65,19 +90,20 @@ export default function BudgetPage() {
   }, [searchParams, router, pathname, setIsInvoiceDialogOpen]);
 
   const spendingCategoriesData = useMemo(() => {
-    // TODO: Calculate real spent amounts based on invoices from Firebase.
-    // For now, 'spent' is 0 until actual data is fetched and processed.
     return spendingCategoriesFromContext.map(category => ({
       ...category,
-      spent: 0, 
+      spent: 0, // Placeholder: Calculate from invoices later
+      // const categorySpent = invoices.filter(inv => inv.spendingCategory === category.id) // Or category.name
+      //                             .reduce((sum, inv) => sum + (inv.amountInEur || 0), 0);
+      // return { ...category, spent: categorySpent };
     }));
-  }, [spendingCategoriesFromContext]);
+  }, [spendingCategoriesFromContext /*, invoices */]);
 
 
   const handleSaveInvoice = (formData: any) => {
     console.log("Yeni Fatura Kaydedildi (Firebase'e eklenecek):", formData);
-    // TODO: Save formData to Firebase (e.g., an 'invoices' collection).
-    // After saving, refetch/recalculate budget data.
+    // TODO: Save formData to Firebase using an 'invoice-service'.
+    // After saving, call fetchBudgetData() to refetch/recalculate budget data including spent amounts.
     
     let description = `Fatura No: ${formData.invoiceNumber}, ${formData.originalAmount.toLocaleString('tr-TR')} ${formData.originalCurrency} tutarında eklendi.`;
     const amountForBudget = formData.amountInEur; 
@@ -92,13 +118,13 @@ export default function BudgetPage() {
       description += ` Dosya: ${formData.file.name}`;
     }
     
-    toast({ title: "Başarılı (Yerel)", description: `${description} Firebase'e kaydedilecek.` });
+    toast({ title: "Başarılı (Simülasyon)", description: `${description} Gerçek kaydetme ve bütçe güncelleme eklenecek.` });
     setIsInvoiceDialogOpen(false);
-    // After saving to Firebase, trigger a recalculation of budgetSummaryData and spendingCategoriesData's 'spent' amounts.
+    // fetchBudgetData(); // Call after successful save to Firebase
   };
 
-  const totalBudget = budgetSummaryData.reduce((sum, item) => sum + item.totalBudget, 0);
-  const totalSpent = budgetSummaryData.reduce((sum, item) => sum + item.spent, 0);
+  const totalBudget = useMemo(() => budgetSummaryData.reduce((sum, item) => sum + item.totalBudget, 0), [budgetSummaryData]);
+  const totalSpent = useMemo(() => budgetSummaryData.reduce((sum, item) => sum + item.spent, 0), [budgetSummaryData]);
   const overallProgress = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
 
@@ -124,16 +150,24 @@ export default function BudgetPage() {
         </Dialog>
       </div>
 
-      {/* Main Budget Summary */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline text-xl flex items-center">
             <TrendingUp className="mr-2 h-5 w-5 text-primary" /> Ana Bütçe Özeti
           </CardTitle>
-          <CardDescription>Oteller bazında genel bütçe durumu (Firebase'den hesaplanacak).</CardDescription>
+          <CardDescription>Oteller bazında genel bütçe durumu. Limitler CMS'den, harcamalar faturalardan hesaplanacaktır.</CardDescription>
         </CardHeader>
         <CardContent>
-          {budgetSummaryData.length > 0 ? (
+          {isLoadingBudgetConfig ? (
+            <div className="space-y-4 py-8">
+              <div className="flex justify-between">
+                <Skeleton className="h-5 w-1/3" />
+                <Skeleton className="h-5 w-1/3" />
+              </div>
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+          ) : budgetSummaryData.length > 0 ? (
             <>
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-1">
@@ -156,18 +190,17 @@ export default function BudgetPage() {
               </ResponsiveContainer>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Bütçe özeti verisi bulunmamaktadır. Veriler Firebase'den yüklenecek/hesaplanacaktır.</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Ana bütçe limitleri CMS üzerinden ayarlanmamış veya yüklenirken bir sorun oluştu.</p>
           )}
         </CardContent>
       </Card>
       
-      {/* Spending Categories */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline text-xl flex items-center">
             <Layers className="mr-2 h-5 w-5 text-primary" /> Harcama Kategorileri
           </CardTitle>
-          <CardDescription>Kategori bazında bütçe limitleri (Firestore'dan) ve harcamalar (Firebase'den hesaplanacak).</CardDescription>
+          <CardDescription>Kategori bazında bütçe limitleri (CMS'den) ve harcamalar (faturalardan hesaplanacak).</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {isLoadingCategories ? (
@@ -190,8 +223,8 @@ export default function BudgetPage() {
                 <CardTitle className="text-base font-medium">{category.name}</CardTitle>
               </CardHeader>
               <CardContent>
-                <Progress value={(category.spent / category.limit) * 100} className="h-2 mb-1" 
-                  aria-label={`${category.name} bütçe kullanımı: ${(category.spent / category.limit) * 100}%`}
+                <Progress value={(category.limit > 0 ? (category.spent / category.limit) * 100 : 0)} className="h-2 mb-1" 
+                  aria-label={`${category.name} bütçe kullanımı: ${(category.limit > 0 ? (category.spent / category.limit) * 100 : 0)}%`}
                 />
                 <p className="text-xs text-muted-foreground">
                   {category.spent.toLocaleString('tr-TR')}€ / {category.limit.toLocaleString('tr-TR')}€
