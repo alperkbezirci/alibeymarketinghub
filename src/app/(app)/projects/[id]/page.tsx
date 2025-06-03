@@ -1,4 +1,3 @@
-
 // src/app/(app)/projects/[id]/page.tsx
 "use client";
 
@@ -77,10 +76,8 @@ export default function ProjectDetailsPage() {
     try {
       const fetchedProject = await getProjectById(projectId);
       setProject(fetchedProject);
-      if (fetchedProject && fetchedProject.responsiblePersons && fetchedProject.responsiblePersons.length > 0) {
-        const fetchedUsers = await getAllUsers(); // Fetch all users if project has responsible persons
-        setUsers(fetchedUsers);
-      } else if (fetchedProject) { // Project exists but no responsible persons, still need users for activity display
+      // Always fetch users if project exists, as they are needed for activities and tasks display
+      if (fetchedProject) {
         const fetchedUsers = await getAllUsers();
         setUsers(fetchedUsers);
       }
@@ -335,7 +332,14 @@ export default function ProjectDetailsPage() {
                         <Badge variant={task.status === "Tamamlandı" ? "default" : "secondary"}>{task.status}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">Bitiş Tarihi: {formatDateDisplay(task.dueDate, 'dd MMM yyyy')}</p>
-                      {task.assignedTo && <p className="text-xs text-muted-foreground">Atanan: {users.find(u=>u.uid === task.assignedTo)?.firstName || task.assignedTo}</p>}
+                      {task.assignedTo && task.assignedTo.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Atanan: {task.assignedTo.map(uid => {
+                            const user = users.find(u => u.uid === uid);
+                            return user ? `${user.firstName} ${user.lastName}` : `Kullanıcı (ID: ${uid.substring(0,6)}...)`;
+                          }).join(', ')}
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>
