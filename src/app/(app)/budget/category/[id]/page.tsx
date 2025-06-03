@@ -141,11 +141,9 @@ export default function SpendingCategoryDetailPage() {
     try {
       await deleteInvoice(invoiceToDelete.id);
       
-      // Optimistically update UI
       const updatedInvoices = invoicesForCategory.filter(inv => inv.id !== invoiceToDelete!.id);
       setInvoicesForCategory(updatedInvoices);
       
-      // Recalculate chart data
        if (updatedInvoices.length > 0) {
         const spendingByMonth: Record<string, number> = {};
         updatedInvoices.forEach(invoice => {
@@ -175,7 +173,6 @@ export default function SpendingCategoryDetailPage() {
       setInvoiceToDelete(null);
     } catch (error: any) {
       toast({ title: "Silme Hatası", description: error.message || "Fatura silinirken bir hata oluştu.", variant: "destructive" });
-      // Re-fetch if deletion failed to ensure data consistency
       fetchInvoicesForCategory();
     } finally {
       setIsDeletingInvoice(false);
@@ -217,6 +214,13 @@ export default function SpendingCategoryDetailPage() {
       </div>
     );
   }
+  
+  const getFileNameFromPath = (path?: string) => {
+    if (!path) return "Dosyayı İndir";
+    // UUID'yi ve başlangıçtaki olası 'invoices/' veya 'project-activities/' gibi klasör adlarını kaldır
+    const nameWithoutPrefix = path.split('/').pop() || path;
+    return nameWithoutPrefix.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, '') || "Dosya";
+  };
 
   return (
     <div className="space-y-6">
@@ -294,7 +298,7 @@ export default function SpendingCategoryDetailPage() {
                     <TableCell>
                       {invoice.fileURL ? (
                         <a href={invoice.fileURL} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
-                          <Download className="mr-1 h-4 w-4" /> İndir
+                          <Download className="mr-1 h-4 w-4" /> {getFileNameFromPath(invoice.storagePath)}
                         </a>
                       ) : (
                         '-'
