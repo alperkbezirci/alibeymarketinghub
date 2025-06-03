@@ -1,4 +1,3 @@
-
 // src/app/(app)/layout.tsx
 "use client";
 import React, { useEffect } from 'react';
@@ -8,6 +7,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarInset, SidebarHeader, SidebarFooter } from '@/components/ui/sidebar';
 import { AppLogo } from '@/components/layout/app-logo'; 
+import { AppLogotype } from '@/components/layout/app-logotype'; // Import logotype
 import Link from 'next/link';
 import { SpendingCategoriesProvider } from '@/contexts/spending-categories-context';
 
@@ -47,8 +47,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <SidebarHeader className="p-4">
             <Link href="/dashboard" className="flex items-center gap-2 text-sidebar-foreground group-data-[collapsible=icon]:justify-center">
-              <AppLogo className="h-6 w-auto text-primary" /> 
-              <span className="text-lg font-semibold group-data-[collapsible=icon]:hidden font-headline">Ali Bey Hub</span>
+              <AppLogo className="h-6 w-auto" /> 
+              <AppLogotype className="h-5 w-auto text-sidebar-foreground group-data-[collapsible=icon]:hidden" />
             </Link>
           </SidebarHeader>
           <SidebarContent>

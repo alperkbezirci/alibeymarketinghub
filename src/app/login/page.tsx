@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
 import { AppLogo } from '@/components/layout/app-logo'; 
+import { AppLogotype } from '@/components/layout/app-logotype'; // Import logotype
 import { Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -53,11 +54,11 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="text-center">
-          <div className="mb-4 inline-flex items-center justify-center">
-             <AppLogo className="h-10 w-auto text-primary" /> 
+        <CardHeader className="text-center space-y-4"> {/* Added space-y-4 for better spacing */}
+          <div className="inline-flex justify-center"> {/* Centering the icon */}
+             <AppLogo className="h-12 w-auto text-primary" /> 
           </div>
-          <CardTitle className="text-3xl font-headline">Ali Bey Marketing Hub</CardTitle>
+          <AppLogotype className="h-8 w-auto text-foreground mx-auto" /> {/* Centering the logotype */}
           <CardDescription>Pazarlama Yönetim Platformuna Hoş Geldiniz</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
