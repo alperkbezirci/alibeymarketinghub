@@ -7,7 +7,7 @@ import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarInset, SidebarHeader, SidebarFooter } from '@/components/ui/sidebar';
-import { Mountain } from 'lucide-react';
+import { AppLogo } from '@/components/layout/app-logo'; // Changed from Mountain
 import Link from 'next/link';
 import { SpendingCategoriesProvider } from '@/contexts/spending-categories-context';
 
@@ -47,7 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <SidebarHeader className="p-4">
             <Link href="/dashboard" className="flex items-center gap-2 text-sidebar-foreground group-data-[collapsible=icon]:justify-center">
-              <Mountain className="size-6 text-primary" />
+              <AppLogo className="h-6 w-auto text-primary" /> {/* Used AppLogo, adjusted width to auto */}
               <span className="text-lg font-semibold group-data-[collapsible=icon]:hidden font-headline">Ali Bey Hub</span>
             </Link>
           </SidebarHeader>

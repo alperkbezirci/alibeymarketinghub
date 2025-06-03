@@ -1,13 +1,14 @@
+
 // src/components/layout/header.tsx
 "use client";
 
 import React from 'react';
 import Link from 'next/link';
-import { Mountain } from 'lucide-react'; // Placeholder for logo
+import { AppLogo } from '@/components/layout/app-logo'; // Changed from Mountain
 import { UserNav } from '@/components/layout/user-nav';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { SidebarTrigger } from '@/components/ui/sidebar'; // Use the trigger from sidebar component
+import { SidebarTrigger } from '@/components/ui/sidebar'; 
 
 
 export function Header() {
@@ -19,7 +20,7 @@ export function Header() {
             <SidebarTrigger />
           </div>
           <Link href="/dashboard" className="flex items-center space-x-2">
-            <Mountain className="h-6 w-6 text-primary" />
+            <AppLogo className="h-6 w-auto text-primary" /> {/* Used AppLogo, adjusted width to auto for aspect ratio */}
             <span className="font-headline text-xl font-bold">Ali Bey Marketing Hub</span>
           </Link>
         </div>
