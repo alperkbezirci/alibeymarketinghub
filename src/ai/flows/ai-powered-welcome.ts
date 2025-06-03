@@ -13,24 +13,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-
-// Tool to get weather information (simulated)
-const getWeatherTool = ai.defineTool(
-  {
-    name: 'getWeatherForLocation',
-    description: 'Belirtilen bir konum için mevcut hava durumu bilgisini alır.',
-    inputSchema: z.object({ location: z.string().describe('Hava durumu bilgisi alınacak şehir ve ülke, örn: Antalya, Türkiye') }),
-    outputSchema: z.object({ weatherSummary: z.string().describe('Konum için özet hava durumu, örn: Güneşli, 28°C') }),
-  },
-  async ({location}) => {
-    // In a real application, this would call an external weather API.
-    // For simulation, we return a mock response.
-    let mockWeather = "Güneşli ve 28°C";
-    if (location.toLowerCase().includes("ankara")) mockWeather = "Parçalı bulutlu ve 22°C";
-    else if (location.toLowerCase().includes("istanbul")) mockWeather = "Yağmurlu ve 20°C";
-    return { weatherSummary: `${location} için hava durumu: ${mockWeather}.` };
-  }
-);
+import { getWeatherForecast, type WeatherInfoOutput } from './weather-forecast-flow'; // Import the new flow
 
 const WelcomeMessageInputSchema = z.object({
   userName: z.string().describe('The name of the user.'),
@@ -53,15 +36,45 @@ export async function generateWelcomeMessage(input: WelcomeMessageInput): Promis
 
 const welcomeMessagePrompt = ai.definePrompt({
   name: 'enhancedWelcomeMessagePrompt',
-  input: { schema: WelcomeMessageInputSchema }, // Input schema for the prompt itself, not the flow
+  // The prompt input will now include the structured weather data from the WeatherInfoOutputSchema
+  input: { schema: WelcomeMessageInputSchema.extend({ weatherData: WeatherInfoOutputSchema.optional() }) },
   output: { schema: WelcomeMessageOutputSchema },
-  tools: [getWeatherTool],
-  prompt: `Sen bir Pazarlama Merkezi uygulamasında kullanıcıları karşılayan, son derece pozitif ve motive edici bir asistansın.
+  // No tool needed here directly, as weatherData is passed in.
+  prompt: `Sen bir Pazarlama Merkezi uygulamasında kullanıcıları karşılayan, son derece pozitif, esprili ve motive edici bir asistansın.
 Kullanıcı Adı: {{userName}}
 Tarih: {{date}}
 Saat: {{time}}
 Kullanıcının Konumu: {{location}}
-{{#if todaysEvents}}
+
+{{#if weatherData.currentWeather}}
+Şu anki Hava Durumu ({{location}}):
+Sıcaklık: {{weatherData.currentWeather.temp}}°C (Hissedilen: {{weatherData.currentWeather.feelsLike}}°C)
+Durum: {{weatherData.currentWeather.description}}
+Nem: {{weatherData.currentWeather.humidity}}%
+Rüzgar: {{weatherData.currentWeather.windSpeed}} m/s
+{{else}}
+Anlık hava durumu bilgisi alınamadı.
+{{/if}}
+
+{{#if weatherData.todayHourlyForecast.length}}
+Bugünün Saatlik Tahmini:
+{{#each weatherData.todayHourlyForecast}}
+- {{time}}: {{temp}}°C, {{description}}, Yağış: {{pop}}%
+{{/each}}
+{{else}}
+Bugün için saatlik tahmin detayı bulunmuyor.
+{{/if}}
+
+{{#if weatherData.threeDaySummaryForecast.length}}
+Önümüzdeki 3 Günün Özeti:
+{{#each weatherData.threeDaySummaryForecast}}
+- {{date}} ({{dayName}}): En Düşük {{minTemp}}°C, En Yüksek {{maxTemp}}°C, {{description}}, Yağış İhtimali: {{precipitationChance}}%
+{{/each}}
+{{else}}
+Gelecek günler için özet tahmin bilgisi alınamadı.
+{{/if}}
+
+{{#if todaysEvents.length}}
 Bugünün Takvim Etkinlikleri:
 {{#each todaysEvents}}
 - {{{this}}}
@@ -70,7 +83,7 @@ Bugünün Takvim Etkinlikleri:
 Bugün için planlanmış herhangi bir takvim etkinliği bulunmuyor.
 {{/if}}
 
-{{#if userProjectsSummary}}
+{{#if userProjectsSummary.length}}
 Sana Atanmış Projelerin Durumu:
 {{#each userProjectsSummary}}
 - {{{this}}}
@@ -81,13 +94,17 @@ Sana Atanmış Projelerin Durumu:
 
 Yönergeler:
 1.  Kullanıcıyı ismiyle sıcak bir şekilde selamla.
-2.  'getWeatherForLocation' aracını kullanarak kullanıcının konumu ({{location}}) için hava durumu bilgisini al ve mesajına doğal bir şekilde dahil et. Hava durumunu belirterek güne başla.
-3.  Eğer varsa, bugünün takvim etkinliklerinden kısaca bahset.
-4.  Eğer varsa, kullanıcıya atanmış projelerin genel durumuna değin.
-5.  Tüm bu bilgileri (hava durumu, takvim, projeler) kullanarak, kullanıcının o günkü durumuna (yoğun bir gün mü, proje odaklı mı, yeni başlangıçlar için mi vb.) uygun, kişiselleştirilmiş, motive edici ve cesaretlendirici bir mesaj oluştur. Mesajın samimi ve destekleyici olmalı. Kullanıcıyı güne pozitif başlatmayı hedefle.
-6.  Mesajının sonunda "İyi çalışmalar!" veya "Harika bir gün geçir!" gibi pozitif bir kapanış yap.
-7.  Eğer takvimde etkinlik yoksa veya atanmış proje yoksa, bunu da olumlu bir şekilde ifade et (örn: "Bugün takvimin sakin görünüyor, belki yeni planlar yapmak için harika bir zaman!" veya "Proje listen şu an için boş, yeni fırsatlara odaklanabilirsin!").
-8.  Hava durumu bilgisini aldıktan sonra, mesajına "Bugün {{location}} şehrinde hava {{weatherSummary}}..." gibi bir ifadeyle başla.
+2.  Şu anki hava durumunu ({{weatherData.currentWeather.description}}, {{weatherData.currentWeather.temp}}°C) mesajına doğal bir şekilde dahil et.
+3.  **Bugünün saatlik tahminini ({{weatherData.todayHourlyForecast}}) dikkate alarak GÜNLÜK PRATİK TAVSİYELER ver.**
+    *   Örneğin, eğer öğleden sonra yağış olasılığı (%{{#first weatherData.todayHourlyForecast}}{{pop}}{{/first}} gibi) yüksekse, "Bugün {{location}} şehrinde hava {{weatherData.currentWeather.description}} ve {{weatherData.currentWeather.temp}}°C civarında. {{#if weatherData.todayHourlyForecast}}{{#each weatherData.todayHourlyForecast}}{{#if (compare pop ">" 50)}}Öğleden sonra {{time}} gibi yağmur %{{pop}} ihtimalle uğrayabilir, şemsiyeni yanında bulundursan iyi olur!{{break}}{{/if}}{{/each}}{{/if}}" gibi bir ifade kullan.
+    *   Eğer belirli saatlerde (örn: {{#first weatherData.todayHourlyForecast}}{{time}}{{/first}}) sıcaklık çok artıyorsa (örn: {{#first weatherData.todayHourlyForecast}}{{temp}}{{/first}} > 30), "Saat {{#first weatherData.todayHourlyForecast}}{{time}}{{/first}} civarı sıcaklık {{#first weatherData.todayHourlyForecast}}{{temp}}{{/first}}°C'ye kadar çıkabilir, dışarıdaysan bol su içmeyi ve güneşten korunmayı unutma!" gibi bir uyarı ekle.
+    *   Bu tavsiyeleri eğlenceli ve samimi bir dille aktar. Her zaman olmasa da, uygun olduğunda bu tür detaylara gir.
+4.  Eğer varsa, bugünün takvim etkinliklerinden kısaca bahset.
+5.  Eğer varsa, kullanıcıya atanmış projelerin genel durumuna değin.
+6.  Tüm bu bilgileri kullanarak, kullanıcının o günkü durumuna uygun, kişiselleştirilmiş, motive edici ve cesaretlendirici bir mesaj oluştur.
+7.  Mesajının sonunda "İyi çalışmalar!", "Harika bir gün geçir!" veya benzeri pozitif bir kapanış yap.
+8.  Eğer takvimde etkinlik yoksa veya atanmış proje yoksa, bunu da olumlu bir şekilde ifade et.
+9.  Eğer hava durumu verisi alınamazsa (weatherData boş veya error içeriyorsa), bunu nazikçe belirt ve genel bir karşılama yap.
 `,
 });
 
@@ -98,19 +115,29 @@ const welcomeMessageFlow = ai.defineFlow(
     outputSchema: WelcomeMessageOutputSchema,
   },
   async (input): Promise<WelcomeMessageOutput> => {
+    let weatherData: WeatherInfoOutput | undefined;
     try {
-      // The prompt will automatically use the getWeatherTool if it deems necessary based on instructions.
-      // The prompt itself receives the full input including location.
-      const {output} = await welcomeMessagePrompt(input);
+      weatherData = await getWeatherForecast({ location: input.location });
+      if (weatherData.error) {
+        console.warn(`Weather data could not be fetched for ${input.location}: ${weatherData.error}`);
+        // Proceed without weather data, AI prompt will handle missing data.
+      }
+    } catch (error: any) {
+      console.error(`Error fetching weather data for welcome message for user ${input.userName}: ${error.message}`);
+      // Proceed without weather data
+    }
+
+    try {
+      const {output} = await welcomeMessagePrompt({...input, weatherData });
 
       if (!output || !output.message) {
-        console.warn(`AI welcome message prompt returned null or empty output for user ${input.userName}. Input:`, input);
+        console.warn(`AI welcome message prompt returned null or empty output for user ${input.userName}. Input:`, {...input, weatherData});
         return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${input.date}, saat ${input.time}. Harika bir gün geçirmenizi dileriz!` };
       }
       return output;
     } catch (error: any) {
       console.error(
-        `Error calling welcomeMessagePrompt for user ${input.userName}. Error: ${error.message}. Input: ${JSON.stringify(input)}. Falling back to default welcome message.`,
+        `Error calling welcomeMessagePrompt for user ${input.userName}. Error: ${error.message}. Input: ${JSON.stringify({...input, weatherData})}. Falling back to default welcome message.`,
         JSON.stringify(error, Object.getOwnPropertyNames(error))
       );
       

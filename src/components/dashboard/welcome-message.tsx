@@ -3,120 +3,231 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { generateWelcomeMessage } from '@/ai/flows/ai-powered-welcome';
+import { getWeatherForecast, type WeatherInfoOutput } from '@/ai/flows/weather-forecast-flow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getEvents, type CalendarEvent } from '@/services/calendar-service';
-import { getProjectsByUserId, type Project } from '@/services/project-service'; // Assuming getProjectsByUserId exists
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { getProjectsByUserId, type Project } from '@/services/project-service';
+import { format, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { MapPin, Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, Cloudy, Thermometer, Droplets, Wind, CalendarClock, Briefcase } from 'lucide-react';
+
+const getWeatherIcon = (iconCode?: string, size: number = 24) => {
+  if (!iconCode) return <Cloudy size={size} className="text-muted-foreground" />;
+  // Mapping OpenWeatherMap icon codes to Lucide icons
+  // See: https://openweathermap.org/weather-conditions
+  if (iconCode.startsWith("01")) return <Sun size={size} className="text-yellow-500" />; // clear sky
+  if (iconCode.startsWith("02")) return <CloudSun size={size} className="text-yellow-400" />; // few clouds
+  if (iconCode.startsWith("03")) return <Cloud size={size} className="text-sky-400" />; // scattered clouds
+  if (iconCode.startsWith("04")) return <Cloudy size={size} className="text-sky-500" />; // broken clouds, overcast clouds
+  if (iconCode.startsWith("09")) return <CloudRain size={size} className="text-blue-500" />; // shower rain
+  if (iconCode.startsWith("10")) return <CloudRain size={size} className="text-blue-600" />; // rain
+  if (iconCode.startsWith("11")) return <CloudLightning size={size} className="text-purple-500" />; // thunderstorm
+  if (iconCode.startsWith("13")) return <CloudSnow size={size} className="text-blue-300" />; // snow
+  // 50d (mist) and other specific icons can be mapped if needed
+  return <Cloudy size={size} className="text-muted-foreground" />; // default
+};
+
 
 export function WelcomeMessage() {
   const { user, getDisplayName } = useAuth();
-  const [welcomeText, setWelcomeText] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
+  const [aiWelcomeText, setAiWelcomeText] = useState<string>('');
+  const [loadingAiMessage, setLoadingAiMessage] = useState<boolean>(true);
+  
+  const [weatherData, setWeatherData] = useState<WeatherInfoOutput | null>(null);
+  const [loadingWeather, setLoadingWeather] = useState<boolean>(true);
+
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [currentDate, setCurrentDate] = useState<string>('');
+  const [currentDateFull, setCurrentDateFull] = useState<string>(''); // For AI
+  const [currentDateShort, setCurrentDateShort] = useState<string>(''); // For display
 
   const [todaysEvents, setTodaysEvents] = useState<string[]>([]);
   const [userProjectsSummary, setUserProjectsSummary] = useState<string[]>([]);
-  const [dataLoading, setDataLoading] = useState<boolean>(true);
+  const [loadingContextualData, setLoadingContextualData] = useState<boolean>(true);
 
   const location = "Antalya, Türkiye"; // Hardcoded for now
 
   useEffect(() => {
     const now = new Date();
     setCurrentTime(now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
-    setCurrentDate(now.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+    setCurrentDateFull(now.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+    setCurrentDateShort(format(now, 'd MMMM yyyy', {locale: tr}));
   }, []);
 
-  const fetchContextualData = useCallback(async () => {
+  const fetchContextualDataForAI = useCallback(async () => {
     if (!user) {
-      setDataLoading(false);
+      setLoadingContextualData(false);
       return;
     }
-    setDataLoading(true);
+    setLoadingContextualData(true);
     try {
-      // Fetch today's events
       const todayStart = startOfDay(new Date());
       const todayEnd = endOfDay(new Date());
       const events: CalendarEvent[] = await getEvents(todayStart, todayEnd);
-      setTodaysEvents(events.map(event => event.title).slice(0, 3)); // Max 3 events
+      setTodaysEvents(events.map(event => event.title).slice(0, 3));
 
-      // Fetch user's projects
       const projects: Project[] = await getProjectsByUserId(user.uid);
       setUserProjectsSummary(
-        projects.map(p => `${p.projectName || 'İsimsiz Proje'} (${p.status || 'Bilinmiyor'})`).slice(0, 3) // Max 3 projects
+        projects.map(p => `${p.projectName || 'İsimsiz Proje'} (${p.status || 'Bilinmiyor'})`).slice(0, 3)
       );
     } catch (error) {
-      console.error("Error fetching contextual data for welcome message:", error);
-      // Set empty arrays on error so AI flow can handle it
+      console.error("Error fetching contextual data for AI welcome message:", error);
       setTodaysEvents([]);
       setUserProjectsSummary([]);
     } finally {
-      setDataLoading(false);
+      setLoadingContextualData(false);
     }
   }, [user]);
 
-  useEffect(() => {
-    if (user) {
-      fetchContextualData();
+  const fetchWeatherDetails = useCallback(async () => {
+    setLoadingWeather(true);
+    try {
+        const result = await getWeatherForecast({ location });
+        setWeatherData(result);
+    } catch (error) {
+        console.error("Hava durumu verisi alınırken hata (bileşen):", error);
+        setWeatherData({ location, error: "Hava durumu bilgisi şu anda alınamıyor." } as WeatherInfoOutput);
+    } finally {
+        setLoadingWeather(false);
     }
-  }, [user, fetchContextualData]);
+  }, [location]);
+
 
   useEffect(() => {
-    async function fetchWelcomeMessage() {
-      if (user && currentTime && currentDate && !dataLoading) {
-        setLoading(true);
+    if (user) {
+      fetchContextualDataForAI();
+      fetchWeatherDetails();
+    }
+  }, [user, fetchContextualDataForAI, fetchWeatherDetails]);
+
+  useEffect(() => {
+    async function fetchAiWelcomeMessage() {
+      if (user && currentTime && currentDateFull && !loadingContextualData) { // Weather data for AI is fetched inside the flow
+        setLoadingAiMessage(true);
         try {
           const result = await generateWelcomeMessage({
             userName: getDisplayName(),
-            date: currentDate,
+            date: currentDateFull,
             time: currentTime,
             location: location,
             todaysEvents: todaysEvents,
             userProjectsSummary: userProjectsSummary,
           });
-          setWelcomeText(result.message);
+          setAiWelcomeText(result.message);
         } catch (error) {
-          console.error("Yapay zeka karşılama mesajı oluşturulurken hata:", error);
-          setWelcomeText(`Merhaba ${getDisplayName()}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${currentDate}, saat ${currentTime}. Harika bir gün geçirmenizi dileriz!`);
+          console.error("Yapay zeka karşılama mesajı oluşturulurken hata (bileşen):", error);
+          setAiWelcomeText(`Merhaba ${getDisplayName()}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${currentDateFull}, saat ${currentTime}. Harika bir gün geçirmenizi dileriz!`);
         } finally {
-          setLoading(false);
+          setLoadingAiMessage(false);
         }
       }
     }
 
-    if (user && currentTime && currentDate && !dataLoading) {
-       fetchWelcomeMessage();
+    if (user && !loadingContextualData) { // Trigger AI message fetch once contextual data is ready
+       fetchAiWelcomeMessage();
     } else if (!user) {
-      setLoading(false); 
+      setLoadingAiMessage(false); 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentTime, currentDate, getDisplayName, dataLoading, todaysEvents, userProjectsSummary, location]);
+  }, [user, currentTime, currentDateFull, getDisplayName, loadingContextualData, todaysEvents, userProjectsSummary, location]);
 
   if (!user) return null;
+
+  const isLoading = loadingAiMessage || loadingWeather || loadingContextualData;
 
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">
-          <strong className="font-bold">Pazarlama</strong>Merkezi
+        <CardTitle className="font-headline text-2xl flex flex-col sm:flex-row sm:justify-between sm:items-center">
+          <span><strong className="font-bold">Pazarlama</strong>Merkezi</span>
+          <div className="text-sm font-normal text-muted-foreground mt-1 sm:mt-0 flex items-center">
+            <MapPin size={16} className="mr-1.5" /> {location} <span className="mx-1.5">•</span> {currentDateShort}, {currentTime}
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {loading || dataLoading ? (
+        {isLoading ? (
           <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-full mt-2" />
-            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-4 w-full mt-1" />
           </div>
         ) : (
-          <p className="text-lg whitespace-pre-line">{welcomeText}</p>
+          <p className="text-lg whitespace-pre-line leading-relaxed">{aiWelcomeText}</p>
+        )}
+        
+        {loadingWeather && !weatherData && (
+           <div className="mt-6 space-y-3">
+                <Skeleton className="h-8 w-1/3" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                </div>
+            </div>
+        )}
+
+        {!loadingWeather && weatherData && !weatherData.error && weatherData.currentWeather && (
+          <div className="mt-6 pt-4 border-t">
+            <div className="flex items-center mb-3">
+              {getWeatherIcon(weatherData.currentWeather.icon, 32)}
+              <div className="ml-3">
+                <p className="text-2xl font-semibold">{weatherData.currentWeather.temp}°C</p>
+                <p className="text-sm text-muted-foreground capitalize">{weatherData.currentWeather.description}</p>
+              </div>
+              <div className="ml-auto text-xs text-muted-foreground space-y-0.5 text-right">
+                <p className="flex items-center justify-end"><Thermometer size={12} className="mr-1" /> Hissedilen: {weatherData.currentWeather.feelsLike}°C</p>
+                <p className="flex items-center justify-end"><Droplets size={12} className="mr-1" /> Nem: %{weatherData.currentWeather.humidity}</p>
+                <p className="flex items-center justify-end"><Wind size={12} className="mr-1" /> Rüzgar: {weatherData.currentWeather.windSpeed} m/s</p>
+              </div>
+            </div>
+
+            {weatherData.threeDaySummaryForecast && weatherData.threeDaySummaryForecast.length > 0 && (
+              <>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-2 mt-4">Gelecek 3 Gün</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {weatherData.threeDaySummaryForecast.map((day, index) => (
+                    <Card key={index} className="p-3 bg-muted/30">
+                      <p className="text-sm font-semibold text-center mb-1">{day.date}</p>
+                      <div className="flex flex-col items-center">
+                        {getWeatherIcon(day.icon, 28)}
+                        <p className="text-lg font-bold mt-1">{day.maxTemp}°<span className="text-sm font-normal text-muted-foreground">/{day.minTemp}°</span></p>
+                        <p className="text-xs text-muted-foreground capitalize text-center mt-0.5">{day.description}</p>
+                         {day.precipitationChance > 10 && <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Yağış: %{day.precipitationChance}</p>}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {!loadingWeather && weatherData?.error && (
+            <p className="text-sm text-destructive mt-4 text-center">{weatherData.error}</p>
         )}
       </CardContent>
+      {(todaysEvents.length > 0 || userProjectsSummary.length > 0) && !isLoading && (
+         <CardFooter className="flex flex-col sm:flex-row gap-4 pt-4 border-t text-xs text-muted-foreground">
+            {todaysEvents.length > 0 && (
+                <div className="flex-1">
+                    <p className="font-semibold mb-1 flex items-center"><CalendarClock size={14} className="mr-1.5"/> Bugünün Etkinlikleri:</p>
+                    <ul className="list-disc list-inside pl-1 space-y-0.5">
+                        {todaysEvents.map((event, idx) => <li key={idx} className="truncate" title={event}>{event}</li>)}
+                    </ul>
+                </div>
+            )}
+            {userProjectsSummary.length > 0 && (
+                 <div className="flex-1">
+                    <p className="font-semibold mb-1 flex items-center"><Briefcase size={14} className="mr-1.5"/> Projelerim:</p>
+                     <ul className="list-disc list-inside pl-1 space-y-0.5">
+                        {userProjectsSummary.map((project, idx) => <li key={idx} className="truncate" title={project}>{project}</li>)}
+                    </ul>
+                </div>
+            )}
+        </CardFooter>
+      )}
     </Card>
   );
 }
