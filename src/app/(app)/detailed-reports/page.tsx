@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, type User as AuthUser } from "@/contexts/auth-context"; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Filter, SlidersHorizontal, AreaChart, History, Loader2, AlertTriangle, LineChart as LucideLineChart, BarChart as BarChartIcon, PieChart as LucidePieChart, Users, ListChecks, Activity, RefreshCw, FileText } from "lucide-react";
+import { Filter, SlidersHorizontal, AreaChart, History, Loader2, AlertTriangle, LineChart as LucideLineChart, BarChart as BarChartIcon, PieChart as LucidePieChart, Users, ListChecks, Activity, RefreshCw, FileText, MessageSquare, Upload, Settings2Icon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES } from "@/lib/constants";
@@ -129,23 +129,42 @@ export default function DetailedReportsPage() {
   }, [selectedUserIdFilter, fetchActivityLog, isAdminOrMarketingManager]);
 
 
-  const getActivityDescription = (activity: ProjectActivity): string => {
+  const getActivityDescription = (activity: ProjectActivity): React.ReactNode => {
+    let icon;
+    let text = "";
+
     switch (activity.type) {
       case 'comment':
-        return `"${activity.content?.substring(0, 50)}${activity.content && activity.content.length > 50 ? '...' : ''}" şeklinde yorum yaptı.`;
+        icon = <MessageSquare className="mr-2 h-4 w-4 text-blue-500 flex-shrink-0" />;
+        text = `"${activity.content?.substring(0, 50)}${activity.content && activity.content.length > 50 ? '...' : ''}" şeklinde yorum yaptı.`;
+        break;
       case 'file_upload':
-        return `"${activity.fileName || 'bir dosya'}" yükledi. ${activity.content ? `(Not: ${activity.content.substring(0,30)}...)` : '' }`;
-      case 'status_update':
-        return `bir aktivitenin durumunu güncelledi: ${activity.status}.`; // Daha detaylı olabilir
+        icon = <Upload className="mr-2 h-4 w-4 text-green-500 flex-shrink-0" />;
+        text = `"${activity.fileName || 'bir dosya'}" yükledi. ${activity.content ? `(Not: ${activity.content.substring(0,30)}...)` : '' }`;
+        break;
+      case 'status_update': // This could be for task/project status or activity approval status
+        icon = <Settings2Icon className="mr-2 h-4 w-4 text-purple-500 flex-shrink-0" />; // Or a more generic icon like Activity
+        text = `durumunu güncelledi: ${activity.status || 'belirtilmemiş'}.`;
+        if (activity.status === 'approved') text = `içeriği onayladı.`;
+        else if (activity.status === 'rejected') text = `içeriği reddetti.`;
+        else if (activity.status === 'pending_approval') text = `içeriği onaya gönderdi.`;
+        break;
       default:
-        return `bir eylem gerçekleştirdi (${activity.type}).`;
+        icon = <Activity className="mr-2 h-4 w-4 text-gray-500 flex-shrink-0" />;
+        text = `bir eylem gerçekleştirdi (${activity.type}).`;
     }
+    return (
+      <div className="flex items-center">
+        {icon}
+        <span>{text}</span>
+      </div>
+    );
   };
 
   const renderPieChart = (data: ChartDataItem[], title: string, isLoading: boolean, error: string | null) => {
     if (isLoading) return <div className="h-64 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     if (error) return <p className="text-destructive text-center py-8">{error}</p>;
-    if (data.length === 0) return <p className="text-muted-foreground text-center py-8">Bu grafik için veri bulunmamaktadır.</p>;
+    if (data.length === 0) return <p className="text-muted-foreground text-center py-8">Bu grafik için gösterilecek veri bulunmamaktadır. Sistemde veri biriktikçe raporlar burada oluşacaktır.</p>;
 
     return (
       <div>
@@ -280,7 +299,7 @@ export default function DetailedReportsPage() {
                   </div>
                   <div className="ml-3 flex-grow">
                     <span className="font-medium mr-1">{activity.userName}:</span>
-                    <span>{getActivityDescription(activity)}</span>
+                    {getActivityDescription(activity)}
                     {activity.projectId && (
                       <Link href={`/projects/${activity.projectId}`} className="text-xs text-blue-500 hover:underline ml-1">(Proje Detayı)</Link>
                     )}
@@ -289,10 +308,11 @@ export default function DetailedReportsPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-center text-muted-foreground p-8">Seçili filtreler için gösterilecek aktivite kaydı bulunmamaktadır.</p>
+            <p className="text-center text-muted-foreground p-8">Seçili filtreler için gösterilecek aktivite kaydı bulunmamaktadır. Farklı filtreler deneyebilir veya sistemde aktivite oluşmasını bekleyebilirsiniz.</p>
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
+

@@ -95,12 +95,12 @@ export function EventForm({ onSave, initialData, onClose, isSaving, selectedDate
   return (
     <form onSubmit={handleSubmit} className="space-y-4 py-4">
       <div>
-        <Label htmlFor="eventTitle">Etkinlik Adı *</Label>
+        <Label htmlFor="eventTitle">Etkinlik Adı <span className="text-destructive">*</span></Label>
         <Input id="eventTitle" value={title} onChange={(e) => setTitle(e.target.value)} required />
       </div>
 
       <div>
-        <Label htmlFor="eventType">Etkinlik Türü *</Label>
+        <Label htmlFor="eventType">Etkinlik Türü <span className="text-destructive">*</span></Label>
         <Select value={eventType} onValueChange={setEventType} required>
           <SelectTrigger id="eventType"><SelectValue placeholder="Etkinlik türü seçin" /></SelectTrigger>
           <SelectContent>
@@ -111,7 +111,7 @@ export function EventForm({ onSave, initialData, onClose, isSaving, selectedDate
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="eventStartDate">Başlangıç Tarihi *</Label>
+          <Label htmlFor="eventStartDate">Başlangıç Tarihi <span className="text-destructive">*</span></Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant={"outline"} className="w-full justify-start text-left font-normal">
@@ -140,7 +140,7 @@ export function EventForm({ onSave, initialData, onClose, isSaving, selectedDate
           </Popover>
         </div>
         <div>
-          <Label htmlFor="eventEndDate">Bitiş Tarihi *</Label>
+          <Label htmlFor="eventEndDate">Bitiş Tarihi <span className="text-destructive">*</span></Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant={"outline"} className="w-full justify-start text-left font-normal">
@@ -196,3 +196,4 @@ export function EventForm({ onSave, initialData, onClose, isSaving, selectedDate
     </form>
   );
 }
+

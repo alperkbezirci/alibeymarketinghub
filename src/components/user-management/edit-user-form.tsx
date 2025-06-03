@@ -64,11 +64,11 @@ export function EditUserForm({ user, onSuccess, onClose }: EditUserFormProps) {
       <input type="hidden" name="uid" value={user.uid} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="firstName">İsim *</Label>
+          <Label htmlFor="firstName">İsim <span className="text-destructive">*</span></Label>
           <Input id="firstName" name="firstName" defaultValue={user.firstName} required />
         </div>
         <div>
-          <Label htmlFor="lastName">Soyisim *</Label>
+          <Label htmlFor="lastName">Soyisim <span className="text-destructive">*</span></Label>
           <Input id="lastName" name="lastName" defaultValue={user.lastName} required />
         </div>
       </div>
@@ -92,7 +92,7 @@ export function EditUserForm({ user, onSuccess, onClose }: EditUserFormProps) {
         </div>
       </div>
       <div>
-        <Label htmlFor="authorizationLevel">Yetki Seviyesi *</Label>
+        <Label htmlFor="authorizationLevel">Yetki Seviyesi <span className="text-destructive">*</span></Label>
         <Select name="authorizationLevel" defaultValue={user.authorizationLevel || ""} required>
             <SelectTrigger id="authorizationLevel"><SelectValue placeholder="Yetki seviyesi seçin" /></SelectTrigger>
             <SelectContent>
@@ -101,7 +101,7 @@ export function EditUserForm({ user, onSuccess, onClose }: EditUserFormProps) {
         </Select>
       </div>
       <div>
-        <Label>Roller *</Label>
+        <Label>Roller <span className="text-destructive">*</span></Label>
         <div className="space-y-2 mt-1">
           {Object.entries(USER_ROLES).map(([key, value]) => (
             <div key={key} className="flex items-center space-x-2">
@@ -126,3 +126,4 @@ export function EditUserForm({ user, onSuccess, onClose }: EditUserFormProps) {
     </form>
   );
 }
+

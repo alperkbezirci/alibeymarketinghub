@@ -196,7 +196,9 @@ export default function ProjectsPage() {
       )}
 
       {!isLoading && !error && projects.length === 0 && (
-        <p className="col-span-full text-center text-muted-foreground py-8">Gösterilecek proje bulunmamaktadır. Yeni bir proje oluşturabilirsiniz.</p>
+        <p className="col-span-full text-center text-muted-foreground py-8">
+          Gösterilecek proje bulunmamaktadır. Sağ üst köşedeki 'Yeni Proje Oluştur' butonu ile ilk projenizi ekleyebilirsiniz.
+        </p>
       )}
 
       {!isLoading && !error && projects.length > 0 && (

@@ -45,7 +45,7 @@ export function CategoryEditForm({ category, onSave, onClose }: CategoryEditForm
   return (
     <form onSubmit={handleSubmit} className="space-y-4 py-4">
       <div>
-        <Label htmlFor="categoryName">Kategori Adı *</Label>
+        <Label htmlFor="categoryName">Kategori Adı <span className="text-destructive">*</span></Label>
         <Input
           id="categoryName"
           value={name}
@@ -54,7 +54,7 @@ export function CategoryEditForm({ category, onSave, onClose }: CategoryEditForm
         />
       </div>
       <div>
-        <Label htmlFor="categoryLimit">Limit (€) *</Label>
+        <Label htmlFor="categoryLimit">Limit (€) <span className="text-destructive">*</span></Label>
         <Input
           id="categoryLimit"
           type="number"
@@ -72,3 +72,4 @@ export function CategoryEditForm({ category, onSave, onClose }: CategoryEditForm
     </form>
   );
 }
+

@@ -1,3 +1,4 @@
+
 // src/app/(app)/cms/page.tsx
 "use client";
 
@@ -171,7 +172,7 @@ export default function CmsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><Palette className="mr-2 h-5 w-5 text-primary"/> Arayüz Özelleştirme</CardTitle>
-            <CardDescription>Başlıklar, logolar ve genel görünüm ayarları. Veriler Firestore'da saklanır.</CardDescription>
+            <CardDescription>Uygulamanın genel başlığını ve logosunu buradan yönetebilirsiniz. Veriler Firestore'da saklanır.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingUiSettings ? (
@@ -202,6 +203,8 @@ export default function CmsPage() {
                         accept="image/png, image/jpeg"
                         onChange={(e) => {
                             setSelectedLogoFileName(e.target.files?.[0]?.name || null);
+                            // TODO: Gerçek dosya yükleme mantığı burada client-side'da başlayacak.
+                            // Şimdilik sadece dosya adı gösteriliyor, saveUiSettings'e File nesnesi iletilmiyor.
                         }}
                         ref={logoFileInputRef}
                     />
@@ -223,7 +226,7 @@ export default function CmsPage() {
                         <p className="text-sm text-muted-foreground">Logo seçilmedi.</p>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Gerçek logo yükleme ve saklama henüz tam olarak aktif değildir. Şimdilik URL güncellenecektir.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Logo yükleme işlevi henüz tam aktif değildir. Yüklenen logo URL'si burada güncellenecektir.</p>
                 </div>
                 <Button onClick={handleSaveUISettings} disabled={isSavingUiSettings}>
                   {isSavingUiSettings && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -324,12 +327,12 @@ export default function CmsPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground mt-2">Henüz harcama kategorisi eklenmemiş.</p>
+                <p className="text-sm text-muted-foreground mt-2">Henüz harcama kategorisi eklenmemiş. Aşağıdaki formdan yeni bir kategori oluşturabilirsiniz.</p>
               )}
             </div>
             <div className="flex flex-col sm:flex-row items-end gap-2 pt-4 border-t">
               <div className="flex-grow">
-                <Label htmlFor="newCategoryNameInput">Yeni Kategori Adı</Label>
+                <Label htmlFor="newCategoryNameInput">Yeni Kategori Adı <span className="text-destructive">*</span></Label>
                 <Input 
                   id="newCategoryNameInput" 
                   placeholder="Örn: PR Çalışmaları" 
@@ -338,7 +341,7 @@ export default function CmsPage() {
                 />
               </div>
               <div className="w-full sm:w-auto">
-                <Label htmlFor="newCategoryLimitInput">Limit (€)</Label>
+                <Label htmlFor="newCategoryLimitInput">Limit (€) <span className="text-destructive">*</span></Label>
                 <Input 
                   id="newCategoryLimitInput" 
                   type="number"
@@ -387,3 +390,4 @@ export default function CmsPage() {
     </div>
   );
 }
+

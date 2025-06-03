@@ -1,3 +1,4 @@
+
 // src/app/(app)/reports/page.tsx
 "use client";
 
@@ -43,7 +44,7 @@ export default function ReportsPage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">Görev tamamlama verisi bulunmamaktadır.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Görev tamamlama verisi bulunmamaktadır. İlgili veriler sisteme eklendikçe grafikler burada görünecektir.</p>
             )}
           </div>
           
@@ -72,7 +73,7 @@ export default function ReportsPage() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-               <p className="text-sm text-muted-foreground text-center py-8">Proje durum verisi bulunmamaktadır.</p>
+               <p className="text-sm text-muted-foreground text-center py-8">Proje durum verisi bulunmamaktadır. İlgili veriler sisteme eklendikçe grafikler burada görünecektir.</p>
             )}
           </div>
         </CardContent>
@@ -83,3 +84,4 @@ export default function ReportsPage() {
     </div>
   );
 }
+

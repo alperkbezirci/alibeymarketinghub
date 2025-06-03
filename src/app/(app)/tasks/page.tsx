@@ -251,7 +251,9 @@ export default function TasksPage() {
       )}
       
       {!isLoading && !error && tasks.length === 0 && (
-        <p className="col-span-full text-center text-muted-foreground py-8">Gösterilecek görev bulunmamaktadır. Yeni bir görev oluşturabilirsiniz.</p>
+        <p className="col-span-full text-center text-muted-foreground py-8">
+          Gösterilecek görev bulunmamaktadır. Sağ üst köşedeki 'Yeni Görev Oluştur' butonu ile ilk görevinizi ekleyebilirsiniz.
+        </p>
       )}
 
       {!isLoading && !error && tasks.length > 0 && (
@@ -302,3 +304,4 @@ export default function TasksPage() {
     </div>
   );
 }
+

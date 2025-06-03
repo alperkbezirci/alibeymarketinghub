@@ -1,3 +1,4 @@
+
 // src/app/(app)/budget/category/[id]/page.tsx
 "use client";
 
@@ -257,7 +258,7 @@ export default function SpendingCategoryDetailPage() {
               </RechartsBarChart>
             </ResponsiveContainer>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Bu kategori için gösterilecek aylık harcama verisi bulunmamaktadır.</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Bu kategori için gösterilecek aylık harcama verisi bulunmamaktadır. Harcamalar eklendikçe grafik burada görünecektir.</p>
           )}
         </CardContent>
       </Card>
@@ -319,7 +320,7 @@ export default function SpendingCategoryDetailPage() {
               </TableBody>
             </Table>
           ) : (
-             <p className="text-sm text-muted-foreground text-center py-8">Bu kategoriye ait fatura bulunmamaktadır.</p>
+             <p className="text-sm text-muted-foreground text-center py-8">Bu kategoriye ait fatura bulunmamaktadır. Bütçe sayfasından bu kategoriye fatura ekleyebilirsiniz.</p>
           )}
         </CardContent>
       </Card>
@@ -351,3 +352,4 @@ export default function SpendingCategoryDetailPage() {
     </div>
   );
 }
+

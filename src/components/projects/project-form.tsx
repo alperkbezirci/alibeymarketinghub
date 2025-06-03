@@ -159,7 +159,7 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="projectName">Proje Adı *</Label>
+        <Label htmlFor="projectName">Proje Adı <span className="text-destructive">*</span></Label>
         <Input id="projectName" value={projectName} onChange={(e) => setProjectName(e.target.value)} required disabled={isSaving}/>
       </div>
       <div>
@@ -220,7 +220,7 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
           </Popover>
         </div>
         <div>
-          <Label htmlFor="endDate">Bitiş Tarihi *</Label>
+          <Label htmlFor="endDate">Bitiş Tarihi <span className="text-destructive">*</span></Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant={"outline"} className="w-full justify-start text-left font-normal" disabled={isSaving}>

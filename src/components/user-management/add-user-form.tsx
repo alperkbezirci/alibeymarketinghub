@@ -55,20 +55,20 @@ export function AddUserForm({ onSuccess, onClose }: AddUserFormProps) {
     <form action={formAction} className="space-y-4 py-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="firstName">İsim *</Label>
+          <Label htmlFor="firstName">İsim <span className="text-destructive">*</span></Label>
           <Input id="firstName" name="firstName" required />
         </div>
         <div>
-          <Label htmlFor="lastName">Soyisim *</Label>
+          <Label htmlFor="lastName">Soyisim <span className="text-destructive">*</span></Label>
           <Input id="lastName" name="lastName" required />
         </div>
       </div>
       <div>
-        <Label htmlFor="email">E-posta Adresi *</Label>
+        <Label htmlFor="email">E-posta Adresi <span className="text-destructive">*</span></Label>
         <Input id="email" name="email" type="email" required />
       </div>
       <div>
-        <Label htmlFor="password">Şifre *</Label>
+        <Label htmlFor="password">Şifre <span className="text-destructive">*</span></Label>
         <Input id="password" name="password" type="password" required minLength={6} />
         <p className="text-xs text-muted-foreground mt-1">Şifre en az 6 karakter olmalıdır.</p>
       </div>
@@ -88,7 +88,7 @@ export function AddUserForm({ onSuccess, onClose }: AddUserFormProps) {
         </div>
       </div>
       <div>
-        <Label htmlFor="authorizationLevel">Yetki Seviyesi *</Label>
+        <Label htmlFor="authorizationLevel">Yetki Seviyesi <span className="text-destructive">*</span></Label>
         <Select name="authorizationLevel" required>
             <SelectTrigger id="authorizationLevel"><SelectValue placeholder="Yetki seviyesi seçin" /></SelectTrigger>
             <SelectContent>
@@ -97,7 +97,7 @@ export function AddUserForm({ onSuccess, onClose }: AddUserFormProps) {
         </Select>
       </div>
       <div>
-        <Label>Roller *</Label>
+        <Label>Roller <span className="text-destructive">*</span></Label>
         <div className="space-y-2 mt-1">
           {Object.entries(USER_ROLES).map(([key, value]) => (
             <div key={key} className="flex items-center space-x-2">
@@ -116,3 +116,4 @@ export function AddUserForm({ onSuccess, onClose }: AddUserFormProps) {
     </form>
   );
 }
+

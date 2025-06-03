@@ -1,3 +1,4 @@
+
 // src/components/budget/invoice-form.tsx
 "use client";
 
@@ -154,12 +155,12 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
   return (
     <form onSubmit={handleSubmit} className="space-y-4 py-4">
       <div>
-        <Label htmlFor="invoiceNumber">Fatura Numarası *</Label>
+        <Label htmlFor="invoiceNumber">Fatura Numarası <span className="text-destructive">*</span></Label>
         <Input id="invoiceNumber" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} required disabled={isSaving} />
       </div>
 
       <div>
-        <Label htmlFor="invoiceDate">Fatura Tarihi *</Label>
+        <Label htmlFor="invoiceDate">Fatura Tarihi <span className="text-destructive">*</span></Label>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant={"outline"} className="w-full justify-start text-left font-normal" disabled={isSaving}>
@@ -184,7 +185,7 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
           </Select>
         </div>
         <div>
-          <Label htmlFor="category">Kategori *</Label>
+          <Label htmlFor="category">Kategori <span className="text-destructive">*</span></Label>
           <Select value={category} onValueChange={setCategory} required disabled={isLoadingCategories || isSaving}>
             <SelectTrigger id="category"><SelectValue placeholder={isLoadingCategories? "Kategoriler yükleniyor..." : "Kategori seçin"} /></SelectTrigger>
             <SelectContent>
@@ -200,13 +201,13 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
       </div>
       
       <div>
-        <Label htmlFor="companyName">Şirket Adı *</Label>
+        <Label htmlFor="companyName">Şirket Adı <span className="text-destructive">*</span></Label>
         <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required disabled={isSaving} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="amount">Tutar *</Label>
+          <Label htmlFor="amount">Tutar <span className="text-destructive">*</span></Label>
           <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required step="0.01" disabled={isSaving} />
         </div>
         <div>
@@ -222,7 +223,7 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
 
       {currency !== 'EUR' && (
         <div>
-          <Label htmlFor="rateEurToCurrency">Döviz Kuru (1 EUR = X {currency}) *</Label>
+          <Label htmlFor="rateEurToCurrency">Döviz Kuru (1 EUR = X {currency}) <span className="text-destructive">*</span></Label>
           <Input
             id="rateEurToCurrency"
             type="number"
@@ -297,3 +298,4 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
     </form>
   );
 }
+
