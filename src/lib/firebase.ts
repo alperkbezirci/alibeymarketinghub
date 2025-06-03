@@ -1,11 +1,9 @@
 
 // src/lib/firebase.ts
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getFirestore, type Firestore } from 'firebase/firestore'; // DÜZELTİLDİ
+import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
-
-const FIREBASE_CONFIG_VERSION = 'v16_import_fix'; // Sürüm etiketi güncellendi
 
 const firebaseConfig = {
   apiKey: "AIzaSyCQSBJ_Et7Le_kCl_LoscVyM7sc6R86jzQ",
@@ -28,18 +26,13 @@ let servicesCache: FirebaseServices | null = null;
 
 function initializeFirebaseServices(): FirebaseServices {
   if (servicesCache) {
-    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Returning cached Firebase services.`);
     return servicesCache;
   }
 
   try {
-    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Initializing Firebase services...`);
     const appInstance = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    
-    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase app instance ${getApps().length === 1 ? 'newly initialized' : 'retrieved'}.`);
-
     const authInstance = getAuth(appInstance);
-    const dbInstance = getFirestore(appInstance); // Artık doğru import ile çalışmalı
+    const dbInstance = getFirestore(appInstance);
     const storageInstance = getStorage(appInstance);
 
     servicesCache = {
@@ -49,12 +42,11 @@ function initializeFirebaseServices(): FirebaseServices {
       storage: storageInstance,
     };
     
-    console.log(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase services initialized and cached.`);
+    console.log("Firebase services initialized successfully.");
     return servicesCache;
   } catch (error: any) {
-    console.error(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] CRITICAL ERROR during Firebase initialization:`, error);
-    // Hatanın daha görünür olması için fırlatıyoruz, bu sayede Next.js hata sayfasında daha net görülür.
-    throw new Error(`[FirebaseLib ${FIREBASE_CONFIG_VERSION}] Firebase initialization failed. Error: ${error.message}. Check console for details and firebaseConfig in src/lib/firebase.ts. Import paths might be incorrect.`);
+    console.error("CRITICAL ERROR during Firebase initialization:", error);
+    throw new Error(`Firebase initialization failed. Error: ${error.message}.`);
   }
 }
 

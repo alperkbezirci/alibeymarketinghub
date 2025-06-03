@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSpendingCategories, type SpendingCategory } from '@/contexts/spending-categories-context';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { CategoryEditForm } from "@/components/cms/category-edit-form";
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -206,6 +206,9 @@ export default function CmsPage() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="font-headline text-2xl">Kategoriyi Düzenle</DialogTitle>
+              <DialogDescription>
+                "{selectedCategory.name}" kategorisinin adını veya limitini güncelleyin.
+              </DialogDescription>
             </DialogHeader>
             <CategoryEditForm
               category={selectedCategory}

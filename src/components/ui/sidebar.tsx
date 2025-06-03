@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet" // SheetHeader, SheetTitle, SheetDescription might not be needed if using direct h2/p
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -166,15 +166,14 @@ const Sidebar = React.forwardRef<
       collapsible = "offcanvas",
       className,
       children,
-      "aria-labelledby": desktopAriaLabelledby, // For desktop container
-      "aria-describedby": desktopAriaDescribedby, // For desktop container
-      ...restProps 
+      "aria-labelledby": desktopAriaLabelledby, 
+      "aria-describedby": desktopAriaDescribedby,
+      ...restProps
     },
     ref
   ) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
     
-    // Generate unique IDs specifically for the mobile Sheet's title and description
     const mobileSheetInternalTitleId = React.useId();
     const mobileSheetInternalDescriptionId = React.useId();
     
@@ -197,8 +196,8 @@ const Sidebar = React.forwardRef<
       return (
         <Sheet open={openMobile} onOpenChange={setOpenMobile} > 
           <SheetContent
-            aria-labelledby={mobileSheetInternalTitleId} // Use the internal ID
-            aria-describedby={mobileSheetInternalDescriptionId} // Use the internal ID
+            aria-labelledby={mobileSheetInternalTitleId}
+            aria-describedby={mobileSheetInternalDescriptionId}
             data-sidebar="sidebar"
             data-mobile="true"
             className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
@@ -209,10 +208,11 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
-            <SheetHeader className="sr-only"> {/* Visually hidden but present for accessibility */}
-              <SheetTitle id={mobileSheetInternalTitleId}>Ana Menü</SheetTitle>
-              <SheetDescription id={mobileSheetInternalDescriptionId}>Uygulama ana navigasyon menüsü.</SheetDescription>
-            </SheetHeader>
+            {/* Visually hidden title and description for accessibility compliance */}
+            <div className="sr-only">
+              <h2 id={mobileSheetInternalTitleId}>Ana Mobil Menü</h2>
+              <p id={mobileSheetInternalDescriptionId}>Uygulamanın mobil ana navigasyon menüsü.</p>
+            </div>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
@@ -228,8 +228,8 @@ const Sidebar = React.forwardRef<
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
-        aria-labelledby={desktopAriaLabelledby} // Use passed props for desktop container's ARIA
-        aria-describedby={desktopAriaDescribedby} // Use passed props for desktop container's ARIA
+        aria-labelledby={desktopAriaLabelledby}
+        aria-describedby={desktopAriaDescribedby}
         {...restProps}
       >
         <div
