@@ -92,12 +92,12 @@ export async function handleUpdateActivityStatusAction(
     console.log(`[Action Log] handleUpdateActivityStatusAction - Updating activity ${activityId} to status ${newStatus} with message: "${messageForManager}"`);
     try {
         const updates: Partial<ProjectActivity> = { status: newStatus };
-        // Ensure messageForManager is not just whitespace, and only add if provided
+        
         if (messageForManager && messageForManager.trim() !== "") {
             updates.messageForManager = messageForManager.trim();
         } else {
-            // If message is empty or whitespace, ensure it's not set or is cleared if already set
-            updates.messageForManager = undefined; // Or an empty string if your Firestore rules/logic prefer '' over undefined
+            // If message is empty or whitespace, set field to null instead of undefined
+            updates.messageForManager = null as any; // Cast to any to satisfy Partial, or adjust ProjectActivity interface
         }
         
         await updateProjectActivity(activityId, updates);
