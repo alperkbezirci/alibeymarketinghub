@@ -5,7 +5,7 @@
  * @fileOverview Firestore service for managing invoices.
  */
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, serverTimestamp, Timestamp, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, serverTimestamp, Timestamp, query, orderBy, doc, updateDoc, getDoc as getFirestoreDoc } from 'firebase/firestore';
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
@@ -31,13 +31,13 @@ export interface Invoice {
   originalAmount: number;
   originalCurrency: string;
   description?: string;
-  filePath?: string; // Path to uploaded file in Firebase Storage
+  filePath?: string | null; // Path to uploaded file in Firebase Storage, can be null
   amountInEur?: number; // Calculated amount in EUR
   exchangeRateToEur?: number | null; // Rate used for conversion to EUR (1 original currency = X EUR)
   createdAt: string; // ISO String
   updatedAt: string; // ISO String
-  turqualityApplicable?: boolean; 
-  turqualityTaskId?: string; 
+  turqualityApplicable?: boolean;
+  turqualityTaskId?: string;
 }
 
 export interface InvoiceInputData {
@@ -68,11 +68,11 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
         console.warn("Calculated EUR amount is zero or negative for non-EUR currency. Original:", invoiceData.originalAmount, invoiceData.originalCurrency);
     }
 
-    let filePathToSave: string | undefined = undefined;
-    if (invoiceData.file) {
-        filePathToSave = `simulated/path/to/${invoiceData.file.name}`; 
+    let filePathToSave: string | null = null; // Initialize to null
+    if (invoiceData.file && invoiceData.file.name) { // Check for file and file.name
+        filePathToSave = `simulated/path/to/${invoiceData.file.name}`;
     }
-    
+
     const dataToSave = {
       invoiceNumber: invoiceData.invoiceNumber,
       invoiceDate: Timestamp.fromDate(invoiceData.invoiceDate),
@@ -82,17 +82,17 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
       originalAmount: invoiceData.originalAmount,
       originalCurrency: invoiceData.originalCurrency,
       description: invoiceData.description || '',
-      filePath: filePathToSave,
+      filePath: filePathToSave, // Will be string or null
       amountInEur: invoiceData.amountInEur,
-      exchangeRateToEur: invoiceData.exchangeRateToEur,
+      exchangeRateToEur: invoiceData.exchangeRateToEur === undefined ? null : invoiceData.exchangeRateToEur, // Handle undefined
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
     const docRef = await addDoc(collection(db, INVOICES_COLLECTION), dataToSave);
-    
+
     // Fetch the newly created document to get server-generated timestamps
-    const newDocSnap = await doc(db, INVOICES_COLLECTION, docRef.id).get();
+    const newDocSnap = await getFirestoreDoc(doc(db, INVOICES_COLLECTION, docRef.id));
     const savedData = newDocSnap.data();
 
     return {
@@ -107,8 +107,8 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
       description: invoiceData.description,
       filePath: filePathToSave,
       amountInEur: invoiceData.amountInEur,
-      exchangeRateToEur: invoiceData.exchangeRateToEur,
-      createdAt: convertToISOString(savedData?.createdAt) || new Date().toISOString(), 
+      exchangeRateToEur: invoiceData.exchangeRateToEur === undefined ? null : invoiceData.exchangeRateToEur,
+      createdAt: convertToISOString(savedData?.createdAt) || new Date().toISOString(),
       updatedAt: convertToISOString(savedData?.updatedAt) || new Date().toISOString(),
       turqualityApplicable: savedData?.turqualityApplicable,
       turqualityTaskId: savedData?.turqualityTaskId,
@@ -137,9 +137,9 @@ export async function getAllInvoices(): Promise<Invoice[]> {
         originalAmount: data.originalAmount,
         originalCurrency: data.originalCurrency,
         description: data.description,
-        filePath: data.filePath,
+        filePath: data.filePath, // This can be string or null now
         amountInEur: data.amountInEur,
-        exchangeRateToEur: data.exchangeRateToEur,
+        exchangeRateToEur: data.exchangeRateToEur, // This can be number or null
         createdAt: convertToISOString(data.createdAt)!,
         updatedAt: convertToISOString(data.updatedAt)!,
         turqualityApplicable: data.turqualityApplicable,
@@ -162,8 +162,14 @@ export async function updateInvoice(id: string, updates: Partial<Omit<Invoice, '
   const dataToUpdate: any = { ...updates, updatedAt: serverTimestamp() };
   if (updates.invoiceDate && typeof updates.invoiceDate === 'string') {
     dataToUpdate.invoiceDate = Timestamp.fromDate(new Date(updates.invoiceDate));
-  } else if (updates.invoiceDate && updates.invoiceDate instanceof Date) { // Should not happen if type is string
+  } else if (updates.invoiceDate && updates.invoiceDate instanceof Date) { 
     dataToUpdate.invoiceDate = Timestamp.fromDate(updates.invoiceDate);
+  }
+  if (updates.filePath === undefined) {
+    dataToUpdate.filePath = null;
+  }
+  if (updates.exchangeRateToEur === undefined) {
+    dataToUpdate.exchangeRateToEur = null;
   }
   await updateDoc(invoiceDoc, dataToUpdate);
 }
