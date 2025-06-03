@@ -20,27 +20,27 @@ import { useSpendingCategories } from '@/contexts/spending-categories-context';
 interface InvoiceFormProps {
   onSave: (formData: any) => void;
   onClose: () => void;
-  initialData?: any; 
+  initialData?: any;
 }
 
 export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) {
   const { categories: spendingCategoriesFromContext, isLoading: isLoadingCategories } = useSpendingCategories();
-  
+
   const [invoiceNumber, setInvoiceNumber] = useState(initialData?.invoiceNumber || "");
   const [invoiceDate, setInvoiceDate] = useState<Date | undefined>(initialData?.invoiceDate ? new Date(initialData.invoiceDate) : new Date());
   const [hotel, setHotel] = useState(initialData?.hotel || (HOTEL_NAMES.length > 0 ? HOTEL_NAMES[0] : ""));
-  const [category, setCategory] = useState(initialData?.category || ""); // Initialize to "" to show placeholder if no initial/default
+  const [category, setCategory] = useState(initialData?.category || ""); // Will be spendingCategoryName in onSave
+  const [companyName, setCompanyName] = useState(initialData?.companyName || "");
   const [amount, setAmount] = useState<number | string>(initialData?.amount || "");
   const [currency, setCurrency] = useState(initialData?.currency || (CURRENCIES.length > 0 ? CURRENCIES[0] : ""));
   const [description, setDescription] = useState(initialData?.description || "");
   const [file, setFile] = useState<File | null>(null);
-  const [rateEurToCurrency, setRateEurToCurrency] = useState<number | string>(""); 
+  const [rateEurToCurrency, setRateEurToCurrency] = useState<number | string>("");
   const [calculatedEurAmount, setCalculatedEurAmount] = useState<number | null>(null);
 
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set initial category if not set and categories are loaded
     if (!initialData?.category && !category && spendingCategoriesFromContext.length > 0 && !isLoadingCategories) {
       setCategory(spendingCategoriesFromContext[0].name);
     }
@@ -73,8 +73,8 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!invoiceNumber || !invoiceDate || !amount) {
-      toast({ title: "Eksik Bilgi", description: "Lütfen fatura numarası, tarih ve tutar alanlarını doldurun.", variant: "destructive" });
+    if (!invoiceNumber || !invoiceDate || !companyName || !amount) {
+      toast({ title: "Eksik Bilgi", description: "Lütfen fatura numarası, tarih, şirket adı ve tutar alanlarını doldurun.", variant: "destructive" });
       return;
     }
     const numericAmount = parseFloat(String(amount));
@@ -88,7 +88,7 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
     }
 
     let finalAmountInEur = numericAmount;
-    let finalExchangeRateForToast: number | null = null; 
+    let finalExchangeRateForToast: number | null = null;
 
     if (currency !== 'EUR') {
       const numericRateEurToCurrency = parseFloat(String(rateEurToCurrency));
@@ -97,20 +97,21 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
         return;
       }
       finalAmountInEur = numericAmount / numericRateEurToCurrency;
-      finalExchangeRateForToast = 1 / numericRateEurToCurrency; 
+      finalExchangeRateForToast = 1 / numericRateEurToCurrency;
     }
 
     onSave({
       invoiceNumber,
       invoiceDate,
       hotel,
-      category, // Pass category name
+      spendingCategoryName: category, // Pass category name
+      companyName, // Ensure companyName is passed
       originalAmount: numericAmount,
       originalCurrency: currency,
       description,
       file,
       amountInEur: finalAmountInEur,
-      exchangeRateToEur: finalExchangeRateForToast, 
+      exchangeRateToEur: finalExchangeRateForToast,
     });
   };
 
@@ -169,6 +170,11 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
           </Select>
         </div>
       </div>
+      
+      <div>
+        <Label htmlFor="companyName">Şirket Adı *</Label>
+        <Input id="companyName" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -214,7 +220,7 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
           </p>
         </div>
       )}
-      
+
       <div>
         <Label htmlFor="description">Açıklama</Label>
         <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
@@ -234,4 +240,3 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
     </form>
   );
 }
-
