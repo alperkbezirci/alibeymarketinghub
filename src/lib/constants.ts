@@ -22,6 +22,9 @@ export const HOTEL_NAMES = [
   'Genel Merkez', // Kurum için ek seçenek
 ];
 
+// Moved from budget-config-service.ts to resolve 'use server' export error
+export const MANAGED_BUDGET_HOTELS = ['Ali Bey Resort Sorgun', 'Ali Bey Club & Park Manavgat', 'BIJAL'];
+
 export const PROJECT_STATUSES = [
   'Planlama',
   'Devam Ediyor',

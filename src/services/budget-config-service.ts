@@ -3,10 +3,7 @@
 'use server';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-
-// Define the target hotels for which budgets are explicitly managed and displayed in the summary.
-// This could also be a subset of HOTEL_NAMES from constants if needed.
-export const MANAGED_BUDGET_HOTELS = ['Ali Bey Resort Sorgun', 'Ali Bey Club & Park Manavgat', 'BIJAL'];
+import { MANAGED_BUDGET_HOTELS } from '@/lib/constants'; // Import from constants
 
 export interface HotelBudgetLimits {
   [hotelName: string]: number; // e.g., "Ali Bey Resort Sorgun": 50000

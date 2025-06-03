@@ -11,11 +11,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { HOTEL_NAMES } from "@/lib/constants"; // Will be filtered by MANAGED_BUDGET_HOTELS
+import { HOTEL_NAMES, MANAGED_BUDGET_HOTELS } from "@/lib/constants"; // Import MANAGED_BUDGET_HOTELS from constants
 import { useSpendingCategories, type SpendingCategory } from "@/contexts/spending-categories-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { getHotelBudgetLimits, type HotelBudgetLimits, MANAGED_BUDGET_HOTELS } from "@/services/budget-config-service";
+import { getHotelBudgetLimits, type HotelBudgetLimits } from "@/services/budget-config-service"; // Remove MANAGED_BUDGET_HOTELS import from here
 // TODO: Import getInvoices and Invoice type from a new invoice-service.ts
 // For now, we'll mock invoice data handling.
 
@@ -85,7 +85,8 @@ export default function BudgetPage() {
     const action = searchParams.get('action');
     if (action === 'new') {
       setIsInvoiceDialogOpen(true);
-      router.replace(pathname, { scroll: false });
+      // Clear the query parameter to prevent re-opening on refresh/navigation
+      router.replace(pathname, { scroll: false }); 
     }
   }, [searchParams, router, pathname, setIsInvoiceDialogOpen]);
 
