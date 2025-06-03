@@ -4,18 +4,29 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+// import Link from 'next/link'; // Not used directly in this version for edit/delete
 import { useSpendingCategories, type SpendingCategory } from '@/contexts/spending-categories-context';
-import { getAllInvoices, type Invoice } from '@/services/invoice-service';
+import { getAllInvoices, type Invoice } from '@/services/invoice-service'; // Assuming deleteInvoice and updateInvoice will be added here or actions
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ArrowLeft, AlertTriangle, LineChart, ListFilter } from "lucide-react";
+import { ArrowLeft, AlertTriangle, LineChart, ListFilter, Edit2, Trash2, Loader2 } from "lucide-react";
 import { format, parseISO } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/contexts/auth-context';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface MonthlySpending {
   monthYear: string; // Format "YYYY-MM" for sorting
@@ -28,6 +39,7 @@ export default function SpendingCategoryDetailPage() {
   const router = useRouter();
   const categoryId = typeof params.id === 'string' ? params.id : undefined;
   const { toast } = useToast();
+  const { isAdminOrMarketingManager } = useAuth();
 
   const { categories: allCategories, isLoading: isLoadingCategoriesContext, error: categoriesContextError } = useSpendingCategories();
   
@@ -38,6 +50,10 @@ export default function SpendingCategoryDetailPage() {
   const [isLoadingCategoryDetails, setIsLoadingCategoryDetails] = useState(true);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
+
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+  const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
+
 
   useEffect(() => {
     if (!categoryId) {
@@ -71,8 +87,8 @@ export default function SpendingCategoryDetailPage() {
     setIsLoadingInvoices(true);
     setPageError(null);
     try {
-      const allInvoices = await getAllInvoices();
-      const filtered = allInvoices.filter(inv => inv.spendingCategoryName === selectedCategory.name);
+      const allInvoicesData = await getAllInvoices(); // Renamed to avoid conflict with invoices state
+      const filtered = allInvoicesData.filter(inv => inv.spendingCategoryName === selectedCategory.name);
       setInvoicesForCategory(filtered);
     } catch (err: any) {
       console.error("Error fetching invoices for category:", err);
@@ -118,6 +134,34 @@ export default function SpendingCategoryDetailPage() {
         setMonthlyChartData([]);
     }
   }, [invoicesForCategory]);
+
+  const handleEditInvoice = (invoiceId: string) => {
+    // TODO: Implement navigation to an edit page or open an edit dialog
+    // For now, just a toast. A new InvoiceForm instance could be used in a Dialog.
+    toast({ title: "Düzenle (Yapım Aşamasında)", description: `Fatura ID: ${invoiceId} için düzenleme formu açılacak.` });
+  };
+
+  const handleDeleteInvoice = async () => {
+    if (!invoiceToDelete) return;
+    setIsDeletingInvoice(true);
+    try {
+      // TODO: Implement actual deletion by calling a service function.
+      // Example: await deleteInvoiceFromDb(invoiceToDelete.id); from invoice-service.ts
+      // For now, this is a simulation.
+      console.log(`Simulating delete for invoice ID: ${invoiceToDelete.id}`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate async operation
+
+      setInvoicesForCategory(prev => prev.filter(inv => inv.id !== invoiceToDelete.id)); // Optimistic UI update
+      setMonthlyChartData([]); // Force chart data recalculation if needed, or update it more intelligently
+      toast({ title: "Başarılı (Simülasyon)", description: `Fatura "${invoiceToDelete.invoiceNumber}" silindi.` });
+      setInvoiceToDelete(null); // Close dialog
+    } catch (error: any) {
+      toast({ title: "Silme Hatası", description: error.message || "Fatura silinirken bir hata oluştu.", variant: "destructive" });
+    } finally {
+      setIsDeletingInvoice(false);
+    }
+  };
+
 
   const isLoading = isLoadingCategoryDetails || isLoadingInvoices;
 
@@ -211,6 +255,7 @@ export default function SpendingCategoryDetailPage() {
                   <TableHead>Şirket</TableHead>
                   <TableHead className="text-right">Orj. Tutar</TableHead>
                   <TableHead className="text-right">EUR Karşılığı</TableHead>
+                  {isAdminOrMarketingManager && <TableHead className="text-right print:hidden">Eylemler</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -225,6 +270,16 @@ export default function SpendingCategoryDetailPage() {
                     <TableCell className="text-right">
                       {invoice.amountInEur?.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' }) ?? 'N/A'}
                     </TableCell>
+                    {isAdminOrMarketingManager && (
+                      <TableCell className="text-right space-x-1 print:hidden">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-500" onClick={() => handleEditInvoice(invoice.id)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/80" onClick={() => setInvoiceToDelete(invoice)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -234,6 +289,32 @@ export default function SpendingCategoryDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {isAdminOrMarketingManager && invoiceToDelete && (
+        <AlertDialog open={!!invoiceToDelete} onOpenChange={(open) => { if (!open) setInvoiceToDelete(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Faturayı Silmek Üzeresiniz</AlertDialogTitle>
+              <AlertDialogDescription>
+                "{invoiceToDelete.invoiceNumber}" numaralı, {invoiceToDelete.companyName} adına kesilmiş faturayı silmek istediğinizden emin misiniz?
+                Bu işlem geri alınamaz.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setInvoiceToDelete(null)} disabled={isDeletingInvoice}>İptal</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteInvoice} 
+                disabled={isDeletingInvoice} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeletingInvoice && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Evet, Sil
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
+
