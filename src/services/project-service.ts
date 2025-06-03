@@ -20,9 +20,9 @@ const convertToISOString = (dateField: any): string | undefined => {
 };
 
 export interface Project {
-  id: string; 
+  id: string;
   projectName?: string;
-  responsiblePersons?: string[]; 
+  responsiblePersons?: string[];
   startDate?: string | undefined;
   endDate?: string | undefined;
   status?: string;
@@ -35,8 +35,8 @@ export interface Project {
 export interface ProjectInputData {
   projectName: string;
   responsiblePersons?: string[];
-  startDate?: Date; 
-  endDate: Date;   
+  startDate?: Date;
+  endDate: Date;
   status: string;
   hotel: string;
   description?: string;
@@ -91,7 +91,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
         updatedAt: convertToISOString(data.updatedAt),
       } as Project;
     } else {
-      return null; 
+      return null;
     }
   } catch (error) {
     console.error(`Error fetching project with ID ${id}:`, error);
@@ -121,8 +121,8 @@ export async function addProject(projectData: ProjectInputData): Promise<Project
       status: projectData.status,
       hotel: projectData.hotel,
       description: projectData.description,
-      createdAt: new Date().toISOString(), 
-      updatedAt: new Date().toISOString(), 
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
   } catch (error) {
     console.error("Error adding project: ", error);
@@ -163,11 +163,11 @@ export async function deleteProject(id: string): Promise<void> {
 export async function getActiveProjects(limitCount: number = 5): Promise<Project[]> {
   try {
     const projectsCollection = collection(db, PROJECTS_COLLECTION);
-    const activeStatuses = ['Planlama', 'Devam Ediyor']; 
+    const activeStatuses = ['Planlama', 'Devam Ediyor'];
     const q = query(
-      projectsCollection, 
+      projectsCollection,
       where('status', 'in', activeStatuses),
-      orderBy('endDate', 'asc'), 
+      // orderBy('endDate', 'asc'), // Bu satır eksik indeks hatasına neden oluyordu, kaldırıldı.
       firestoreLimit(limitCount)
     );
     const projectSnapshot = await getDocs(q);
@@ -221,15 +221,15 @@ export async function getProjectCreationTrend(): Promise<{ month: string; count:
     const projectsCollection = collection(db, PROJECTS_COLLECTION);
     const q = query(projectsCollection, orderBy('createdAt', 'asc'));
     const projectSnapshot = await getDocs(q);
-    
+
     const monthlyData: { [month: string]: { count: number } } = {};
 
     projectSnapshot.docs.forEach(docSnap => {
       const data = docSnap.data();
       const createdAt = data.createdAt;
-      
+
       if (createdAt instanceof Timestamp) {
-        const createdMonth = createdAt.toDate().toISOString().substring(0, 7); 
+        const createdMonth = createdAt.toDate().toISOString().substring(0, 7);
         if (!monthlyData[createdMonth]) {
           monthlyData[createdMonth] = { count: 0 };
         }
@@ -246,5 +246,3 @@ export async function getProjectCreationTrend(): Promise<{ month: string; count:
     throw new Error("Proje oluşturma trendi alınırken bir hata oluştu.");
   }
 }
-
-    
