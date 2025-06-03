@@ -1,4 +1,3 @@
-
 // src/app/(app)/projects/[id]/page.tsx
 "use client";
 
@@ -14,13 +13,13 @@ import { useAuth } from '@/contexts/auth-context';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud } from 'lucide-react'; // Added UploadCloud
 import { format, formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -60,6 +59,7 @@ export default function ProjectDetailsPage() {
   const [addActivityState, handleAddActivitySubmit] = useActionState(handleAddProjectActivityAction, undefined);
   const activityFormRef = React.useRef<HTMLFormElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [selectedActivityFileName, setSelectedActivityFileName] = useState<string | null>(null);
 
   const [activityToApprove, setActivityToApprove] = useState<ProjectActivity | null>(null);
   const [approvalMessage, setApprovalMessage] = useState("");
@@ -148,6 +148,7 @@ export default function ProjectDetailsPage() {
         toast({ title: "Başarılı", description: addActivityState.message });
         activityFormRef.current?.reset();
         if(fileInputRef.current) fileInputRef.current.value = "";
+        setSelectedActivityFileName(null); // Reset selected file name
         fetchActivitiesForProject();
       } else {
         toast({ title: "Hata", description: addActivityState.message, variant: "destructive" });
@@ -404,9 +405,31 @@ export default function ProjectDetailsPage() {
                   />
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-                    <div className="flex-grow">
+                    <div className="flex-grow space-y-1">
                         <Label htmlFor="activityFile" className="text-xs font-medium">Dosya Ekle (Opsiyonel)</Label>
-                        <Input id="activityFile" name="file" type="file" ref={fileInputRef} className="mt-1 text-sm bg-background file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:bg-muted file:text-muted-foreground hover:file:bg-muted/80" />
+                        <Input 
+                            id="activityFile" 
+                            name="file" 
+                            type="file" 
+                            ref={fileInputRef} 
+                            className="hidden"
+                            onChange={(e) => setSelectedActivityFileName(e.target.files?.[0]?.name || null)}
+                        />
+                        <Label
+                            htmlFor="activityFile"
+                            className={cn(
+                                buttonVariants({ variant: "outline" }),
+                                "cursor-pointer w-full sm:w-auto justify-center flex items-center" 
+                            )}
+                        >
+                            <UploadCloud className="mr-2 h-4 w-4" />
+                            Dosya Seç
+                        </Label>
+                        {selectedActivityFileName ? (
+                            <p className="text-xs text-muted-foreground mt-1">Seçilen: {selectedActivityFileName}</p>
+                        ) : (
+                            <p className="text-xs text-muted-foreground mt-1">Dosya seçilmedi.</p>
+                        )}
                         <p className="text-xs text-muted-foreground mt-1">Dosya yükleme işlevi tam olarak aktif değildir. Şimdilik sadece dosya adı kaydedilir.</p>
                     </div>
                     <SubmitActivityButton />

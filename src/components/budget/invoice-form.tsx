@@ -1,9 +1,8 @@
-
 // src/components/budget/invoice-form.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,11 +10,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES, CURRENCIES } from "@/lib/constants";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, UploadCloud } from "lucide-react"; // Added UploadCloud
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useSpendingCategories } from '@/contexts/spending-categories-context';
+import { cn } from "@/lib/utils"; // Added cn
 
 interface InvoiceFormProps {
   onSave: (formData: any) => void;
@@ -228,9 +228,30 @@ export function InvoiceForm({ onSave, onClose, initialData }: InvoiceFormProps) 
 
       <div>
         <Label htmlFor="fileUpload">Dosya Yükle (Opsiyonel)</Label>
-        <Input id="fileUpload" type="file" onChange={handleFileChange} />
+        <div className="flex flex-col gap-2 mt-1">
+            <Input 
+                id="fileUpload" 
+                type="file" 
+                onChange={handleFileChange} 
+                className="hidden"
+            />
+            <Label
+                htmlFor="fileUpload"
+                className={cn(
+                    buttonVariants({ variant: "outline" }),
+                    "cursor-pointer w-full sm:w-auto justify-center flex items-center"
+                )}
+            >
+                <UploadCloud className="mr-2 h-4 w-4" />
+                Dosya Seç
+            </Label>
+            {file ? (
+                <p className="text-sm text-muted-foreground">Seçilen dosya: {file.name}</p>
+            ) : (
+                <p className="text-sm text-muted-foreground">Dosya seçilmedi.</p>
+            )}
+        </div>
         <p className="text-xs text-muted-foreground mt-1">Fatura görseli veya ilgili belgeyi yükleyebilirsiniz.</p>
-        {file && <p className="text-xs text-green-600 dark:text-green-400 mt-1">Seçilen dosya: {file.name}</p>}
       </div>
 
       <div className="flex justify-end space-x-2 pt-4">

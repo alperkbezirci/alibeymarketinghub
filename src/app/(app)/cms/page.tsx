@@ -1,12 +1,11 @@
-
 // src/app/(app)/cms/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react'; // Added useRef
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Settings, Palette, DollarSign, ListPlus, SlidersVertical, Edit2, Trash2, Loader2 } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants
+import { Settings, Palette, DollarSign, ListPlus, SlidersVertical, Edit2, Trash2, Loader2, UploadCloud } from "lucide-react"; // Added UploadCloud
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { CategoryEditForm } from "@/components/cms/category-edit-form";
 import { Skeleton } from '@/components/ui/skeleton';
 import { getHotelBudgetLimitsForCms, saveHotelBudgetLimitsCms, type BudgetConfigData } from '@/services/budget-config-service';
+import { getUiSettings, saveUiSettings, type UiSettings } from '@/services/ui-config-service'; // Import UI config service
+import { cn } from '@/lib/utils'; // Added cn
+
 
 export default function CmsPage() {
   const { isAdminOrMarketingManager } = useAuth();
@@ -35,6 +37,14 @@ export default function CmsPage() {
   const [isLoadingBudgetLimits, setIsLoadingBudgetLimits] = useState(true);
   const [isSavingBudgetLimits, setIsSavingBudgetLimits] = useState(false);
 
+  // UI Settings State
+  const [uiSettings, setUiSettings] = useState<UiSettings>({ mainTitle: '', logoUrl: '' });
+  const [isLoadingUiSettings, setIsLoadingUiSettings] = useState(true);
+  const [isSavingUiSettings, setIsSavingUiSettings] = useState(false);
+  const [selectedLogoFileName, setSelectedLogoFileName] = useState<string | null>(null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+
+
   const fetchBudgetLimits = useCallback(async () => {
     setIsLoadingBudgetLimits(true);
     try {
@@ -47,24 +57,40 @@ export default function CmsPage() {
     }
   }, [toast]);
 
+  const fetchUiSettings = useCallback(async () => {
+    setIsLoadingUiSettings(true);
+    try {
+      const settings = await getUiSettings();
+      setUiSettings(settings);
+      if (settings.logoUrl && !settings.logoUrl.startsWith('https://placehold.co')) {
+        // Potentially extract filename from URL if it's a real uploaded file in future
+      }
+    } catch (error: any) {
+      toast({ title: "Hata", description: error.message || "Arayüz ayarları yüklenemedi.", variant: "destructive" });
+    } finally {
+      setIsLoadingUiSettings(false);
+    }
+  }, [toast]);
+
+
   useEffect(() => {
     if (isAdminOrMarketingManager) {
       fetchBudgetLimits();
+      fetchUiSettings();
     }
-  }, [isAdminOrMarketingManager, fetchBudgetLimits]);
+  }, [isAdminOrMarketingManager, fetchBudgetLimits, fetchUiSettings]);
 
   const handleBudgetLimitChange = (hotelKey: keyof BudgetConfigData, value: string) => {
     const numericValue = parseFloat(value);
     setBudgetLimits(prev => ({
       ...prev,
-      [hotelKey]: isNaN(numericValue) ? "" : numericValue // Store as number or empty string if NaN for input control
+      [hotelKey]: isNaN(numericValue) ? "" : numericValue 
     }));
   };
 
   const handleSaveBudgetLimits = async () => {
     setIsSavingBudgetLimits(true);
     try {
-      // Ensure values are numbers, default to 0 if empty string or NaN
       const limitsToSave: BudgetConfigData = {
         aliBeyResortSorgunBudget: Number(budgetLimits.aliBeyResortSorgunBudget) || 0,
         aliBeyClubManavgatBudget: Number(budgetLimits.aliBeyClubManavgatBudget) || 0,
@@ -79,6 +105,37 @@ export default function CmsPage() {
     }
   };
 
+  const handleUiSettingChange = (field: keyof UiSettings, value: string) => {
+    setUiSettings(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveUISettings = async () => {
+    setIsSavingUiSettings(true);
+    try {
+      // For now, if a new file is selected, we're not uploading it, just clearing selection.
+      // Real file upload would be more complex.
+      // If a file was selected via selectedLogoFileName, we could *try* to use it,
+      // but for now, saveUiSettings expects a URL.
+      const settingsToSave: UiSettings = {
+        mainTitle: uiSettings.mainTitle,
+        // If selectedLogoFileName is set, it means user tried to pick a new file.
+        // We'd need to upload it first and get a URL.
+        // For this iteration, we'll just keep existing logoUrl or a placeholder if new file was picked but not uploaded.
+        logoUrl: uiSettings.logoUrl || 'https://placehold.co/150x50.png?text=LOGO' 
+      };
+      await saveUiSettings(settingsToSave);
+      toast({ title: "Başarılı", description: "Arayüz ayarları kaydedildi." });
+      // Optionally re-fetch settings or update local state if saveUiSettings doesn't return the full object
+      // fetchUiSettings(); 
+      setSelectedLogoFileName(null); // Clear file name after save attempt
+      if (logoFileInputRef.current) logoFileInputRef.current.value = ""; // Reset file input
+    } catch (error: any) {
+      toast({ title: "Hata", description: error.message || "Arayüz ayarları kaydedilemedi.", variant: "destructive" });
+    } finally {
+      setIsSavingUiSettings(false);
+    }
+  };
+
 
   if (!isAdminOrMarketingManager) {
     return (
@@ -89,10 +146,6 @@ export default function CmsPage() {
       </div>
     );
   }
-
-  const handleSaveUISettings = (settingName: string) => {
-    toast({ title: "Ayarlar Kaydedildi", description: `${settingName} ayarları güncellendi (simülasyon). Firebase'e kaydedilecek.` });
-  };
 
   const handleAddCategory = async () => {
     const numericLimit = parseFloat(String(newCategoryLimitInput));
@@ -129,18 +182,68 @@ export default function CmsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><Palette className="mr-2 h-5 w-5 text-primary"/> Arayüz Özelleştirme</CardTitle>
-            <CardDescription>Başlıklar, logolar ve genel görünüm ayarları.</CardDescription>
+            <CardDescription>Başlıklar, logolar ve genel görünüm ayarları. Veriler Firestore'da saklanır.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="mainTitle">Ana Başlık</Label>
-              <Input id="mainTitle" placeholder="Örn: Ali Bey Marketing Hub" />
-            </div>
-            <div>
-              <Label htmlFor="logoUpload">Logo Yükle (PNG, JPG)</Label>
-              <Input id="logoUpload" type="file" />
-            </div>
-            <Button onClick={() => handleSaveUISettings("Arayüz")}>Arayüz Ayarlarını Kaydet</Button>
+            {isLoadingUiSettings ? (
+              <>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-1/3" />
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="mainTitle">Ana Başlık</Label>
+                  <Input 
+                    id="mainTitle" 
+                    placeholder="Örn: Ali Bey Marketing Hub" 
+                    value={uiSettings.mainTitle}
+                    onChange={(e) => handleUiSettingChange('mainTitle', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="logoUpload">Logo Yükle (PNG, JPG)</Label>
+                  <div className="flex flex-col gap-2 mt-1">
+                    <Input 
+                        id="logoUpload" 
+                        name="logoFile"
+                        type="file" 
+                        className="hidden"
+                        accept="image/png, image/jpeg"
+                        onChange={(e) => {
+                            setSelectedLogoFileName(e.target.files?.[0]?.name || null);
+                            // If you want to preview image, you'd handle e.target.files[0] here
+                            // For now, just updating the name. Actual upload needs more logic.
+                        }}
+                        ref={logoFileInputRef}
+                    />
+                    <Label
+                        htmlFor="logoUpload"
+                        className={cn(
+                            buttonVariants({ variant: "outline" }),
+                            "cursor-pointer w-full sm:w-auto justify-center flex items-center"
+                        )}
+                    >
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        Logo Seç
+                    </Label>
+                    {selectedLogoFileName ? (
+                        <p className="text-sm text-muted-foreground">Seçilen: {selectedLogoFileName}</p>
+                    ) : uiSettings.logoUrl ? (
+                         <p className="text-sm text-muted-foreground">Mevcut Logo: <a href={uiSettings.logoUrl} target="_blank" rel="noopener noreferrer" className="underline truncate max-w-xs inline-block">{uiSettings.logoUrl.split('/').pop()}</a></p>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">Logo seçilmedi.</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Gerçek logo yükleme ve saklama henüz tam olarak aktif değildir. Şimdilik URL güncellenecektir.</p>
+                </div>
+                <Button onClick={handleSaveUISettings} disabled={isSavingUiSettings}>
+                  {isSavingUiSettings && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Arayüz Ayarlarını Kaydet
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
 

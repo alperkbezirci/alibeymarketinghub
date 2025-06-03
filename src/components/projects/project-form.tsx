@@ -1,9 +1,8 @@
-
 // src/components/projects/project-form.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,17 +12,18 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HOTEL_NAMES, PROJECT_STATUSES } from "@/lib/constants";
-import { CalendarIcon, Info, Loader2, ChevronDown, Users } from "lucide-react";
+import { CalendarIcon, Info, Loader2, ChevronDown, Users, UploadCloud } from "lucide-react"; // Added UploadCloud
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { generateDescription } from '@/ai/flows/ai-assisted-descriptions';
-import type { Project, ProjectInputData } from '@/services/project-service'; // Import Project (for initialData) and ProjectInputData
+import type { Project, ProjectInputData } from '@/services/project-service'; 
 import { getAllUsers, type User } from '@/services/user-service';
+import { cn } from "@/lib/utils"; // Added cn
 
 interface ProjectFormProps {
   onSave: (formData: ProjectInputData) => Promise<void>;
-  initialData?: Partial<Project>; // Project interface now has string dates
+  initialData?: Partial<Project>; 
   onClose: () => void;
   isSaving?: boolean;
 }
@@ -45,6 +45,8 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
   const [selectedResponsiblePersons, setSelectedResponsiblePersons] = useState<string[]>(
     Array.isArray(initialData?.responsiblePersons) ? initialData.responsiblePersons : []
   );
+  const [selectedProjectFilesName, setSelectedProjectFilesName] = useState<string | null>(null);
+
 
   const { toast } = useToast();
 
@@ -110,8 +112,8 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
     const formData: ProjectInputData = {
       projectName,
       responsiblePersons: selectedResponsiblePersons,
-      startDate: startDate || undefined, // Pass Date object or undefined
-      endDate, // Pass Date object
+      startDate: startDate || undefined, 
+      endDate, 
       status,
       hotel,
       description
@@ -243,7 +245,37 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
       )}
       <div>
         <Label htmlFor="files">Dosya Yükleme (Yapım Aşamasında)</Label>
-        <Input id="files" type="file" multiple disabled />
+        <div className="flex flex-col gap-2 mt-1">
+            <Input 
+                id="files" 
+                type="file" 
+                multiple 
+                disabled 
+                className="hidden"
+                onChange={(e) => setSelectedProjectFilesName(
+                    e.target.files && e.target.files.length > 0
+                    ? Array.from(e.target.files).map(f => f.name).join(', ')
+                    : null
+                )}
+            />
+            <Label
+                htmlFor="files"
+                className={cn(
+                    buttonVariants({ variant: "outline" }),
+                    "cursor-pointer w-full sm:w-auto justify-center flex items-center",
+                    true ? "opacity-50 cursor-not-allowed" : "" // Always disabled styling for now
+                )}
+                onClick={(e) => { if (true) e.preventDefault(); }} // Prevent click because it's disabled
+            >
+                <UploadCloud className="mr-2 h-4 w-4" />
+                Dosyaları Seç
+            </Label>
+            {selectedProjectFilesName ? (
+                <p className="text-sm text-muted-foreground">Seçilen: {selectedProjectFilesName}</p>
+            ) : (
+                <p className="text-sm text-muted-foreground">Dosya seçilmedi.</p>
+            )}
+        </div>
         <p className="text-xs text-muted-foreground mt-1">Birden fazla dosya seçebilirsiniz. Bu özellik yakında eklenecektir.</p>
       </div>
       <div className="flex justify-end space-x-2 pt-4">
