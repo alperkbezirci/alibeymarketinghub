@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
-import { AppLogo } from '@/components/layout/app-logo'; // Changed from Mountain
+import { AppLogo } from '@/components/layout/app-logo'; 
 import { Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
@@ -55,7 +55,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center">
           <div className="mb-4 inline-flex items-center justify-center">
-             <AppLogo className="h-10 w-auto text-primary" /> {/* Used AppLogo */}
+             <AppLogo className="h-10 w-auto text-primary" /> 
           </div>
           <CardTitle className="text-3xl font-headline">Ali Bey Marketing Hub</CardTitle>
           <CardDescription>Pazarlama Yönetim Platformuna Hoş Geldiniz</CardDescription>
