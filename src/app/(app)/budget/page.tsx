@@ -4,20 +4,27 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, TrendingUp, Layers, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { InvoiceForm } from "@/components/budget/invoice-form"; 
+import { PlusCircle, TrendingUp, Layers, Loader2, Users, CheckCircle, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { InvoiceForm } from "@/components/budget/invoice-form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { HOTEL_NAMES, MANAGED_BUDGET_HOTELS } from "@/lib/constants"; // Import MANAGED_BUDGET_HOTELS from constants
+import { HOTEL_NAMES, MANAGED_BUDGET_HOTELS } from "@/lib/constants";
 import { useSpendingCategories, type SpendingCategory } from "@/contexts/spending-categories-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { getHotelBudgetLimits, type HotelBudgetLimits } from "@/services/budget-config-service"; // Remove MANAGED_BUDGET_HOTELS import from here
-// TODO: Import getInvoices and Invoice type from a new invoice-service.ts
-// For now, we'll mock invoice data handling.
+import { getHotelBudgetLimits, type HotelBudgetLimits } from "@/services/budget-config-service";
+import { addInvoice, getAllInvoices, type Invoice, type InvoiceInputData } from "@/services/invoice-service";
+import { addTask, updateTaskAssignees, type TaskInputData } from "@/services/task-service";
+import { getAllUsers, type User as AppUser } from "@/services/user-service";
+import { format, addDays } from "date-fns";
+import { tr } from "date-fns/locale";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface BudgetSummaryItem {
   name: string;
@@ -26,54 +33,50 @@ interface BudgetSummaryItem {
   remaining: number;
 }
 
-interface SpendingCategoryDisplayData extends SpendingCategory {
-  spent: number;
-}
-
 export default function BudgetPage() {
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const { toast } = useToast();
-  const { categories: spendingCategoriesFromContext, isLoading: isLoadingCategories, error: categoriesError, refetchCategories } = useSpendingCategories();
+  const { categories: spendingCategoriesFromContext, isLoading: isLoadingSpendingCategories, error: categoriesError, refetchCategories } = useSpendingCategories();
   
-  const [budgetSummaryData, setBudgetSummaryData] = useState<BudgetSummaryItem[]>([]);
+  const [hotelBudgets, setHotelBudgets] = useState<HotelBudgetLimits>({});
   const [isLoadingBudgetConfig, setIsLoadingBudgetConfig] = useState(true);
-  // const [invoices, setInvoices] = useState<Invoice[]>([]); // Placeholder for invoices
-  // const [isLoadingInvoices, setIsLoadingInvoices] = useState(true); // Placeholder
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(true);
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
+  // Turquality Dialog States
+  const [isTurqualityDialogOpen, setIsTurqualityDialogOpen] = useState(false);
+  const [pendingInvoiceData, setPendingInvoiceData] = useState<InvoiceInputData | null>(null);
+  const [isAssignTaskDialogOpen, setIsAssignTaskDialogOpen] = useState(false);
+  const [newlyCreatedTurqualityTaskId, setNewlyCreatedTurqualityTaskId] = useState<string | null>(null);
+  const [usersForAssignment, setUsersForAssignment] = useState<AppUser[]>([]);
+  const [isLoadingUsersForAssignment, setIsLoadingUsersForAssignment] = useState(false);
+  const [selectedTaskAssignees, setSelectedTaskAssignees] = useState<string[]>([]);
+  const [isSubmittingTurquality, setIsSubmittingTurquality] = useState(false);
+
   const fetchBudgetData = useCallback(async () => {
     setIsLoadingBudgetConfig(true);
-    // setIsLoadingInvoices(true); 
+    setIsLoadingInvoices(true);
     try {
-      const limits = await getHotelBudgetLimits();
-      // const fetchedInvoices = await getInvoices(); // TODO: Implement getInvoices
-      // setInvoices(fetchedInvoices);
-
-      const summaryItems: BudgetSummaryItem[] = MANAGED_BUDGET_HOTELS.map(hotelName => {
-        const totalBudget = limits[hotelName] || 0;
-        // TODO: Calculate spent amount from fetchedInvoices for this hotelName
-        const spent = 0; // Placeholder until invoice service is integrated
-        // const spent = fetchedInvoices.filter(inv => inv.hotel === hotelName).reduce((sum, inv) => sum + (inv.amountInEur || 0), 0);
-        return {
-          name: hotelName,
-          totalBudget: totalBudget,
-          spent: spent,
-          remaining: totalBudget - spent,
-        };
-      });
-      setBudgetSummaryData(summaryItems);
+      const limitsPromise = getHotelBudgetLimits();
+      const invoicesPromise = getAllInvoices();
+      
+      const [limits, fetchedInvoices] = await Promise.all([limitsPromise, invoicesPromise]);
+      
+      setHotelBudgets(limits);
+      setInvoices(fetchedInvoices);
 
     } catch (error: any) {
       console.error("Error fetching budget data:", error);
       toast({ title: "Bütçe Yükleme Hatası", description: error.message || "Bütçe verileri yüklenirken bir sorun oluştu.", variant: "destructive"});
-      // Fallback: Populate with hotel names and zero budgets if fetching fails
-      setBudgetSummaryData(MANAGED_BUDGET_HOTELS.map(name => ({ name, totalBudget: 0, spent: 0, remaining: 0 })));
+      setHotelBudgets(MANAGED_BUDGET_HOTELS.reduce((acc, name) => ({...acc, [name]: 0}), {}));
+      setInvoices([]);
     } finally {
       setIsLoadingBudgetConfig(false);
-      // setIsLoadingInvoices(false);
+      setIsLoadingInvoices(false);
     }
   }, [toast]);
 
@@ -83,45 +86,130 @@ export default function BudgetPage() {
 
   useEffect(() => {
     const action = searchParams.get('action');
-    if (action === 'new') {
+    if (action === 'new' && !isInvoiceDialogOpen && !isTurqualityDialogOpen && !isAssignTaskDialogOpen) { // Prevent re-opening if a dialog is already up
       setIsInvoiceDialogOpen(true);
-      // Clear the query parameter to prevent re-opening on refresh/navigation
       router.replace(pathname, { scroll: false }); 
     }
-  }, [searchParams, router, pathname, setIsInvoiceDialogOpen]);
+  }, [searchParams, router, pathname, isInvoiceDialogOpen, isTurqualityDialogOpen, isAssignTaskDialogOpen]);
+
+
+  const budgetSummaryData = useMemo(() => {
+    return MANAGED_BUDGET_HOTELS.map(hotelName => {
+      const totalBudget = hotelBudgets[hotelName] || 0;
+      const spent = invoices
+        .filter(inv => inv.hotel === hotelName && typeof inv.amountInEur === 'number')
+        .reduce((sum, inv) => sum + inv.amountInEur!, 0);
+      return {
+        name: hotelName,
+        totalBudget: totalBudget,
+        spent: spent,
+        remaining: totalBudget - spent,
+      };
+    });
+  }, [hotelBudgets, invoices]);
 
   const spendingCategoriesData = useMemo(() => {
-    return spendingCategoriesFromContext.map(category => ({
-      ...category,
-      spent: 0, // Placeholder: Calculate from invoices later
-      // const categorySpent = invoices.filter(inv => inv.spendingCategory === category.id) // Or category.name
-      //                             .reduce((sum, inv) => sum + (inv.amountInEur || 0), 0);
-      // return { ...category, spent: categorySpent };
-    }));
-  }, [spendingCategoriesFromContext /*, invoices */]);
+    if (isLoadingSpendingCategories) return [];
+    return spendingCategoriesFromContext.map(category => {
+      const categorySpent = invoices
+        .filter(inv => inv.spendingCategoryName === category.name && typeof inv.amountInEur === 'number')
+        .reduce((sum, inv) => sum + inv.amountInEur!, 0);
+      return { ...category, spent: categorySpent };
+    });
+  }, [spendingCategoriesFromContext, invoices, isLoadingSpendingCategories]);
 
 
-  const handleSaveInvoice = (formData: any) => {
-    console.log("Yeni Fatura Kaydedildi (Firebase'e eklenecek):", formData);
-    // TODO: Save formData to Firebase using an 'invoice-service'.
-    // After saving, call fetchBudgetData() to refetch/recalculate budget data including spent amounts.
-    
-    let description = `Fatura No: ${formData.invoiceNumber}, ${formData.originalAmount.toLocaleString('tr-TR')} ${formData.originalCurrency} tutarında eklendi.`;
-    const amountForBudget = formData.amountInEur; 
+  const handleSaveInvoice = (formData: InvoiceInputData) => {
+    setPendingInvoiceData(formData);
+    setIsInvoiceDialogOpen(false); // Close invoice form
+    setIsTurqualityDialogOpen(true); // Open Turquality confirmation
+  };
+  
+  const handleTurqualityConfirmation = async (isTurqualityApplicable: boolean) => {
+    if (!pendingInvoiceData) return;
+    setIsSubmittingTurquality(true);
 
-    if (formData.originalCurrency !== 'EUR' && formData.amountInEur) {
-      description += ` (Bütçeye yansıyacak EUR karşılığı: ${amountForBudget.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })}, Kur: 1 ${formData.originalCurrency} = ${(1 / formData.exchangeRateToEur).toFixed(4)} EUR)`;
-    } else if (formData.originalCurrency === 'EUR') {
-      description = `Fatura No: ${formData.invoiceNumber}, ${amountForBudget.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })} tutarında eklendi.`;
+    const baseDescription = `Fatura No: ${pendingInvoiceData.invoiceNumber}, ${pendingInvoiceData.originalAmount.toLocaleString('tr-TR')} ${pendingInvoiceData.originalCurrency} tutarında eklendi.`;
+    let fullDescription = baseDescription;
+     if (pendingInvoiceData.originalCurrency !== 'EUR' && pendingInvoiceData.amountInEur) {
+      fullDescription += ` (EUR karşılığı: ${pendingInvoiceData.amountInEur.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })})`;
     }
 
-    if (formData.file) {
-      description += ` Dosya: ${formData.file.name}`;
+    try {
+      await addInvoice(pendingInvoiceData);
+
+      if (isTurqualityApplicable && pendingInvoiceData.invoiceDate && pendingInvoiceData.companyName) {
+        const taskDueDate = addDays(new Date(pendingInvoiceData.invoiceDate), 7);
+        const taskData: TaskInputData = {
+          taskName: `Turquality: ${format(new Date(pendingInvoiceData.invoiceDate), "dd.MM.yyyy")} - ${pendingInvoiceData.companyName}`,
+          project: '', // Genel görev, veya spesifik bir Turquality projesi ID'si varsa o eklenebilir
+          hotel: pendingInvoiceData.hotel,
+          status: "Yapılacak",
+          priority: "Yüksek",
+          dueDate: taskDueDate,
+          description: `Turquality destek programı kapsamındaki ${pendingInvoiceData.invoiceNumber} numaralı, ${pendingInvoiceData.companyName} adına kesilmiş faturanın takibi. Tutar: ${pendingInvoiceData.originalAmount} ${pendingInvoiceData.originalCurrency}.`,
+          assignedTo: [], // Initially unassigned
+        };
+        const newTask = await addTask(taskData);
+        setNewlyCreatedTurqualityTaskId(newTask.id);
+        
+        // Fetch users for assignment dialog
+        setIsLoadingUsersForAssignment(true);
+        try {
+            const users = await getAllUsers();
+            setUsersForAssignment(users.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
+        } catch (userError) {
+            console.error("Error fetching users for task assignment:", userError);
+            toast({ title: "Kullanıcı Yükleme Hatası", description: "Görev ataması için kullanıcılar yüklenemedi.", variant: "destructive" });
+        } finally {
+            setIsLoadingUsersForAssignment(false);
+        }
+        
+        setIsAssignTaskDialogOpen(true); // Open assignment dialog
+        toast({ title: "Başarılı", description: `${fullDescription} Turquality görevi oluşturuldu.` });
+
+      } else {
+        toast({ title: "Başarılı", description: `${fullDescription} Bütçe özeti güncellendi.` });
+      }
+      
+      fetchBudgetData(); // Refresh budget data for all cases
+    } catch (error: any) {
+      toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
+    } finally {
+      setIsTurqualityDialogOpen(false);
+      setPendingInvoiceData(null);
+      setIsSubmittingTurquality(false);
     }
-    
-    toast({ title: "Başarılı (Simülasyon)", description: `${description} Gerçek kaydetme ve bütçe güncelleme eklenecek.` });
-    setIsInvoiceDialogOpen(false);
-    // fetchBudgetData(); // Call after successful save to Firebase
+  };
+
+  const handleAssignTaskAndClose = async () => {
+    if (!newlyCreatedTurqualityTaskId || selectedTaskAssignees.length === 0) {
+      toast({ title: "Atama Yapılmadı", description: "Lütfen en az bir sorumlu seçin veya bu adımı iptal edin.", variant: "destructive" });
+      // Keep dialog open if no one is selected, or allow closing without assignment
+      // For now, we'll just close.
+      // setIsAssignTaskDialogOpen(false); 
+      // setNewlyCreatedTurqualityTaskId(null);
+      // setSelectedTaskAssignees([]);
+      return; 
+    }
+    setIsSubmittingTurquality(true);
+    try {
+      await updateTaskAssignees(newlyCreatedTurqualityTaskId, selectedTaskAssignees);
+      toast({ title: "Görev Atandı", description: "Turquality görevi seçilen kişilere atandı." });
+    } catch (error: any) {
+      toast({ title: "Görev Atama Hatası", description: error.message || "Görev atanırken bir sorun oluştu.", variant: "destructive" });
+    } finally {
+      setIsAssignTaskDialogOpen(false);
+      setNewlyCreatedTurqualityTaskId(null);
+      setSelectedTaskAssignees([]);
+      setIsSubmittingTurquality(false);
+    }
+  };
+
+  const handleTaskAssigneeChange = (userId: string, checked: boolean) => {
+    setSelectedTaskAssignees(prev =>
+      checked ? [...prev, userId] : prev.filter(id => id !== userId)
+    );
   };
 
   const totalBudget = useMemo(() => budgetSummaryData.reduce((sum, item) => sum + item.totalBudget, 0), [budgetSummaryData]);
@@ -151,15 +239,92 @@ export default function BudgetPage() {
         </Dialog>
       </div>
 
+      <AlertDialog open={isTurqualityDialogOpen} onOpenChange={(open) => {
+          if (!open && !isAssignTaskDialogOpen) { // Prevent closing if assignment dialog is next
+            setIsTurqualityDialogOpen(false);
+            setPendingInvoiceData(null); // Clear pending data if dialog is cancelled
+          }
+        }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Turquality Uygunluğu</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu fatura Turquality Destek Programı kapsamında mıdır?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleTurqualityConfirmation(false)} disabled={isSubmittingTurquality}>Hayır</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleTurqualityConfirmation(true)} disabled={isSubmittingTurquality}>
+              {isSubmittingTurquality && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Evet
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={isAssignTaskDialogOpen} onOpenChange={(open) => {
+          if(!open){ // If dialog is closed by 'X' or overlay click
+              setIsAssignTaskDialogOpen(false);
+              setNewlyCreatedTurqualityTaskId(null);
+              setSelectedTaskAssignees([]);
+          }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-headline text-2xl">Turquality Görevine Sorumlu Ata</DialogTitle>
+            <DialogDescription>
+              Oluşturulan Turquality görevi için sorumlu kişi/kişileri seçin.
+            </DialogDescription>
+          </DialogHeader>
+          {isLoadingUsersForAssignment ? (
+            <div className="flex justify-center items-center p-4"><Loader2 className="h-6 w-6 animate-spin mr-2" /> Kullanıcılar yükleniyor...</div>
+          ) : usersForAssignment.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-4 text-center">Atanacak kullanıcı bulunamadı.</p>
+          ) : (
+            <ScrollArea className="h-60 my-4 pr-3">
+              <div className="space-y-2">
+                {usersForAssignment.map(user => (
+                  <div key={user.uid} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
+                    <Checkbox
+                      id={`assignee-${user.uid}`}
+                      checked={selectedTaskAssignees.includes(user.uid)}
+                      onCheckedChange={(checked) => handleTaskAssigneeChange(user.uid, Boolean(checked))}
+                    />
+                    <Label htmlFor={`assignee-${user.uid}`} className="font-normal text-sm flex-grow cursor-pointer">
+                      {`${user.firstName} ${user.lastName}`}
+                      <span className="text-xs text-muted-foreground ml-1">({user.email})</span>
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+                setIsAssignTaskDialogOpen(false); 
+                setNewlyCreatedTurqualityTaskId(null); 
+                setSelectedTaskAssignees([]);
+            }} disabled={isSubmittingTurquality}>
+                İptal / Daha Sonra Ata
+            </Button>
+            <Button onClick={handleAssignTaskAndClose} disabled={isSubmittingTurquality || isLoadingUsersForAssignment || selectedTaskAssignees.length === 0}>
+              {isSubmittingTurquality && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Ata ve Kapat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline text-xl flex items-center">
             <TrendingUp className="mr-2 h-5 w-5 text-primary" /> Ana Bütçe Özeti
           </CardTitle>
-          <CardDescription>Oteller bazında genel bütçe durumu. Limitler CMS'den, harcamalar faturalardan hesaplanacaktır.</CardDescription>
+          <CardDescription>Oteller bazında genel bütçe durumu. Limitler CMS'den, harcamalar faturalardan hesaplanmaktadır.</CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoadingBudgetConfig ? (
+          {(isLoadingBudgetConfig || isLoadingInvoices) ? (
             <div className="space-y-4 py-8">
               <div className="flex justify-between">
                 <Skeleton className="h-5 w-1/3" />
@@ -201,10 +366,10 @@ export default function BudgetPage() {
           <CardTitle className="font-headline text-xl flex items-center">
             <Layers className="mr-2 h-5 w-5 text-primary" /> Harcama Kategorileri
           </CardTitle>
-          <CardDescription>Kategori bazında bütçe limitleri (CMS'den) ve harcamalar (faturalardan hesaplanacak).</CardDescription>
+          <CardDescription>Kategori bazında bütçe limitleri (CMS'den) ve harcamalar (faturalardan hesaplanmaktadır).</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {isLoadingCategories ? (
+          {(isLoadingSpendingCategories || isLoadingInvoices) ? (
             Array.from({ length: 3 }).map((_, index) => (
               <Card key={index} className="bg-card/50">
                 <CardHeader className="pb-2">
@@ -225,10 +390,10 @@ export default function BudgetPage() {
               </CardHeader>
               <CardContent>
                 <Progress value={(category.limit > 0 ? (category.spent / category.limit) * 100 : 0)} className="h-2 mb-1" 
-                  aria-label={`${category.name} bütçe kullanımı: ${(category.limit > 0 ? (category.spent / category.limit) * 100 : 0)}%`}
+                  aria-label={`${category.name} bütçe kullanımı: ${(category.limit > 0 ? (category.spent / category.limit) * 100 : 0).toFixed(1)}%`}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {category.spent.toLocaleString('tr-TR')}€ / {category.limit.toLocaleString('tr-TR')}€
+                  {category.spent.toLocaleString('tr-TR', {style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0})} / {category.limit.toLocaleString('tr-TR', {style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0})}
                 </p>
               </CardContent>
             </Card>
@@ -240,3 +405,4 @@ export default function BudgetPage() {
     </div>
   );
 }
+      
