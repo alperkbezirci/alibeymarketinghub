@@ -7,7 +7,7 @@
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, where, getDoc as getFirestoreDoc, limit as firestoreLimit } from 'firebase/firestore';
 
-const convertToISOString = (dateField: any): string | undefined => {
+const convertToISOString = (dateField: Timestamp | Date | string | undefined | null): string | undefined => {
   if (!dateField) return undefined; 
   if (dateField instanceof Timestamp) return dateField.toDate().toISOString();
   if (dateField instanceof Date) return dateField.toISOString();

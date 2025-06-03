@@ -14,7 +14,7 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, Timestamp, doc, updateDoc, limit as firestoreLimit } from 'firebase/firestore';
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
-const convertToISOString = (dateField: any): string | undefined => {
+const convertToISOString = (dateField: Timestamp | Date | string | undefined | null): string | undefined => {
   if (!dateField) return undefined;
   if (dateField instanceof Timestamp) return dateField.toDate().toISOString();
   if (dateField instanceof Date) return dateField.toISOString();

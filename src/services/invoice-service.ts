@@ -9,7 +9,7 @@ import { collection, getDocs, addDoc, serverTimestamp, Timestamp, query, orderBy
 import { deleteTask } from './task-service'; // Import deleteTask
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
-const convertToISOString = (dateField: any): string | undefined => {
+const convertToISOString = (dateField: Timestamp | Date | string | undefined | null): string | undefined => {
   if (!dateField) return undefined;
   if (dateField instanceof Timestamp) return dateField.toDate().toISOString();
   if (dateField instanceof Date) return dateField.toISOString();

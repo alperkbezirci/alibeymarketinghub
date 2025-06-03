@@ -54,9 +54,8 @@ export default function DetailedReportsPage() {
   // const [selectedHotelFilter, setSelectedHotelFilter] = useState<string>("all");
   // const [dateRangeFilter, setDateRangeFilter] = useState<{ start?: Date, end?: Date }>({});
 
-  const fetchAllData = useCallback(async () => {
+  const fetchUsersForFilter = useCallback(async () => {
     if (!isAdminOrMarketingManager) return;
-
     setIsLoadingUsers(true);
     setUsersError(null);
     try {
@@ -68,6 +67,10 @@ export default function DetailedReportsPage() {
     } finally {
       setIsLoadingUsers(false);
     }
+  }, [isAdminOrMarketingManager, toast]);
+
+  const fetchStaticReportData = useCallback(async () => {
+    if (!isAdminOrMarketingManager) return;
 
     setIsLoadingProjectStatus(true);
     setProjectStatusError(null);
@@ -92,12 +95,9 @@ export default function DetailedReportsPage() {
     } finally {
       setIsLoadingTaskStatus(false);
     }
+  }, [isAdminOrMarketingManager, toast]);
 
-    fetchActivityLog(); // Call separately as it depends on filters
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdminOrMarketingManager, toast]); // Removed fetchActivityLog from deps to avoid re-triggering initial all fetches
-
-  const fetchActivityLog = useCallback(async () => {
+  const fetchActivityLogData = useCallback(async () => {
     if (!isAdminOrMarketingManager) return;
     setIsLoadingActivityLog(true);
     setActivityLogError(null);
@@ -116,17 +116,24 @@ export default function DetailedReportsPage() {
     }
   }, [isAdminOrMarketingManager, toast, selectedUserIdFilter]);
 
+  const fetchAllData = useCallback(() => {
+    fetchUsersForFilter();
+    fetchStaticReportData();
+    fetchActivityLogData(); // Initial fetch with default filter ("all")
+  }, [fetchUsersForFilter, fetchStaticReportData, fetchActivityLogData]);
 
   useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
-
-  useEffect(() => {
-    // Refetch activity log when user filter changes
-    if(isAdminOrMarketingManager) {
-        fetchActivityLog();
+    if (isAdminOrMarketingManager) {
+      fetchAllData();
     }
-  }, [selectedUserIdFilter, fetchActivityLog, isAdminOrMarketingManager]);
+  }, [isAdminOrMarketingManager, fetchAllData]);
+
+  useEffect(() => {
+    // Refetch activity log when user filter changes, but only if it's not the initial load
+    if (isAdminOrMarketingManager) {
+        fetchActivityLogData();
+    }
+  }, [selectedUserIdFilter, isAdminOrMarketingManager, fetchActivityLogData]);
 
 
   const getActivityDescription = (activity: ProjectActivity): React.ReactNode => {
@@ -143,11 +150,11 @@ export default function DetailedReportsPage() {
         text = `"${activity.fileName || 'bir dosya'}" yükledi. ${activity.content ? `(Not: ${activity.content.substring(0,30)}...)` : '' }`;
         break;
       case 'status_update': // This could be for task/project status or activity approval status
-        icon = <Settings2Icon className="mr-2 h-4 w-4 text-purple-500 flex-shrink-0" />; // Or a more generic icon like Activity
-        text = `durumunu güncelledi: ${activity.status || 'belirtilmemiş'}.`;
+        icon = <Settings2Icon className="mr-2 h-4 w-4 text-purple-500 flex-shrink-0" />;
         if (activity.status === 'approved') text = `içeriği onayladı.`;
         else if (activity.status === 'rejected') text = `içeriği reddetti.`;
         else if (activity.status === 'pending_approval') text = `içeriği onaya gönderdi.`;
+        else text = `durumunu güncelledi: ${activity.status || 'belirtilmemiş'}.`;
         break;
       default:
         icon = <Activity className="mr-2 h-4 w-4 text-gray-500 flex-shrink-0" />;
@@ -222,7 +229,7 @@ export default function DetailedReportsPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline flex items-center"><Filter className="mr-2 h-5 w-5 text-primary"/> Filtreleme Seçenekleri</CardTitle>
-          <CardDescription>Aktivite kaydı için kullanıcıya göre filtreleyin. Diğer filtreler yakında eklenecektir.</CardDescription>
+          <CardDescription>Aktivite kaydını kullanıcıya göre filtreleyebilirsiniz. Diğer filtreler ve raporlar yakında eklenecektir.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -258,12 +265,6 @@ export default function DetailedReportsPage() {
             <Input type="date" placeholder="Başlangıç Tarihi (Yakında)" disabled />
             <Input type="date" placeholder="Bitiş Tarihi (Yakında)" disabled />
           </div>
-          {/* 
-          <div className="mt-4 flex justify-end">
-            <Button onClick={() => toast({description: "Raporlar filtrelendi (Firebase'den veri çekilecek)."})}>Filtrele</Button>
-            <Button variant="outline" className="ml-2" onClick={() => toast({description: "Filtreler sıfırlandı."})}>Filtreleri Sıfırla</Button>
-          </div>
-          */}
         </CardContent>
       </Card>
 
@@ -316,3 +317,5 @@ export default function DetailedReportsPage() {
   );
 }
 
+
+    
