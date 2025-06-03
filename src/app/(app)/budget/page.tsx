@@ -33,6 +33,8 @@ interface BudgetSummaryItem {
   remaining: number;
 }
 
+const TURQUALITY_PROJECT_NAME = "Turquality Projesi"; // Define a constant for the project name
+
 export default function BudgetPage() {
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -86,7 +88,7 @@ export default function BudgetPage() {
 
   useEffect(() => {
     const action = searchParams.get('action');
-    if (action === 'new' && !isInvoiceDialogOpen && !isTurqualityDialogOpen && !isAssignTaskDialogOpen) { // Prevent re-opening if a dialog is already up
+    if (action === 'new' && !isInvoiceDialogOpen && !isTurqualityDialogOpen && !isAssignTaskDialogOpen) { 
       setIsInvoiceDialogOpen(true);
       router.replace(pathname, { scroll: false }); 
     }
@@ -121,8 +123,8 @@ export default function BudgetPage() {
 
   const handleSaveInvoice = (formData: InvoiceInputData) => {
     setPendingInvoiceData(formData);
-    setIsInvoiceDialogOpen(false); // Close invoice form
-    setIsTurqualityDialogOpen(true); // Open Turquality confirmation
+    setIsInvoiceDialogOpen(false); 
+    setIsTurqualityDialogOpen(true); 
   };
   
   const handleTurqualityConfirmation = async (isTurqualityApplicable: boolean) => {
@@ -142,18 +144,17 @@ export default function BudgetPage() {
         const taskDueDate = addDays(new Date(pendingInvoiceData.invoiceDate), 7);
         const taskData: TaskInputData = {
           taskName: `Turquality: ${format(new Date(pendingInvoiceData.invoiceDate), "dd.MM.yyyy")} - ${pendingInvoiceData.companyName}`,
-          project: '', // Genel görev, veya spesifik bir Turquality projesi ID'si varsa o eklenebilir
+          project: TURQUALITY_PROJECT_NAME, // Assign to specific Turquality project name
           hotel: pendingInvoiceData.hotel,
           status: "Yapılacak",
           priority: "Yüksek",
           dueDate: taskDueDate,
           description: `Turquality destek programı kapsamındaki ${pendingInvoiceData.invoiceNumber} numaralı, ${pendingInvoiceData.companyName} adına kesilmiş faturanın takibi. Tutar: ${pendingInvoiceData.originalAmount} ${pendingInvoiceData.originalCurrency}.`,
-          assignedTo: [], // Initially unassigned
+          assignedTo: [], 
         };
         const newTask = await addTask(taskData);
         setNewlyCreatedTurqualityTaskId(newTask.id);
         
-        // Fetch users for assignment dialog
         setIsLoadingUsersForAssignment(true);
         try {
             const users = await getAllUsers();
@@ -165,14 +166,14 @@ export default function BudgetPage() {
             setIsLoadingUsersForAssignment(false);
         }
         
-        setIsAssignTaskDialogOpen(true); // Open assignment dialog
+        setIsAssignTaskDialogOpen(true); 
         toast({ title: "Başarılı", description: `${fullDescription} Turquality görevi oluşturuldu.` });
 
       } else {
         toast({ title: "Başarılı", description: `${fullDescription} Bütçe özeti güncellendi.` });
       }
       
-      fetchBudgetData(); // Refresh budget data for all cases
+      fetchBudgetData(); 
     } catch (error: any) {
       toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
     } finally {
@@ -185,11 +186,6 @@ export default function BudgetPage() {
   const handleAssignTaskAndClose = async () => {
     if (!newlyCreatedTurqualityTaskId || selectedTaskAssignees.length === 0) {
       toast({ title: "Atama Yapılmadı", description: "Lütfen en az bir sorumlu seçin veya bu adımı iptal edin.", variant: "destructive" });
-      // Keep dialog open if no one is selected, or allow closing without assignment
-      // For now, we'll just close.
-      // setIsAssignTaskDialogOpen(false); 
-      // setNewlyCreatedTurqualityTaskId(null);
-      // setSelectedTaskAssignees([]);
       return; 
     }
     setIsSubmittingTurquality(true);
@@ -240,9 +236,9 @@ export default function BudgetPage() {
       </div>
 
       <AlertDialog open={isTurqualityDialogOpen} onOpenChange={(open) => {
-          if (!open && !isAssignTaskDialogOpen) { // Prevent closing if assignment dialog is next
+          if (!open && !isAssignTaskDialogOpen) { 
             setIsTurqualityDialogOpen(false);
-            setPendingInvoiceData(null); // Clear pending data if dialog is cancelled
+            setPendingInvoiceData(null); 
           }
         }}>
         <AlertDialogContent>
@@ -263,7 +259,7 @@ export default function BudgetPage() {
       </AlertDialog>
 
       <Dialog open={isAssignTaskDialogOpen} onOpenChange={(open) => {
-          if(!open){ // If dialog is closed by 'X' or overlay click
+          if(!open){ 
               setIsAssignTaskDialogOpen(false);
               setNewlyCreatedTurqualityTaskId(null);
               setSelectedTaskAssignees([]);
