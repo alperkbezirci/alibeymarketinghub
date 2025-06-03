@@ -41,7 +41,7 @@ function SubmitActivityButton() {
 export default function ProjectDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { user: currentUser, getDisplayName, isAdminOrMarketingManager } = useAuth();
+  const { user: currentUser, isAdminOrMarketingManager } = useAuth(); // Removed getDisplayName for now
   const { toast } = useToast();
   const projectId = typeof params.id === 'string' ? params.id : undefined;
 
@@ -60,16 +60,27 @@ export default function ProjectDetailsPage() {
   const activityFormRef = React.useRef<HTMLFormElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [selectedActivityFileName, setSelectedActivityFileName] = useState<string | null>(null);
+  const [idTokenForActivityForm, setIdTokenForActivityForm] = useState<string>('');
 
   const [activityToApprove, setActivityToApprove] = useState<ProjectActivity | null>(null);
   const [approvalMessage, setApprovalMessage] = useState("");
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
 
-  // State for manager's decision (approve/reject)
   const [activityForDecision, setActivityForDecision] = useState<ProjectActivity | null>(null);
   const [decisionType, setDecisionType] = useState<'approve' | 'reject' | null>(null);
   const [managerFeedbackInput, setManagerFeedbackInput] = useState("");
   const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      currentUser.getIdToken().then(token => {
+        setIdTokenForActivityForm(token);
+      }).catch(err => {
+        console.error("Error getting ID token for activity form:", err);
+        toast({ title: "Kimlik Doğrulama Hatası", description: "Form gönderimi için kullanıcı kimliği alınamadı.", variant: "destructive" });
+      });
+    }
+  }, [currentUser, toast]);
 
 
   const fetchProjectDetails = useCallback(async () => {
@@ -150,11 +161,17 @@ export default function ProjectDetailsPage() {
         if(fileInputRef.current) fileInputRef.current.value = "";
         setSelectedActivityFileName(null); // Reset selected file name
         fetchActivitiesForProject();
+        // Refresh token for next submission
+        if (currentUser) {
+          currentUser.getIdToken(true).then(token => { // Force refresh token
+            setIdTokenForActivityForm(token);
+          }).catch(err => console.error("Error refreshing ID token:", err));
+        }
       } else {
         toast({ title: "Hata", description: addActivityState.message, variant: "destructive" });
       }
     }
-  }, [addActivityState, toast, fetchActivitiesForProject]);
+  }, [addActivityState, toast, fetchActivitiesForProject, currentUser]);
 
 
   const handleSendForApproval = async () => {
@@ -387,13 +404,8 @@ export default function ProjectDetailsPage() {
             <CardContent className="pt-0">
               <form action={handleAddActivitySubmit} ref={activityFormRef} className="space-y-4 mb-6 p-4 border rounded-lg bg-muted/20">
                 <input type="hidden" name="projectId" value={projectId} />
-                {currentUser && (
-                  <>
-                    <input type="hidden" name="userId" value={currentUser.uid} />
-                    <input type="hidden" name="userName" value={getDisplayName()} />
-                    <input type="hidden" name="userPhotoURL" value={currentUser.photoURL || ""} />
-                  </>
-                )}
+                <input type="hidden" name="idToken" value={idTokenForActivityForm} />
+
                 <div>
                   <Label htmlFor="activityContent" className="sr-only">Yorumunuz</Label>
                   <Textarea
@@ -635,4 +647,3 @@ export default function ProjectDetailsPage() {
     </div>
   );
 }
-

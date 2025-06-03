@@ -4,14 +4,34 @@
 
 import { revalidatePath } from 'next/cache';
 import { addProjectActivity, updateProjectActivity, type ProjectActivityInputData, type ProjectActivityStatus, type ProjectActivity, type ProjectActivityType } from '@/services/project-activity-service';
-// import { getAuth } from "firebase-admin/auth"; // Gerçek sunucu tarafı kimlik doğrulama için örnek
-// import { auth as adminAuth } from '@/lib/firebase-admin'; // Firebase Admin SDK'nız varsa
+import { admin } from '@/lib/firebase-admin'; // Firebase Admin SDK'yı import et
+import type { DecodedIdToken } from 'firebase-admin/auth';
 
 interface AddActivityFormState {
   success: boolean;
   message: string;
   activityId?: string;
 }
+
+async function verifyIdToken(idToken: string): Promise<DecodedIdToken | null> {
+  if (!admin.apps.length) {
+    console.error("Firebase Admin SDK is not initialized. Cannot verify ID token.");
+    return null;
+  }
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    return decodedToken;
+  } catch (error: any) {
+    console.error("Error verifying ID token:", error.message);
+    if (error.code === 'auth/id-token-expired') {
+      // Token süresi dolmuşsa, istemciye yeni bir token alması için bir yol sunulabilir.
+      // Bu örnekte sadece null döndürüyoruz.
+      console.warn("ID token has expired.");
+    }
+    return null;
+  }
+}
+
 
 export async function handleAddProjectActivityAction(
   prevState: AddActivityFormState | undefined,
@@ -22,38 +42,30 @@ export async function handleAddProjectActivityAction(
   const projectId = formData.get('projectId') as string;
   const content = formData.get('content') as string;
   const fileInput = formData.get('file') as File | null;
+  const idToken = formData.get('idToken') as string | null;
 
-  // ÖNEMLİ GÜVENLİK NOTU:
-  // Aşağıdaki kullanıcı bilgileri (userId, userName, userPhotoURL) istemciden geliyor.
-  // Güvenli bir uygulamada, bu bilgiler ASLA doğrudan istemciden alınmamalıdır.
-  // Bunun yerine, sunucu tarafında aktif oturumdan (örneğin bir çerez veya token aracılığıyla)
-  // kimliği doğrulanmış kullanıcının bilgileri güvenli bir şekilde alınmalıdır.
-  // Örnek: const session = await getServerSession(authOptions); const serverUserId = session.user.id;
-  // Veya Firebase Admin SDK kullanarak:
-  // const idToken = req.headers.authorization?.split('Bearer ')[1];
-  // const decodedToken = await adminAuth.verifyIdToken(idToken);
-  // const serverUserId = decodedToken.uid;
+  if (!idToken) {
+    return { success: false, message: "Kimlik doğrulama token'ı bulunamadı. Lütfen tekrar giriş yapmayı deneyin." };
+  }
 
-  // Şimdilik, istemciden gelen bilgileri kullanıyoruz AMA BU GÜVENLİ DEĞİLDİR ve değiştirilmelidir.
-  // Bu bir YER TUTUCUDUR ve gerçek bir sunucu tarafı kimlik doğrulama mekanizması ile değiştirilmelidir.
-  const clientSentUserId = formData.get('userId') as string;
-  const clientSentUserName = formData.get('userName') as string;
-  const clientSentUserPhotoURL = formData.get('userPhotoURL') as string | null;
+  const decodedToken = await verifyIdToken(idToken);
 
-  // Güvenlik için simüle edilmiş sunucu tarafı kullanıcı bilgisi (YER TUTUCU)
-  // GERÇEK UYGULAMADA BURASI GERÇEK SUNUCU TARAFI KİMLİK DOĞRULAMA İLE DEĞİŞTİRİLMELİDİR.
-  const serverVerifiedUser = {
-    uid: clientSentUserId, // GEÇİCİ - GERÇEK SUNUCU DOĞRULAMASI İLE DEĞİŞTİRİN
-    name: clientSentUserName, // GEÇİCİ - GERÇEK SUNUCU DOĞRULAMASI İLE DEĞİŞTİRİN
-    photoURL: clientSentUserPhotoURL, // GEÇİCİ - GERÇEK SUNUCU DOĞRULAMASI İLE DEĞİŞTİRİN
-  };
+  if (!decodedToken) {
+    return { success: false, message: "Kullanıcı kimliği doğrulanamadı. Oturumunuz zaman aşımına uğramış olabilir veya geçersiz bir token gönderdiniz." };
+  }
 
-  console.warn(`[SECURITY_RISK] Using client-sent user ID (${serverVerifiedUser.uid}) and name (${serverVerifiedUser.name}) in handleAddProjectActivityAction. This MUST be replaced with server-side session/token verification.`);
+  const serverVerifiedUserId = decodedToken.uid;
+  // Firebase DecodedIdToken'da displayName olmayabilir, bu yüzden email veya uid'yi kullanabiliriz.
+  // Gerçek bir uygulamada, kullanıcı profilinden isim çekmek daha iyi olabilir.
+  const serverVerifiedUserName = decodedToken.name || decodedToken.email || serverVerifiedUserId;
+  const serverVerifiedUserPhotoURL = decodedToken.picture || null;
+
+  console.log(`[Action Log] Server-verified user: UID=${serverVerifiedUserId}, Name=${serverVerifiedUserName}`);
 
 
-  if (!projectId || !serverVerifiedUser.uid || !serverVerifiedUser.name) {
-    console.error("[Action Log] Validation Error: Missing projectId, or server-verified userId/userName.");
-    return { success: false, message: "Proje ID, kullanıcı ID ve kullanıcı adı zorunludur." };
+  if (!projectId || !serverVerifiedUserId) {
+    console.error("[Action Log] Validation Error: Missing projectId or server-verified userId.");
+    return { success: false, message: "Proje ID ve kullanıcı kimliği zorunludur." };
   }
   if (!content && (!fileInput || fileInput.size === 0)) {
     console.error("[Action Log] Validation Error: Content or file must be provided.");
@@ -68,6 +80,8 @@ export async function handleAddProjectActivityAction(
     activityType = 'file_upload';
     fileName = fileInput.name;
     fileType = fileInput.type;
+    // TODO: Gerçek dosya yükleme işlemi burada Firebase Storage'a yapılmalı.
+    // Şimdilik sadece dosya adını ve türünü kaydediyoruz.
     console.log(`[Action Log] File detected: ${fileName}, Type: ${fileType}. Actual upload to Storage not implemented yet.`);
   }
 
@@ -75,9 +89,9 @@ export async function handleAddProjectActivityAction(
 
   const activityData: ProjectActivityInputData = {
     projectId,
-    userId: serverVerifiedUser.uid, // Sunucuda doğrulanmış kullanıcı ID'si kullanılmalı
-    userName: serverVerifiedUser.name, // Sunucuda doğrulanmış kullanıcı adı kullanılmalı
-    userPhotoURL: serverVerifiedUser.photoURL || undefined, // Sunucuda doğrulanmış fotoğraf URL'si
+    userId: serverVerifiedUserId,
+    userName: serverVerifiedUserName,
+    userPhotoURL: serverVerifiedUserPhotoURL || undefined,
     type: activityType,
     status: initialStatus,
     content: content || undefined,
@@ -103,18 +117,22 @@ interface UpdateActivityStatusFormState {
     message: string;
 }
 
+// TODO: Bu eylemler de ID Token ile korunmalı (işlemi yapan yöneticinin kimliği doğrulanmalı)
+// Şimdilik, sadece `handleAddProjectActivityAction` için ID token doğrulamasını ekledik.
+// Diğer eylemler için benzer bir mantık uygulanmalıdır.
+
 export async function handleUpdateActivityStatusAction(
     activityId: string,
     projectId: string,
     newStatus: ProjectActivityStatus,
     messageForManager?: string
 ): Promise<UpdateActivityStatusFormState> {
-    // GÜVENLİK NOTU: Bu işlemi kimin yapabileceği kontrol edilmeli.
-    // Örneğin, sadece aktivite sahibi taslağını onaya gönderebilmeli.
-    // const { userId: currentUserId, roles: currentUserRoles } = await getAuthenticatedUserOnServer(); // Örnek
-    // const activity = await getActivityById(activityId);
-    // if (activity.userId !== currentUserId && newStatus === 'pending_approval') {
-    //   return { success: false, message: "Bu aktiviteyi onaya gönderme yetkiniz yok." };
+    // YER TUTUCU: Gerçek admin/yetki kontrolü burada olmalı (ID Token ile)
+    // Örneğin:
+    // const adminIdToken = formData.get('adminIdToken') as string;
+    // const decodedAdminToken = await verifyIdToken(adminIdToken);
+    // if (!decodedAdminToken || !isUserAdmin(decodedAdminToken.uid)) {
+    //   return { success: false, message: "Bu işlemi yapma yetkiniz yok." };
     // }
 
     if (!activityId || !newStatus) {
@@ -145,12 +163,7 @@ export async function handleApproveActivityAction(
     projectId: string,
     managerFeedback?: string
 ): Promise<UpdateActivityStatusFormState> {
-    // GÜVENLİK NOTU: Bu işlemi sadece Admin veya Pazarlama Müdürü yapabilmeli.
-    // const { roles: currentUserRoles } = await getAuthenticatedUserOnServer(); // Örnek
-    // if (!currentUserRoles.includes('Admin') && !currentUserRoles.includes('Pazarlama Müdürü')) {
-    //    return { success: false, message: "Bu aktiviteyi onaylama yetkiniz yok." };
-    // }
-
+    // YER TUTUCU: Gerçek admin/yetki kontrolü burada olmalı (ID Token ile)
     if (!activityId || !projectId) {
         return { success: false, message: "Aktivite ID ve Proje ID zorunludur." };
     }
@@ -173,19 +186,10 @@ export async function handleRejectActivityAction(
     projectId: string,
     managerFeedback?: string
 ): Promise<UpdateActivityStatusFormState> {
-    // GÜVENLİK NOTU: Bu işlemi sadece Admin veya Pazarlama Müdürü yapabilmeli.
-    // const { roles: currentUserRoles } = await getAuthenticatedUserOnServer(); // Örnek
-    // if (!currentUserRoles.includes('Admin') && !currentUserRoles.includes('Pazarlama Müdürü')) {
-    //    return { success: false, message: "Bu aktiviteyi reddetme yetkiniz yok." };
-    // }
-
+    // YER TUTUCU: Gerçek admin/yetki kontrolü burada olmalı (ID Token ile)
     if (!activityId || !projectId) {
         return { success: false, message: "Aktivite ID ve Proje ID zorunludur." };
     }
-    // Reddetme işlemi için geri bildirim zorunlu tutulabilir:
-    // if (!managerFeedback || managerFeedback.trim() === "") {
-    //     return { success: false, message: "Reddetme işlemi için geri bildirim zorunludur." };
-    // }
     try {
         const updates: Partial<ProjectActivity> = { 
             status: 'rejected',
@@ -199,5 +203,3 @@ export async function handleRejectActivityAction(
         return { success: false, message: `Aktivite reddedilirken bir hata oluştu: ${error.message || "Bilinmeyen bir sunucu hatası oluştu."}` };
     }
 }
-
-    
