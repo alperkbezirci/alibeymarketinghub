@@ -30,9 +30,12 @@ export async function generateDescription(input: GenerateDescriptionInput): Prom
 const prompt = ai.definePrompt({
   name: 'generateDescriptionPrompt',
   input: {schema: GenerateDescriptionInputSchema},
-  // Output schema is not directly used by prompt for structuring, but flow will adhere to it.
-  // The prompt itself returns a string, which we'll map to GenerateDescriptionOutputSchema in the flow.
-  prompt: `You are an expert marketing assistant. Generate a project description based on the following details: {{{details}}}`,
+  output: {schema: GenerateDescriptionOutputSchema}, // Instruct Genkit to expect output matching this schema
+  prompt: `You are an expert marketing assistant. Based on the following project details, generate a compelling project description.
+Project Details:
+{{{details}}}
+
+Ensure your response is a JSON object that conforms to the provided output schema, specifically providing the generated description in the "description" field.`,
 });
 
 const generateDescriptionFlow = ai.defineFlow(
@@ -43,23 +46,23 @@ const generateDescriptionFlow = ai.defineFlow(
   },
   async (input): Promise<GenerateDescriptionOutput> => {
     try {
-      const {output: modelOutput} = await prompt(input);
-      // The prompt directly returns the model's text output based on the simple string prompt.
-      // We need to ensure the output matches the string format we expect.
-      // If the prompt was configured for structured output (JSON), this would be different.
-      if (modelOutput && typeof modelOutput.description === 'string') {
-        return { description: modelOutput.description };
-      } else if (modelOutput && typeof modelOutput === 'string') { // Fallback if prompt outputs raw string
-        return { description: modelOutput };
-      }
-      // If the output is not as expected, or empty, treat as an error.
-      console.warn("AI description generation returned unexpected or empty output:", modelOutput);
-      return { error: "Yapay zeka beklenmedik bir formatta yanıt verdi veya boş yanıt döndü." };
+      const response = await prompt(input); // Genkit will attempt to parse the LLM output as JSON
+      const modelOutput = response.output;   // modelOutput is now of type GenerateDescriptionOutputSchema | undefined
 
-    } catch (err: Error) {
+      if (modelOutput && typeof modelOutput.description === 'string' && modelOutput.description.trim() !== '') {
+        return { description: modelOutput.description };
+      }
+      
+      console.warn("AI description generation returned no description or unexpected output. Raw output:", response.raw?.choices[0]?.message?.content);
+      return { error: "Yapay zeka geçerli bir proje açıklaması üretemedi veya açıklama alanı boştu." };
+
+    } catch (err: any) {
       console.error("Error calling generateDescriptionPrompt:", err);
       if (err.message && err.message.includes('503 Service Unavailable')) {
         return { error: "Yapay zeka modeli şu anda aşırı yüklenmiş durumda. Lütfen daha sonra tekrar deneyin." };
+      }
+      if (err.message && err.message.includes('JSON')) {
+        return { error: "Yapay zeka modelinden gelen yanıt JSON formatında değildi. Lütfen tekrar deneyin." };
       }
       return { error: "Yapay zeka destekli açıklama oluşturulurken bir hata oluştu. Lütfen daha sonra tekrar deneyin veya açıklamayı manuel olarak girin." };
     }
