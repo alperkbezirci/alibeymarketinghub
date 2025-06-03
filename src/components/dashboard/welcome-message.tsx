@@ -1,3 +1,4 @@
+
 // src/components/dashboard/welcome-message.tsx
 "use client";
 
@@ -30,7 +31,7 @@ export function WelcomeMessage() {
           const pendingProjects = 0;
 
           const result = await generateWelcomeMessage({
-            userName: getDisplayName(), // Düzeltildi: user.name yerine getDisplayName() kullanıldı
+            userName: getDisplayName(), 
             date: currentDate,
             time: currentTime,
             pendingTasks,
@@ -39,8 +40,8 @@ export function WelcomeMessage() {
           setWelcomeText(result.message);
         } catch (error) {
           console.error("Yapay zeka karşılama mesajı oluşturulurken hata:", error);
-          // Fallback message if AI fails, now uses getDisplayName()
-          setWelcomeText(`Merhaba ${getDisplayName()}, hoş geldiniz! Bugün ${currentDate}, saat ${currentTime}.`);
+          // Fallback message if AI fails
+          setWelcomeText(`Merhaba ${getDisplayName()}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${currentDate}, saat ${currentTime}.`);
         } finally {
           setLoading(false);
         }
@@ -53,7 +54,7 @@ export function WelcomeMessage() {
       setLoading(false); // Not logged in, not loading
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentTime, currentDate, getDisplayName]); // getDisplayName bağımlılıklara eklendi
+  }, [user, currentTime, currentDate, getDisplayName]); 
 
   if (!user) return null;
 
@@ -61,7 +62,9 @@ export function WelcomeMessage() {
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">Hoş Geldiniz!</CardTitle>
+        <CardTitle className="font-headline text-2xl">
+          <strong className="font-bold">Pazarlama</strong>Merkezi
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (

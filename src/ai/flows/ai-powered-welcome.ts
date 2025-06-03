@@ -34,7 +34,7 @@ const welcomeMessagePrompt = ai.definePrompt({
   name: 'welcomeMessagePrompt',
   input: {schema: WelcomeMessageInputSchema},
   output: {schema: WelcomeMessageOutputSchema},
-  prompt: `Merhaba {{userName}}, bugün {{date}} ve saat şu anda {{time}}.\n\n{{pendingTasks}} adet tamamlanmamış göreviniz ve {{pendingProjects}} adet tamamlanmamış projeniz bulunmaktadır. Gününüze güzel bir başlangıç yapın! `,
+  prompt: `Merhaba {{userName}}, Pazarlama Merkezi'ne hoş geldiniz! Bugün {{date}} ve saat şu anda {{time}}.\n\n{{pendingTasks}} adet tamamlanmamış göreviniz ve {{pendingProjects}} adet tamamlanmamış projeniz bulunmaktadır. İyi çalışmalar!`,
 });
 
 const welcomeMessageFlow = ai.defineFlow(
@@ -49,7 +49,7 @@ const welcomeMessageFlow = ai.defineFlow(
       if (!output) {
         console.warn(`AI welcome message prompt returned null output for user ${input.userName}. Input:`, input);
         // Provide a basic fallback if output is unexpectedly null
-        return { message: `Merhaba ${input.userName}, hoş geldiniz! Kontrol panelinize genel bir bakış.` };
+        return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Genel bir bakış.` };
       }
       return output;
     } catch (error: Error) {
@@ -60,11 +60,11 @@ const welcomeMessageFlow = ai.defineFlow(
       );
       
       // Construct a user-friendly fallback message
-      let fallbackMessage = `Merhaba ${input.userName}, hoş geldiniz!`;
+      let fallbackMessage = `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz!`;
       if (input.date && input.time) {
-        fallbackMessage = `Merhaba ${input.userName}, hoş geldiniz! Bugün ${input.date}, saat ${input.time}. Sistemimiz şu anda size özel bir karşılama mesajı üretemiyor, ancak harika bir gün geçirmenizi dileriz!`;
+        fallbackMessage = `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${input.date}, saat ${input.time}. Sistemimiz şu anda size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!`;
       } else {
-        fallbackMessage = `Merhaba ${input.userName}, hoş geldiniz! Sistemimiz şu anda size özel bir karşılama mesajı üretemiyor, ancak harika bir gün geçirmenizi dileriz!`;
+        fallbackMessage = `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Sistemimiz şu anda size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!`;
       }
       
       // Ensure the fallback conforms to WelcomeMessageOutputSchema

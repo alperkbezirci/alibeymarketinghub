@@ -50,7 +50,7 @@ export const TASK_PRIORITIES = [
 export const CURRENCIES = ['EUR', 'TRY', 'USD'];
 
 export const NAV_ITEMS = [
-  { name: 'Kontrol Paneli', href: '/dashboard', icon: 'LayoutDashboard' },
+  { name: 'Pazarlama Merkezi', href: '/dashboard', icon: 'LayoutDashboard' },
   { name: 'Projeler', href: '/projects', icon: 'Briefcase' },
   { name: 'Görevler', href: '/tasks', icon: 'ListChecks' },
   { name: 'Takvim', href: '/calendar', icon: 'CalendarDays' },

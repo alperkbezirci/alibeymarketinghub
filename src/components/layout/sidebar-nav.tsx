@@ -1,3 +1,4 @@
+
 // src/components/layout/sidebar-nav.tsx
 "use client";
 
@@ -27,6 +28,15 @@ export function SidebarNav() {
       // Fallback if icon name is incorrect, though types should prevent this
       return null; 
     }
+    const isPazarlamaMerkezi = item.name === "Pazarlama Merkezi";
+    const displayName = isPazarlamaMerkezi ? (
+      <span>
+        <strong className="font-bold">Pazarlama</strong>Merkezi
+      </span>
+    ) : (
+      item.name
+    );
+
     return (
       <Link
         key={item.href}
@@ -39,7 +49,7 @@ export function SidebarNav() {
         )}
       >
         <IconComponent className="mr-2 h-5 w-5" />
-        {item.name}
+        {displayName}
       </Link>
     );
   };
