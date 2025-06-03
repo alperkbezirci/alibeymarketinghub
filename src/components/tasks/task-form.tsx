@@ -46,7 +46,7 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
     setProjectsError(null);
     try {
       const fetchedProjects = await getProjects();
-      setProjectsList(fetchedProjects);
+      setProjectsList(fetchedProjects as Project[]);
     } catch (err: any) {
       setProjectsError(err.message || "Projeler yüklenirken bir hata oluştu.");
       // No toast here, just log or handle silently for form element

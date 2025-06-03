@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await firebaseSignOut(auth);
             setUser(null);
           }
-        } catch (error: any) {
+        } catch (error: Error) {
           console.error("[AuthContext] Error processing Firebase user:", error.message);
           await firebaseSignOut(auth);
           setUser(null);
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // onAuthStateChanged will handle setting user and redirecting
-    } catch (error: any) {
+    } catch (error: Error) {
       console.error("[AuthContext] Login failed:", error.code, error.message);
       setUser(null); 
       setLoading(false);
@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await firebaseSignOut(auth);
       setUser(null);
-      router.replace('/login');
+      router.replace('/login'); // Use replace to avoid back button issues
     } catch (error: any) {
       console.error("[AuthContext] Logout failed:", error.code, error.message);
     }

@@ -10,7 +10,7 @@
  * - deleteUserDocument: Deletes a user's document from Firestore.
  */
 import { db } from '@/lib/firebase';
-import { collection, doc, setDoc, serverTimestamp, getDoc, getDocs, updateDoc, deleteDoc, query } from 'firebase/firestore'; // Removed orderBy from here as it's not used directly now
+import { collection, doc, setDoc, serverTimestamp, getDoc, getDocs, updateDoc, deleteDoc, query, Timestamp } from 'firebase/firestore'; // Removed orderBy from here as it's not used directly now
 import type { User } from '@/contexts/auth-context';
 
 export interface UserProfileData {
@@ -21,8 +21,8 @@ export interface UserProfileData {
   organization?: string;
   roles: string[];
   authorizationLevel?: string;
-  createdAt: any; // Firestore serverTimestamp placeholder
-  updatedAt?: any; // Firestore serverTimestamp placeholder
+  createdAt: Timestamp; // Firestore serverTimestamp placeholder
+  updatedAt?: Timestamp; // Firestore serverTimestamp placeholder
   photoURL?: string | null;
 }
 
@@ -57,7 +57,7 @@ export async function createUserDocumentInFirestore(
       title: title || '', // Ensure undefined is not sent if not provided
       organization: organization || '',
       authorizationLevel: authorizationLevel || '',
-      updatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp() as Timestamp,
     };
 
     if (photoURL !== undefined) {
@@ -65,7 +65,7 @@ export async function createUserDocumentInFirestore(
     }
 
     if (!docSnap.exists()) {
-      userData.createdAt = serverTimestamp();
+      userData.createdAt = serverTimestamp() as Timestamp;
     }
 
     await setDoc(userDocRef, userData, { merge: true });
@@ -130,7 +130,7 @@ export async function updateUserProfile(
       title: title || '',
       organization: organization || '',
       authorizationLevel: authorizationLevel || '',
-      updatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp() as Timestamp,
     };
     await updateDoc(userDocRef, updateData);
     console.log(`User profile for UID: ${uid} successfully updated in Firestore.`);

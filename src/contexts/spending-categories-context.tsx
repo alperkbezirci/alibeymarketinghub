@@ -36,7 +36,7 @@ export function SpendingCategoriesProvider({ children }: { children: ReactNode }
     try {
       const dbCategories = await fetchCategoriesFromDb();
       setCategories(dbCategories);
-    } catch (err: any) {
+    } catch (err: Error) {
       setError(err.message || "Kategoriler yüklenirken bir hata oluştu.");
       toast({ title: "Hata", description: err.message || "Kategoriler yüklenirken bir hata oluştu.", variant: "destructive" });
     } finally {
@@ -65,7 +65,7 @@ export function SpendingCategoriesProvider({ children }: { children: ReactNode }
     try {
       const newCategory = await addCategoryToDb(trimmedName, limit);
       setCategories(prevCategories => [...prevCategories, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
-      toast({ title: "Başarılı", description: `"${trimmedName}" kategorisi eklendi.` });
+      toast({ title: "Başarılı", description: `\"${trimmedName}\" kategorisi eklendi.` });
     } catch (err: any) {
       toast({ title: "Hata", description: err.message || "Kategori eklenirken bir hata oluştu.", variant: "destructive" });
     }
@@ -91,7 +91,7 @@ export function SpendingCategoriesProvider({ children }: { children: ReactNode }
       setCategories(prevCategories =>
         prevCategories.map(cat => (cat.id === id ? { ...cat, name: trimmedName, limit } : cat)).sort((a, b) => a.name.localeCompare(b.name))
       );
-      toast({ title: "Başarılı", description: `"${trimmedName}" kategorisi güncellendi.` });
+      toast({ title: "Başarılı", description: `\"${trimmedName}\" kategorisi güncellendi.` });
     } catch (err: any) {
       toast({ title: "Hata", description: err.message || "Kategori güncellenirken bir hata oluştu.", variant: "destructive" });
     }

@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, where, getDoc as getFirestoreDoc, limit as firestoreLimit } from 'firebase/firestore';
 
 const convertToISOString = (dateField: any): string | undefined => {
-  if (!dateField) return undefined;
+  if (!dateField) return undefined; 
   if (dateField instanceof Timestamp) return dateField.toDate().toISOString();
   if (dateField instanceof Date) return dateField.toISOString();
   try {
@@ -69,7 +69,7 @@ export async function getTasks(): Promise<Task[]> {
     });
     return taskList;
   } catch (error: any) {
-    console.error("[SERVICE_ERROR] Original error in getTasks:", error);
+    console.error("[SERVICE_ERROR] Original error in getTasks:", error); 
     throw new Error("Görevler alınırken bir hata oluştu. Detaylar için sunucu konsolunu kontrol edin.");
   }
 }
@@ -98,7 +98,7 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
     });
     return taskList;
   } catch (error: any) {
-    console.error(`[SERVICE_ERROR] Original Firestore error in getTasksByProjectId for project ID ${projectId}:`, error);
+    console.error(`[SERVICE_ERROR] Original Firestore error in getTasksByProjectId for project ID ${projectId}:`, error); 
     let detailedMessage = `Projeye ait görevler alınırken bir hata oluştu (Proje ID: ${projectId}). `;
     if (error.code === "failed-precondition" || (error.message && error.message.toLowerCase().includes("index required"))) {
         detailedMessage += "Bu hata, Firestore'da bu sorgu için gerekli bir veritabanı indeksinin eksik olmasından kaynaklanmaktadır. ";
@@ -148,7 +148,7 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
       updatedAt: convertToISOString(newData?.updatedAt) || new Date().toISOString(), 
     };
   } catch (error: any) {
-    console.error(`[SERVICE_ERROR] Original error in addTask:`, error);
+    console.error(`[SERVICE_ERROR] Original error in addTask:`, error); 
     throw new Error("Görev eklenirken bir hata oluştu. Detaylar için konsolu kontrol edin.");
   }
 }
@@ -164,7 +164,7 @@ export async function updateTaskAssignees(taskId: string, assignedTo: string[]):
       updatedAt: serverTimestamp()
     });
   } catch (error: any) {
-    console.error(`Error updating task assignees for task ${taskId}: `, error);
+    console.error(`Error updating task assignees for task ${taskId}: `, error); 
     throw new Error(`Görev atamaları güncellenirken bir hata oluştu: ${error.message}`);
   }
 }
@@ -292,7 +292,7 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
     });
     return taskList;
   } catch (error: any) {
-    console.error(`Error fetching tasks for user ${userId}: `, error);
+    console.error(`Error fetching tasks for user ${userId}: `, error); 
     throw new Error(`Kullanıcıya ait görevler alınırken bir hata oluştu: ${error.message}`);
   }
 }
@@ -326,7 +326,7 @@ export async function getTaskStatsByUserId(userId: string): Promise<{ month: str
       .sort((a, b) => a.month.localeCompare(b.month)); 
 
   } catch (error: any) {
-    console.error(`Error fetching task stats for user ${userId}: `, error);
+    console.error(`Error fetching task stats for user ${userId}: `, error); 
     throw new Error(`Kullanıcı görev istatistikleri alınırken bir hata oluştu: ${error.message}`);
   }
 }
@@ -362,7 +362,7 @@ export async function getActiveTasks(limitCount: number = 5): Promise<Task[]> {
     });
     return taskList;
   } catch (error: any) {
-    console.error("Error fetching active tasks: ", error);
+    console.error("Error fetching active tasks: ", error); 
     let userMessage = "Aktif görevler alınırken bir hata oluştu.";
     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
         userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
@@ -404,7 +404,7 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
     });
     return taskList;
   } catch (error: any) {
-    console.error("Error fetching overdue tasks: ", error);
+    console.error("Error fetching overdue tasks: ", error); 
     let userMessage = "Gecikmiş görevler alınırken bir hata oluştu.";
     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
         userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
