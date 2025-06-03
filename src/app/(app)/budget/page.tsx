@@ -33,7 +33,7 @@ interface BudgetSummaryItem {
   remaining: number;
 }
 
-const TURQUALITY_PROJECT_NAME = "Turquality Projesi"; // Define a constant for the project name
+const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; // Specified Turquality Project ID
 
 export default function BudgetPage() {
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
@@ -144,7 +144,7 @@ export default function BudgetPage() {
         const taskDueDate = addDays(new Date(pendingInvoiceData.invoiceDate), 7);
         const taskData: TaskInputData = {
           taskName: `Turquality: ${format(new Date(pendingInvoiceData.invoiceDate), "dd.MM.yyyy")} - ${pendingInvoiceData.companyName}`,
-          project: TURQUALITY_PROJECT_NAME, // Assign to specific Turquality project name
+          project: TURQUALITY_PROJECT_ID, // Assign to specific Turquality project ID
           hotel: pendingInvoiceData.hotel,
           status: "Yapılacak",
           priority: "Yüksek",
@@ -167,7 +167,7 @@ export default function BudgetPage() {
         }
         
         setIsAssignTaskDialogOpen(true); 
-        toast({ title: "Başarılı", description: `${fullDescription} Turquality görevi oluşturuldu.` });
+        toast({ title: "Başarılı", description: `${fullDescription} Turquality görevi oluşturuldu. Bütçe özeti güncellendi.` });
 
       } else {
         toast({ title: "Başarılı", description: `${fullDescription} Bütçe özeti güncellendi.` });
@@ -402,3 +402,5 @@ export default function BudgetPage() {
   );
 }
       
+
+    

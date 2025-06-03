@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const TURQUALITY_PROJECT_NAME = "Turquality Projesi"; // Define a constant for the project name
+const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; // Specified Turquality Project ID
 
 export default function DashboardPage() {
   const { user, isAdminOrMarketingManager } = useAuth();
@@ -101,7 +101,7 @@ export default function DashboardPage() {
         const taskDueDate = addDays(new Date(pendingInvoiceData.invoiceDate), 7);
         const taskData: TaskInputData = {
           taskName: `Turquality: ${format(new Date(pendingInvoiceData.invoiceDate), "dd.MM.yyyy")} - ${pendingInvoiceData.companyName}`,
-          project: TURQUALITY_PROJECT_NAME, // Assign to specific Turquality project name
+          project: TURQUALITY_PROJECT_ID, // Assign to specific Turquality project ID
           hotel: pendingInvoiceData.hotel,
           status: "Yapılacak",
           priority: "Yüksek",
@@ -307,3 +307,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

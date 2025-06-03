@@ -5,7 +5,7 @@
  * @fileOverview Firestore service for managing projects.
  */
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, getDoc as getFirestoreDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, getDoc as getFirestoreDoc, where, limit as firestoreLimit } from 'firebase/firestore';
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
@@ -163,3 +163,90 @@ export async function deleteProject(id: string): Promise<void> {
   }
 }
 
+export async function getActiveProjects(limitCount: number = 5): Promise<Project[]> {
+  try {
+    const projectsCollection = collection(db, PROJECTS_COLLECTION);
+    // Define active statuses. Firestore 'in' queries are limited to 30 values.
+    const activeStatuses = ['Planlama', 'Devam Ediyor']; 
+    const q = query(
+      projectsCollection, 
+      where('status', 'in', activeStatuses),
+      orderBy('endDate', 'asc'), // Or orderBy('createdAt', 'desc') depending on desired sort for "active"
+      firestoreLimit(limitCount)
+    );
+    const projectSnapshot = await getDocs(q);
+    const projectList = projectSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        projectName: data.projectName || 'İsimsiz Proje',
+        responsiblePersons: Array.isArray(data.responsiblePersons) ? data.responsiblePersons : [],
+        startDate: convertToISOString(data.startDate),
+        endDate: convertToISOString(data.endDate),
+        status: data.status || 'Bilinmiyor',
+        hotel: data.hotel || 'Bilinmiyor',
+        description: data.description,
+        createdAt: convertToISOString(data.createdAt),
+        updatedAt: convertToISOString(data.updatedAt),
+      } as Project;
+    });
+    return projectList;
+  } catch (error: any) {
+    console.error("Error fetching active projects: ", error);
+    let userMessage = "Aktif projeler alınırken bir hata oluştu.";
+     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+        userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
+    }
+    throw new Error(userMessage);
+  }
+}
+
+export async function getProjectCountByStatus(): Promise<{ status: string; count: number }[]> {
+  try {
+    const projectsCollection = collection(db, PROJECTS_COLLECTION);
+    const projectSnapshot = await getDocs(projectsCollection);
+    const statusCounts: { [key: string]: number } = {};
+
+    projectSnapshot.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      const status = data.status || 'Bilinmiyor';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+
+    return Object.entries(statusCounts).map(([status, count]) => ({ status, count }));
+  } catch (error) {
+    console.error("Error fetching project count by status: ", error);
+    throw new Error("Proje sayıları durumlarına göre alınırken bir hata oluştu.");
+  }
+}
+
+export async function getProjectCreationTrend(): Promise<{ month: string; count: number }[]> {
+  try {
+    const projectsCollection = collection(db, PROJECTS_COLLECTION);
+    const q = query(projectsCollection, orderBy('createdAt', 'asc'));
+    const projectSnapshot = await getDocs(q);
+    
+    const monthlyData: { [month: string]: { count: number } } = {};
+
+    projectSnapshot.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      const createdAt = data.createdAt;
+      
+      if (createdAt instanceof Timestamp) {
+        const createdMonth = createdAt.toDate().toISOString().substring(0, 7); // YYYY-MM
+        if (!monthlyData[createdMonth]) {
+          monthlyData[createdMonth] = { count: 0 };
+        }
+        monthlyData[createdMonth].count += 1;
+      }
+    });
+
+    return Object.entries(monthlyData)
+      .map(([month, data]) => ({ month, count: data.count }))
+      .sort((a,b) => a.month.localeCompare(b.month));
+
+  } catch (error) {
+    console.error("Error fetching project creation trend: ", error);
+    throw new Error("Proje oluşturma trendi alınırken bir hata oluştu.");
+  }
+}
