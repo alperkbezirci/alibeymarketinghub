@@ -1,21 +1,21 @@
 // src/app/(app)/cms/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'; // Added useRef
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants
-import { Settings, Palette, DollarSign, ListPlus, SlidersVertical, Edit2, Trash2, Loader2, UploadCloud } from "lucide-react"; // Added UploadCloud
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Settings, Palette, DollarSign, ListPlus, SlidersVertical, Edit2, Trash2, Loader2, UploadCloud } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSpendingCategories, type SpendingCategory } from '@/contexts/spending-categories-context';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CategoryEditForm } from "@/components/cms/category-edit-form";
 import { Skeleton } from '@/components/ui/skeleton';
 import { getHotelBudgetLimitsForCms, saveHotelBudgetLimitsCms, type BudgetConfigData } from '@/services/budget-config-service';
 import { getUiSettings, saveUiSettings, type UiSettings } from '@/services/ui-config-service'; // Import UI config service
-import { cn } from '@/lib/utils'; // Added cn
+import { cn } from '@/lib/utils';
 
 
 export default function CmsPage() {
