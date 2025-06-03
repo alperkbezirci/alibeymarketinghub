@@ -4,7 +4,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { AppLogo } from '@/components/layout/app-logo'; // Changed from Mountain
+import { AppLogo } from '@/components/layout/app-logo'; 
 import { UserNav } from '@/components/layout/user-nav';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ export function Header() {
             <SidebarTrigger />
           </div>
           <Link href="/dashboard" className="flex items-center space-x-2">
-            <AppLogo className="h-6 w-auto text-primary" /> {/* Used AppLogo, adjusted width to auto for aspect ratio */}
+            <AppLogo className="h-6 w-auto text-primary" /> 
             <span className="font-headline text-xl font-bold">Ali Bey Marketing Hub</span>
           </Link>
         </div>
