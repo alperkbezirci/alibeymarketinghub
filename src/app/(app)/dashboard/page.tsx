@@ -22,7 +22,7 @@ import { tr } from "date-fns/locale";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button"; // Button import'u eklendi
+import { Button } from "@/components/ui/button";
 
 const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; 
 
@@ -171,12 +171,14 @@ export default function DashboardPage() {
     id: task.id,
     name: task.taskName || 'İsimsiz Görev',
     detail: `Bitiş Tarihi: ${task.dueDate ? format(new Date(task.dueDate), 'dd MMM yyyy', {locale: tr}) : 'N/A'} | Öncelik: ${task.priority || 'Normal'}`,
+    projectId: task.project, // Gecikmiş görevler için proje ID'si
   });
 
   const mapActivityToOverviewItem = (activity: ProjectActivity) => ({
     id: activity.id,
-    name: `Proje: ${activity.projectId.substring(0,6)}... - Kullanıcı: ${activity.userName}`,
-    detail: `Tip: ${activity.type === 'comment' ? 'Yorum' : 'Dosya'} | İçerik: ${activity.content?.substring(0, 30) || activity.fileName || 'Detay Yok'}...`,
+    name: `Proje ID: ${activity.projectId.substring(0,10)}... | Kullanıcı: ${activity.userName}`,
+    detail: `Tip: ${activity.type === 'comment' ? 'Yorum' : activity.type === 'file_upload' ? 'Dosya' : 'Durum'} | İçerik: ${(activity.content || activity.fileName || 'Detay Yok').substring(0, 30)}...`,
+    projectId: activity.projectId, // Onay bekleyenler için proje ID'si
   });
 
   return (
@@ -192,14 +194,16 @@ export default function DashboardPage() {
           IconComponent={Briefcase} 
           items={activeProjectsData.map(mapProjectToOverviewItem)} 
           isLoading={isLoadingProjects}
-          emptyMessage="Aktif proje bulunmamaktadır." 
+          emptyMessage="Aktif proje bulunmamaktadır."
+          getItemHref={(item) => `/projects/${item.id}`}
         />
         <OverviewCard 
           title="Gecikmiş Görevler" 
           IconComponent={ListTodo} 
           items={overdueTasksData.map(mapTaskToOverviewItem)}
           isLoading={isLoadingTasks}
-          emptyMessage="Gecikmiş görev bulunmamaktadır." 
+          emptyMessage="Gecikmiş görev bulunmamaktadır."
+          getItemHref={(item) => item.projectId ? `/projects/${item.projectId}` : undefined}
         />
         {isAdminOrMarketingManager && (
           <OverviewCard 
@@ -207,7 +211,8 @@ export default function DashboardPage() {
             IconComponent={CheckSquare} 
             items={pendingApprovalsData.map(mapActivityToOverviewItem)}
             isLoading={isLoadingPendingApprovals}
-            emptyMessage="Onay bekleyen iş bulunmamaktadır." 
+            emptyMessage="Onay bekleyen iş bulunmamaktadır."
+            getItemHref={(item) => item.projectId ? `/projects/${item.projectId}` : undefined}
           />
         )}
       </div>
@@ -302,7 +307,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
-
-    
