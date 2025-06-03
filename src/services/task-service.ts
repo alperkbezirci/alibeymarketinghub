@@ -331,18 +331,15 @@ export async function getTaskStatsByUserId(userId: string): Promise<{ month: str
   }
 }
 
-export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
+export async function getActiveTasks(limitCount: number = 5): Promise<Task[]> {
   try {
     const tasksCollection = collection(db, TASKS_COLLECTION);
-    const now = Timestamp.now();
-    
-    const openStatuses = ['Yapılacak', 'Devam Ediyor', 'Gözden Geçiriliyor', 'Engellendi']; 
+    const activeStatuses = ['Yapılacak', 'Devam Ediyor', 'Gözden Geçiriliyor', 'Engellendi'];
 
-    // orderBy('dueDate', 'asc') kaldırıldı. Kullanıcıya indeks oluşturması önerilmeli.
     const q = query(
       tasksCollection,
-      where('dueDate', '<', now),
-      where('status', 'in', openStatuses), 
+      where('status', 'in', activeStatuses),
+      orderBy('dueDate', 'asc'), // Re-added for intended functionality
       firestoreLimit(limitCount)
     );
 
@@ -363,8 +360,48 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
         updatedAt: convertToISOString(data.updatedAt),
       } as Task;
     });
-    // Son teslim tarihine göre sıralama istemci tarafında yapılabilir, ancak Firestore'da indeks ile yapmak daha verimlidir.
-    // Şimdilik, sıralama olmadan döndürüyoruz.
+    return taskList;
+  } catch (error: any) {
+    console.error("Error fetching active tasks: ", error);
+    let userMessage = "Aktif görevler alınırken bir hata oluştu.";
+    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+        userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
+    }
+    throw new Error(userMessage);
+  }
+}
+
+export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
+  try {
+    const tasksCollection = collection(db, TASKS_COLLECTION);
+    const now = Timestamp.now();
+    const openStatuses = ['Yapılacak', 'Devam Ediyor', 'Gözden Geçiriliyor', 'Engellendi']; 
+
+    const q = query(
+      tasksCollection,
+      where('dueDate', '<', now),
+      where('status', 'in', openStatuses), 
+      orderBy('dueDate', 'asc'), // Re-added for intended functionality
+      firestoreLimit(limitCount)
+    );
+
+    const taskSnapshot = await getDocs(q);
+    const taskList = taskSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        taskName: data.taskName || 'İsimsiz Görev',
+        project: data.project || '',
+        hotel: data.hotel || 'Bilinmiyor',
+        status: data.status || 'Bilinmiyor',
+        priority: data.priority || 'Orta',
+        dueDate: convertToISOString(data.dueDate),
+        assignedTo: Array.isArray(data.assignedTo) ? data.assignedTo : (data.assignedTo ? [data.assignedTo] : []),
+        description: data.description,
+        createdAt: convertToISOString(data.createdAt),
+        updatedAt: convertToISOString(data.updatedAt),
+      } as Task;
+    });
     return taskList;
   } catch (error: any) {
     console.error("Error fetching overdue tasks: ", error);
@@ -375,5 +412,3 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
     throw new Error(userMessage);
   }
 }
-
-    
