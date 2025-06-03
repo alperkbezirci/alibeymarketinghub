@@ -74,6 +74,36 @@ export async function getTasks(): Promise<Task[]> {
   }
 }
 
+export async function getTaskById(id: string): Promise<Task | null> {
+  try {
+    const taskDocRef = doc(db, TASKS_COLLECTION, id);
+    const docSnap = await getFirestoreDoc(taskDocRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        taskName: data.taskName || 'İsimsiz Görev',
+        project: data.project || '',
+        hotel: data.hotel || 'Bilinmiyor',
+        status: data.status || 'Bilinmiyor',
+        priority: data.priority || 'Orta',
+        dueDate: convertToISOString(data.dueDate),
+        assignedTo: Array.isArray(data.assignedTo) ? data.assignedTo : (data.assignedTo ? [data.assignedTo] : []),
+        description: data.description,
+        createdAt: convertToISOString(data.createdAt),
+        updatedAt: convertToISOString(data.updatedAt),
+      } as Task;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error fetching task with ID ${id}:`, error);
+    throw new Error(`Görev (ID: ${id}) alınırken bir hata oluştu.`);
+  }
+}
+
+
 export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
   if (!projectId) return [];
   try {
@@ -246,6 +276,7 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
            }
            monthlyData[dueMonth].completed += 1;
         } else if (data.status === 'Tamamlandı' && createdAt instanceof Timestamp) {
+           // Fallback if dueDate is not available but task is completed, count in createdMonth
            if (!monthlyData[createdMonth]) {
              monthlyData[createdMonth] = { completed: 0, created: 0 };
            }
@@ -254,11 +285,12 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
       }
     });
 
-    return Object.entries(monthlyData).map(([month, counts]) => ({ 
-      month, 
-      completed: counts.completed,
-      created: counts.created 
-    })).sort((a,b) => a.month.localeCompare(b.month));
+    return Object.entries(monthlyData)
+      .map(([month, counts]) => ({ 
+        month, 
+        completed: counts.completed,
+        created: counts.created 
+      })).sort((a,b) => a.month.localeCompare(b.month));
 
   } catch (error) {
     console.error("Error fetching task completion trend: ", error);
@@ -270,45 +302,35 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
 export async function getTasksByUserId(userId: string): Promise<Task[]> {
   try {
     const tasksCollection = collection(db, TASKS_COLLECTION);
-    const q = query(tasksCollection, orderBy('createdAt', 'desc'));
+    // Query for tasks where the 'assignedTo' array contains the userId
+    const q = query(tasksCollection, where('assignedTo', 'array-contains', userId), orderBy('dueDate', 'asc'));
     const taskSnapshot = await getDocs(q);
     const taskList: Task[] = [];
     
     taskSnapshot.docs.forEach(docSnap => {
       const data = docSnap.data();
-      let isAssigned = false;
-      if (Array.isArray(data.assignedTo) && data.assignedTo.includes(userId)) {
-        isAssigned = true;
-      } else if (typeof data.assignedTo === 'string' && data.assignedTo === userId) {
-        isAssigned = true;
-      }
-
-      if(isAssigned){
-        taskList.push({
-          id: docSnap.id,
-          taskName: data.taskName || 'İsimsiz Görev',
-          project: data.project || '',
-          hotel: data.hotel || 'Bilinmiyor',
-          status: data.status || 'Bilinmiyor',
-          priority: data.priority || 'Orta',
-          dueDate: convertToISOString(data.dueDate),
-          assignedTo: Array.isArray(data.assignedTo) ? data.assignedTo : (data.assignedTo ? [data.assignedTo] : []),
-          description: data.description,
-          createdAt: convertToISOString(data.createdAt),
-          updatedAt: convertToISOString(data.updatedAt),
-        } as Task);
-      }
-    });
-    taskList.sort((a, b) => {
-        if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-        if (a.dueDate) return -1; 
-        if (b.dueDate) return 1;  
-        return 0; 
+      taskList.push({
+        id: docSnap.id,
+        taskName: data.taskName || 'İsimsiz Görev',
+        project: data.project || '',
+        hotel: data.hotel || 'Bilinmiyor',
+        status: data.status || 'Bilinmiyor',
+        priority: data.priority || 'Orta',
+        dueDate: convertToISOString(data.dueDate),
+        assignedTo: Array.isArray(data.assignedTo) ? data.assignedTo : (data.assignedTo ? [data.assignedTo] : []),
+        description: data.description,
+        createdAt: convertToISOString(data.createdAt),
+        updatedAt: convertToISOString(data.updatedAt),
+      } as Task);
     });
     return taskList;
   } catch (error: any) {
     console.error(`Error fetching tasks for user ${userId}: `, error); 
-    throw new Error(`Kullanıcıya ait görevler alınırken bir hata oluştu: ${error.message}`);
+    let userMessage = `Kullanıcıya (${userId}) ait görevler alınırken bir hata oluştu.`;
+     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+        userMessage += " Lütfen Firestore için 'tasks' koleksiyonunda 'assignedTo' (array-contains) ve 'dueDate' (asc) alanlarını içeren bir bileşik index oluşturduğunuzdan emin olun. Hata mesajında index oluşturma linki olabilir.";
+    }
+    throw new Error(userMessage);
   }
 }
 
@@ -330,7 +352,7 @@ export async function getTaskStatsByUserId(userId: string): Promise<{ month: str
 
         if (task.status === 'Tamamlandı') {
           monthlyStats[monthYear].completed += 1;
-        } else if (dueDate < now) { 
+        } else if (dueDate < now && task.status !== 'Tamamlandı') { // Ensure not already completed
           monthlyStats[monthYear].overdue += 1;
         }
       }

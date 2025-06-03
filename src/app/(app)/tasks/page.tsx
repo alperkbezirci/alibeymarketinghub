@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link"; // Link import edildi
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
@@ -14,8 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { HOTEL_NAMES, TASK_STATUSES, TASK_PRIORITIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { getTasks, addTask, type Task, type TaskInputData } from "@/services/task-service";
-import { getProjects, type Project } from "@/services/project-service"; // Projeleri çekmek için eklendi
-import { getAllUsers, type User as AppUser } from "@/services/user-service"; // Kullanıcıları çekmek için eklendi
+import { getProjects, type Project } from "@/services/project-service"; 
+import { getAllUsers, type User as AppUser } from "@/services/user-service"; 
 import { format } from 'date-fns';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -235,9 +236,11 @@ export default function TasksPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                 <Button variant="outline" size="sm" className="w-full" onClick={() => toast({title: task.taskName, description: "Görev detayları sayfası (veya modal) açılacak."})}>
-                  Detayları Gör
-                </Button>
+                 <Button asChild variant="outline" size="sm" className="w-full">
+                   <Link href={`/tasks/${task.id}`}>
+                     Detayları Gör
+                   </Link>
+                 </Button>
               </CardFooter>
             </Card>
           ))}
@@ -246,5 +249,3 @@ export default function TasksPage() {
     </div>
   );
 }
-
-    
