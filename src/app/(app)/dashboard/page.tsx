@@ -13,17 +13,18 @@ import { getOverdueTasks, addTask, updateTaskAssignees, type Task, type TaskInpu
 import { getPendingApprovalActivities, type ProjectActivity } from '@/services/project-activity-service';
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { InvoiceForm } from "@/components/budget/invoice-form"; // For quick action
-import { addInvoice, type InvoiceInputData } from '@/services/invoice-service'; // For quick action
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { InvoiceForm } from "@/components/budget/invoice-form";
+import { addInvoice, type InvoiceInputData } from '@/services/invoice-service';
 import { getAllUsers, type User as AppUser } from "@/services/user-service";
 import { format, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button"; // Button import'u eklendi
 
-const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; // Specified Turquality Project ID
+const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; 
 
 export default function DashboardPage() {
   const { user, isAdminOrMarketingManager } = useAuth();
@@ -37,7 +38,6 @@ export default function DashboardPage() {
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingPendingApprovals, setIsLoadingPendingApprovals] = useState(true);
 
-  // States for "Add Invoice" quick action with Turquality flow
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isTurqualityDialogOpen, setIsTurqualityDialogOpen] = useState(false);
   const [pendingInvoiceData, setPendingInvoiceData] = useState<InvoiceInputData | null>(null);
@@ -58,7 +58,7 @@ export default function DashboardPage() {
 
     try {
       const projectsPromise = getActiveProjects(5);
-      const tasksPromise = getOverdueTasks(5); // Fetches for all users for now
+      const tasksPromise = getOverdueTasks(5);
       
       const [projects, tasks] = await Promise.all([projectsPromise, tasksPromise]);
       setActiveProjectsData(projects);
@@ -82,7 +82,6 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // --- Invoice and Turquality flow for Quick Action ---
   const handleSaveInvoiceForDashboard = (formData: InvoiceInputData) => {
     setPendingInvoiceData(formData);
     setIsInvoiceDialogOpen(false);
@@ -101,7 +100,7 @@ export default function DashboardPage() {
         const taskDueDate = addDays(new Date(pendingInvoiceData.invoiceDate), 7);
         const taskData: TaskInputData = {
           taskName: `Turquality: ${format(new Date(pendingInvoiceData.invoiceDate), "dd.MM.yyyy")} - ${pendingInvoiceData.companyName}`,
-          project: TURQUALITY_PROJECT_ID, // Assign to specific Turquality project ID
+          project: TURQUALITY_PROJECT_ID,
           hotel: pendingInvoiceData.hotel,
           status: "Yapılacak",
           priority: "Yüksek",
@@ -134,8 +133,6 @@ export default function DashboardPage() {
       setIsTurqualityDialogOpen(false);
       setPendingInvoiceData(null);
       setIsSubmittingInvoice(false);
-      // Note: We don't call fetchBudgetData here as this is the dashboard.
-      // The toast message guides the user to check the Budget page for updates.
     }
   };
 
@@ -163,7 +160,6 @@ export default function DashboardPage() {
       checked ? [...prev, userId] : prev.filter(id => id !== userId)
     );
   };
-  // --- End Invoice and Turquality flow for Quick Action ---
 
   const mapProjectToOverviewItem = (project: Project) => ({
     id: project.id,
@@ -179,7 +175,7 @@ export default function DashboardPage() {
 
   const mapActivityToOverviewItem = (activity: ProjectActivity) => ({
     id: activity.id,
-    name: `Proje: ${activity.projectId.substring(0,6)}... - Kullanıcı: ${activity.userName}`, // Shorten project ID for display
+    name: `Proje: ${activity.projectId.substring(0,6)}... - Kullanıcı: ${activity.userName}`,
     detail: `Tip: ${activity.type === 'comment' ? 'Yorum' : 'Dosya'} | İçerik: ${activity.content?.substring(0, 30) || activity.fileName || 'Detay Yok'}...`,
   });
 
@@ -216,7 +212,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Dialogs for Add Invoice Quick Action */}
       <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -307,5 +302,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     

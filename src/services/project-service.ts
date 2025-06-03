@@ -7,25 +7,22 @@
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, getDoc as getFirestoreDoc, where, limit as firestoreLimit } from 'firebase/firestore';
 
-// Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
   if (!dateField) return undefined;
   if (dateField instanceof Timestamp) return dateField.toDate().toISOString();
   if (dateField instanceof Date) return dateField.toISOString();
-  // Attempt to parse if it's a string or number, though ideally it's already an ISO string or one of the above
   try {
     return new Date(dateField).toISOString();
   } catch (e) {
     console.warn("Could not convert date field to ISO string:", dateField);
-    // Return as string if it's already a string, otherwise undefined or handle error
     return typeof dateField === 'string' ? dateField : undefined;
   }
 };
 
 export interface Project {
-  id: string; // Firestore document ID
+  id: string; 
   projectName?: string;
-  responsiblePersons?: string[]; // Array of user UIDs
+  responsiblePersons?: string[]; 
   startDate?: string | undefined;
   endDate?: string | undefined;
   status?: string;
@@ -38,8 +35,8 @@ export interface Project {
 export interface ProjectInputData {
   projectName: string;
   responsiblePersons?: string[];
-  startDate?: Date; // Expect Date from form
-  endDate: Date;   // Expect Date from form
+  startDate?: Date; 
+  endDate: Date;   
   status: string;
   hotel: string;
   description?: string;
@@ -94,7 +91,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
         updatedAt: convertToISOString(data.updatedAt),
       } as Project;
     } else {
-      return null; // Project not found
+      return null; 
     }
   } catch (error) {
     console.error(`Error fetching project with ID ${id}:`, error);
@@ -166,12 +163,11 @@ export async function deleteProject(id: string): Promise<void> {
 export async function getActiveProjects(limitCount: number = 5): Promise<Project[]> {
   try {
     const projectsCollection = collection(db, PROJECTS_COLLECTION);
-    // Define active statuses. Firestore 'in' queries are limited to 30 values.
     const activeStatuses = ['Planlama', 'Devam Ediyor']; 
     const q = query(
       projectsCollection, 
       where('status', 'in', activeStatuses),
-      orderBy('endDate', 'asc'), // Or orderBy('createdAt', 'desc') depending on desired sort for "active"
+      orderBy('endDate', 'asc'), 
       firestoreLimit(limitCount)
     );
     const projectSnapshot = await getDocs(q);
@@ -233,7 +229,7 @@ export async function getProjectCreationTrend(): Promise<{ month: string; count:
       const createdAt = data.createdAt;
       
       if (createdAt instanceof Timestamp) {
-        const createdMonth = createdAt.toDate().toISOString().substring(0, 7); // YYYY-MM
+        const createdMonth = createdAt.toDate().toISOString().substring(0, 7); 
         if (!monthlyData[createdMonth]) {
           monthlyData[createdMonth] = { count: 0 };
         }
@@ -250,3 +246,5 @@ export async function getProjectCreationTrend(): Promise<{ month: string; count:
     throw new Error("Proje oluşturma trendi alınırken bir hata oluştu.");
   }
 }
+
+    

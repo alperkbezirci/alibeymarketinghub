@@ -7,7 +7,6 @@
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, where, getDoc as getFirestoreDoc, limit as firestoreLimit } from 'firebase/firestore';
 
-// Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
   if (!dateField) return undefined;
   if (dateField instanceof Timestamp) return dateField.toDate().toISOString();
@@ -21,17 +20,17 @@ const convertToISOString = (dateField: any): string | undefined => {
 };
 
 export interface Task {
-  id: string; // Firestore document ID
+  id: string; 
   taskName: string;
-  project?: string; // Project ID
+  project?: string; 
   hotel: string;
   status: string;
   priority: string;
-  dueDate?: string | undefined; // ISO string, made optional
-  assignedTo?: string[]; // Array of user UIDs or names - CHANGED TO string[]
+  dueDate?: string | undefined; 
+  assignedTo?: string[]; 
   description?: string;
-  createdAt?: string; // ISO string
-  updatedAt?: string; // ISO string
+  createdAt?: string; 
+  updatedAt?: string; 
 }
 
 export interface TaskInputData {
@@ -40,8 +39,8 @@ export interface TaskInputData {
   hotel: string;
   status: string;
   priority: string;
-  dueDate: Date; // Expect Date from form
-  assignedTo?: string[]; // CHANGED TO string[]
+  dueDate: Date; 
+  assignedTo?: string[]; 
   description?: string;
 }
 
@@ -83,21 +82,14 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
     const taskSnapshot = await getDocs(q);
     const taskList = taskSnapshot.docs.map(docSnap => {
       const data = docSnap.data();
-      const taskName = data.taskName || 'İsimsiz Görev';
-      const hotel = data.hotel || 'Otel Belirtilmemiş';
-      const status = data.status || 'Durum Belirtilmemiş';
-      const priority = data.priority || 'Orta';
-      
-      const dueDateString = convertToISOString(data.dueDate);
-
       return {
         id: docSnap.id,
-        taskName: taskName,
+        taskName: data.taskName || 'İsimsiz Görev',
         project: data.project, 
-        hotel: hotel,
-        status: status,
-        priority: priority,
-        dueDate: dueDateString, 
+        hotel: data.hotel || 'Otel Belirtilmemiş',
+        status: data.status || 'Durum Belirtilmemiş',
+        priority: data.priority || 'Orta',
+        dueDate: convertToISOString(data.dueDate), 
         assignedTo: Array.isArray(data.assignedTo) ? data.assignedTo : (data.assignedTo ? [data.assignedTo] : []),
         description: data.description,
         createdAt: convertToISOString(data.createdAt),
@@ -128,7 +120,7 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
       status: taskData.status,
       priority: taskData.priority,
       dueDate: Timestamp.fromDate(taskData.dueDate), 
-      assignedTo: taskData.assignedTo || [], // Ensure it's an array, even if empty
+      assignedTo: taskData.assignedTo || [], 
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -177,7 +169,6 @@ export async function updateTaskAssignees(taskId: string, assignedTo: string[]):
   }
 }
 
-// Placeholder for a more generic updateTask function if needed later
 export async function updateTask(taskId: string, updates: Partial<Omit<TaskInputData, 'dueDate'> & {dueDate?: Date}>): Promise<void> {
   const taskDoc = doc(db, TASKS_COLLECTION, taskId);
   const dataToUpdate: any = { ...updates, updatedAt: serverTimestamp() };
@@ -185,17 +176,14 @@ export async function updateTask(taskId: string, updates: Partial<Omit<TaskInput
   if (updates.dueDate) {
     dataToUpdate.dueDate = Timestamp.fromDate(updates.dueDate);
   }
-  // Ensure assignedTo is handled as an array if it's part of updates
   if (updates.assignedTo && !Array.isArray(updates.assignedTo)) {
     dataToUpdate.assignedTo = [updates.assignedTo];
   } else if (updates.assignedTo) {
     dataToUpdate.assignedTo = updates.assignedTo;
   }
 
-
   await updateDoc(taskDoc, dataToUpdate);
 }
-
 
 export async function getTaskCountByStatus(): Promise<{ status: string; count: number }[]> {
   try {
@@ -219,7 +207,7 @@ export async function getTaskCountByStatus(): Promise<{ status: string; count: n
 export async function getTaskCompletionTrend(): Promise<{ month: string; completed: number; created: number }[]> {
   try {
     const tasksCollection = collection(db, TASKS_COLLECTION);
-    const q = query(tasksCollection, orderBy('createdAt', 'asc')); // Get all tasks, ordered by creation
+    const q = query(tasksCollection, orderBy('createdAt', 'asc')); 
     const taskSnapshot = await getDocs(q);
     
     const monthlyData: { [month: string]: { completed: number; created: number } } = {};
@@ -227,25 +215,22 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
     taskSnapshot.docs.forEach(docSnap => {
       const data = docSnap.data();
       const createdAt = data.createdAt;
-      const dueDate = data.dueDate; // Assuming tasks have a 'completedAt' or similar field when done, or use 'dueDate' for trend
+      const dueDate = data.dueDate; 
       
       if (createdAt instanceof Timestamp) {
-        const createdMonth = createdAt.toDate().toISOString().substring(0, 7); // YYYY-MM
+        const createdMonth = createdAt.toDate().toISOString().substring(0, 7); 
         if (!monthlyData[createdMonth]) {
           monthlyData[createdMonth] = { completed: 0, created: 0 };
         }
         monthlyData[createdMonth].created += 1;
 
-        // For completion, we need a reliable "completed date". 
-        // If using dueDate as a proxy for when it *should* be done, or if status is 'Tamamlandı'
         if (data.status === 'Tamamlandı' && dueDate instanceof Timestamp) {
-           const dueMonth = dueDate.toDate().toISOString().substring(0, 7); // YYYY-MM
+           const dueMonth = dueDate.toDate().toISOString().substring(0, 7); 
            if (!monthlyData[dueMonth]) {
              monthlyData[dueMonth] = { completed: 0, created: 0 };
            }
            monthlyData[dueMonth].completed += 1;
         } else if (data.status === 'Tamamlandı' && createdAt instanceof Timestamp) {
-           // If no specific completion date, assume completed in the month it was created for simplicity
            if (!monthlyData[createdMonth]) {
              monthlyData[createdMonth] = { completed: 0, created: 0 };
            }
@@ -270,17 +255,7 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
 export async function getTasksByUserId(userId: string): Promise<Task[]> {
   try {
     const tasksCollection = collection(db, TASKS_COLLECTION);
-    // Firestore doesn't directly support 'array-contains' for multiple user checks in assignedTo if it's an array of UIDs.
-    // This query assumes assignedTo might be a single string UID or an array where one of the UIDs matches.
-    // For arrays, a more complex client-side filter or different data structure might be needed if performance is an issue.
-    // For now, let's assume we might be querying for tasks assigned to a single user directly or where user is in an array.
-    // A common pattern is to have a separate field like `assigneeIds` as an array for querying.
-    // If assignedTo is always a single string UID (even if Task interface shows string[]), this query is fine.
-    // If assignedTo is an array, this query might not work as intended for 'array-contains'.
-    // We will fetch all tasks and filter client-side for simplicity if `assignedTo` is `string[]`.
-
-    // const q = query(tasksCollection, where('assignedTo', '==', userId), orderBy('dueDate', 'asc'));
-    const q = query(tasksCollection, orderBy('createdAt', 'desc')); // Fetch all, then filter
+    const q = query(tasksCollection, orderBy('createdAt', 'desc'));
     const taskSnapshot = await getDocs(q);
     const taskList: Task[] = [];
     
@@ -290,13 +265,8 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
       if (Array.isArray(data.assignedTo) && data.assignedTo.includes(userId)) {
         isAssigned = true;
       } else if (typeof data.assignedTo === 'string' && data.assignedTo === userId) {
-        // This case is less likely if your model consistently uses string[]
         isAssigned = true;
-      } else if (!data.assignedTo || (Array.isArray(data.assignedTo) && data.assignedTo.length === 0)) {
-        // If task is unassigned, it might still be relevant if we change logic later
-        // For now, only include if explicitly assigned.
       }
-
 
       if(isAssigned){
         taskList.push({
@@ -314,12 +284,11 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
         } as Task);
       }
     });
-    // Sort client-side if needed, e.g., by dueDate
     taskList.sort((a, b) => {
         if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-        if (a.dueDate) return -1; // a has due date, b doesn't, so a comes first
-        if (b.dueDate) return 1;  // b has due date, a doesn't, so b comes first
-        return 0; // neither has due date
+        if (a.dueDate) return -1; 
+        if (b.dueDate) return 1;  
+        return 0; 
     });
     return taskList;
   } catch (error: any) {
@@ -330,15 +299,15 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
 
 export async function getTaskStatsByUserId(userId: string): Promise<{ month: string; completed: number; overdue: number }[]> {
   try {
-    const userTasks = await getTasksByUserId(userId); // Re-use the above function
+    const userTasks = await getTasksByUserId(userId); 
     const monthlyStats: { [month: string]: { completed: number; overdue: number } } = {};
     const now = new Date();
-    const { format } = await import('date-fns'); // Dynamically import format from date-fns
+    const { format } = await import('date-fns'); 
 
     userTasks.forEach(task => {
       if (task.dueDate) {
         const dueDate = new Date(task.dueDate);
-        const monthYear = format(dueDate, 'yyyy-MM'); // e.g., "2023-01" for Chart
+        const monthYear = format(dueDate, 'yyyy-MM'); 
 
         if (!monthlyStats[monthYear]) {
           monthlyStats[monthYear] = { completed: 0, overdue: 0 };
@@ -346,16 +315,15 @@ export async function getTaskStatsByUserId(userId: string): Promise<{ month: str
 
         if (task.status === 'Tamamlandı') {
           monthlyStats[monthYear].completed += 1;
-        } else if (dueDate < now) { // Not completed and past due date
+        } else if (dueDate < now) { 
           monthlyStats[monthYear].overdue += 1;
         }
       }
     });
     
-    // Convert to array format suitable for charts
     return Object.entries(monthlyStats)
       .map(([month, stats]) => ({ month, ...stats }))
-      .sort((a, b) => a.month.localeCompare(b.month)); // Sort by month
+      .sort((a, b) => a.month.localeCompare(b.month)); 
 
   } catch (error: any) {
     console.error(`Error fetching task stats for user ${userId}: `, error);
@@ -405,3 +373,5 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
     throw new Error(userMessage);
   }
 }
+
+    
