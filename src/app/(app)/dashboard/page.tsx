@@ -7,9 +7,8 @@ import { WelcomeMessage } from "@/components/dashboard/welcome-message";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { OverviewCard } from "@/components/dashboard/overview-card";
 import { useAuth } from "@/contexts/auth-context";
-import { Briefcase, ListTodo, CheckSquare, Loader2, Users, AlertTriangle, PlusCircle, CheckCircle } from "lucide-react";
-import { getActiveProjects, type Project } from '@/services/project-service';
-import { getOverdueTasks, addTask, updateTaskAssignees, type Task, type TaskInputData } from '@/services/task-service';
+import { ClipboardList, ListTodo, CheckSquare, Loader2, Users, AlertTriangle, PlusCircle, CheckCircle } from "lucide-react"; // Briefcase yerine ClipboardList
+import { getActiveTasks, getOverdueTasks, addTask, updateTaskAssignees, type Task, type TaskInputData } from '@/services/task-service';
 import { getPendingApprovalActivities, type ProjectActivity } from '@/services/project-activity-service';
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -23,19 +22,22 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+// Project type is still needed for mapTaskToOverviewItem's projectId link if tasks are linked to projects
+import type { Project } from '@/services/project-service';
 
-const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; 
+const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU";
 
 export default function DashboardPage() {
   const { user, isAdminOrMarketingManager } = useAuth();
   const { toast } = useToast();
 
-  const [activeProjectsData, setActiveProjectsData] = useState<Project[]>([]);
+  const [activeTasksData, setActiveTasksData] = useState<Task[]>([]);
+  const [isLoadingActiveTasks, setIsLoadingActiveTasks] = useState(true);
+
   const [overdueTasksData, setOverdueTasksData] = useState<Task[]>([]);
+  const [isLoadingOverdueTasks, setIsLoadingOverdueTasks] = useState(true);
+
   const [pendingApprovalsData, setPendingApprovalsData] = useState<ProjectActivity[]>([]);
-  
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingPendingApprovals, setIsLoadingPendingApprovals] = useState(true);
 
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
@@ -52,17 +54,17 @@ export default function DashboardPage() {
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
 
-    setIsLoadingProjects(true);
-    setIsLoadingTasks(true);
+    setIsLoadingActiveTasks(true);
+    setIsLoadingOverdueTasks(true);
     if (isAdminOrMarketingManager) setIsLoadingPendingApprovals(true);
 
     try {
-      const projectsPromise = getActiveProjects(5);
-      const tasksPromise = getOverdueTasks(5);
-      
-      const [projects, tasks] = await Promise.all([projectsPromise, tasksPromise]);
-      setActiveProjectsData(projects);
-      setOverdueTasksData(tasks);
+      const activeTasksPromise = getActiveTasks(5); // Fetch active tasks
+      const overdueTasksPromise = getOverdueTasks(5);
+
+      const [fetchedActiveTasks, fetchedOverdueTasks] = await Promise.all([activeTasksPromise, overdueTasksPromise]);
+      setActiveTasksData(fetchedActiveTasks); // Set active tasks data
+      setOverdueTasksData(fetchedOverdueTasks);
 
       if (isAdminOrMarketingManager) {
         const approvals = await getPendingApprovalActivities(5);
@@ -72,8 +74,8 @@ export default function DashboardPage() {
       console.error("Error fetching dashboard data:", error);
       toast({ title: "Kontrol Paneli Hatası", description: "Veriler yüklenirken bir sorun oluştu.", variant: "destructive" });
     } finally {
-      setIsLoadingProjects(false);
-      setIsLoadingTasks(false);
+      setIsLoadingActiveTasks(false);
+      setIsLoadingOverdueTasks(false);
       if (isAdminOrMarketingManager) setIsLoadingPendingApprovals(false);
     }
   }, [user, isAdminOrMarketingManager, toast]);
@@ -161,24 +163,18 @@ export default function DashboardPage() {
     );
   };
 
-  const mapProjectToOverviewItem = (project: Project) => ({
-    id: project.id,
-    name: project.projectName || 'İsimsiz Proje',
-    detail: `Durum: ${project.status || 'Bilinmiyor'} | Otel: ${project.hotel || 'Belirtilmemiş'}`,
-  });
-
   const mapTaskToOverviewItem = (task: Task) => ({
     id: task.id,
     name: task.taskName || 'İsimsiz Görev',
     detail: `Bitiş Tarihi: ${task.dueDate ? format(new Date(task.dueDate), 'dd MMM yyyy', {locale: tr}) : 'N/A'} | Öncelik: ${task.priority || 'Normal'}`,
-    projectId: task.project, // Gecikmiş görevler için proje ID'si
+    projectId: task.project,
   });
 
   const mapActivityToOverviewItem = (activity: ProjectActivity) => ({
     id: activity.id,
     name: `Proje ID: ${activity.projectId.substring(0,10)}... | Kullanıcı: ${activity.userName}`,
     detail: `Tip: ${activity.type === 'comment' ? 'Yorum' : activity.type === 'file_upload' ? 'Dosya' : 'Durum'} | İçerik: ${(activity.content || activity.fileName || 'Detay Yok').substring(0, 30)}...`,
-    projectId: activity.projectId, // Onay bekleyenler için proje ID'si
+    projectId: activity.projectId,
   });
 
   return (
@@ -190,20 +186,20 @@ export default function DashboardPage() {
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <OverviewCard 
-          title="Aktif Projeler" 
-          IconComponent={Briefcase} 
-          items={activeProjectsData.map(mapProjectToOverviewItem)} 
-          isLoading={isLoadingProjects}
-          emptyMessage="Aktif proje bulunmamaktadır."
-          getItemHref={(item) => `/projects/${item.id}`}
+          title="Aktif Görevler" 
+          IconComponent={ClipboardList} 
+          items={activeTasksData.map(mapTaskToOverviewItem)} 
+          isLoading={isLoadingActiveTasks}
+          emptyMessage="Aktif görev bulunmamaktadır."
+          getItemHref={(item) => item.projectId ? \`/projects/\${item.projectId}\` : undefined}
         />
         <OverviewCard 
           title="Gecikmiş Görevler" 
           IconComponent={ListTodo} 
           items={overdueTasksData.map(mapTaskToOverviewItem)}
-          isLoading={isLoadingTasks}
+          isLoading={isLoadingOverdueTasks}
           emptyMessage="Gecikmiş görev bulunmamaktadır."
-          getItemHref={(item) => item.projectId ? `/projects/${item.projectId}` : undefined}
+          getItemHref={(item) => item.projectId ? \`/projects/\${item.projectId}\` : undefined}
         />
         {isAdminOrMarketingManager && (
           <OverviewCard 
@@ -212,7 +208,7 @@ export default function DashboardPage() {
             items={pendingApprovalsData.map(mapActivityToOverviewItem)}
             isLoading={isLoadingPendingApprovals}
             emptyMessage="Onay bekleyen iş bulunmamaktadır."
-            getItemHref={(item) => item.projectId ? `/projects/${item.projectId}` : undefined}
+            getItemHref={(item) => item.projectId ? \`/projects/\${item.projectId}\` : undefined}
           />
         )}
       </div>
@@ -276,12 +272,12 @@ export default function DashboardPage() {
                 {usersForAssignment.map(user => (
                   <div key={user.uid} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
                     <Checkbox
-                      id={`dash-assignee-${user.uid}`}
+                      id={`dash-assignee-\${user.uid}`}
                       checked={selectedTaskAssignees.includes(user.uid)}
                       onCheckedChange={(checked) => handleTaskAssigneeChangeForDashboard(user.uid, Boolean(checked))}
                     />
-                    <Label htmlFor={`dash-assignee-${user.uid}`} className="font-normal text-sm flex-grow cursor-pointer">
-                      {`${user.firstName} ${user.lastName}`}
+                    <Label htmlFor={`dash-assignee-\${user.uid}`} className="font-normal text-sm flex-grow cursor-pointer">
+                      {`\${user.firstName} \${user.lastName}`}
                       <span className="text-xs text-muted-foreground ml-1">({user.email})</span>
                     </Label>
                   </div>
