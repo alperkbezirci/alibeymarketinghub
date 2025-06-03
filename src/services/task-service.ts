@@ -5,7 +5,7 @@
  * @fileOverview Firestore service for managing tasks.
  */
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, where, getDoc as getFirestoreDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, where, getDoc as getFirestoreDoc, limit as firestoreLimit } from 'firebase/firestore';
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
@@ -333,6 +333,7 @@ export async function getTaskStatsByUserId(userId: string): Promise<{ month: str
     const userTasks = await getTasksByUserId(userId); // Re-use the above function
     const monthlyStats: { [month: string]: { completed: number; overdue: number } } = {};
     const now = new Date();
+    const { format } = await import('date-fns'); // Dynamically import format from date-fns
 
     userTasks.forEach(task => {
       if (task.dueDate) {
@@ -359,5 +360,48 @@ export async function getTaskStatsByUserId(userId: string): Promise<{ month: str
   } catch (error: any) {
     console.error(`Error fetching task stats for user ${userId}: `, error);
     throw new Error(`Kullanıcı görev istatistikleri alınırken bir hata oluştu: ${error.message}`);
+  }
+}
+
+export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
+  try {
+    const tasksCollection = collection(db, TASKS_COLLECTION);
+    const now = Timestamp.now();
+    
+    const openStatuses = ['Yapılacak', 'Devam Ediyor', 'Gözden Geçiriliyor', 'Engellendi']; 
+
+    const q = query(
+      tasksCollection,
+      where('dueDate', '<', now),
+      where('status', 'in', openStatuses), 
+      orderBy('dueDate', 'asc'), 
+      firestoreLimit(limitCount)
+    );
+
+    const taskSnapshot = await getDocs(q);
+    const taskList = taskSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        taskName: data.taskName || 'İsimsiz Görev',
+        project: data.project || '',
+        hotel: data.hotel || 'Bilinmiyor',
+        status: data.status || 'Bilinmiyor',
+        priority: data.priority || 'Orta',
+        dueDate: convertToISOString(data.dueDate),
+        assignedTo: Array.isArray(data.assignedTo) ? data.assignedTo : (data.assignedTo ? [data.assignedTo] : []),
+        description: data.description,
+        createdAt: convertToISOString(data.createdAt),
+        updatedAt: convertToISOString(data.updatedAt),
+      } as Task;
+    });
+    return taskList;
+  } catch (error: any) {
+    console.error("Error fetching overdue tasks: ", error);
+    let userMessage = "Gecikmiş görevler alınırken bir hata oluştu.";
+    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+        userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
+    }
+    throw new Error(userMessage);
   }
 }

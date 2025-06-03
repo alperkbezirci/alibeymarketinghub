@@ -11,7 +11,7 @@
  * Marketing Managers/Admins might need broader update permissions for changing status from 'pending_approval' to 'approved'/'rejected'.
  */
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, Timestamp, doc, updateDoc, limit as firestoreLimit } from 'firebase/firestore';
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
@@ -139,5 +139,45 @@ export async function updateProjectActivity(activityId: string, updates: Partial
   } catch (error: any) {
     console.error(`[SERVICE_ERROR] Error updating project activity ${activityId}: `, error);
     throw new Error(`Proje aktivitesi (${activityId}) güncellenirken bir hata oluştu: ${error.message || 'Bilinmeyen sunucu hatası'}`);
+  }
+}
+
+export async function getPendingApprovalActivities(limitCount: number = 5): Promise<ProjectActivity[]> {
+  try {
+    const activitiesCollection = collection(db, PROJECT_ACTIVITIES_COLLECTION);
+    const q = query(
+      activitiesCollection,
+      where('status', '==', 'pending_approval'),
+      orderBy('createdAt', 'desc'), // Show most recent pending approvals first
+      firestoreLimit(limitCount)
+    );
+    const activitySnapshot = await getDocs(q);
+    const activityList = activitySnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        projectId: data.projectId,
+        userId: data.userId,
+        userName: data.userName,
+        userPhotoURL: data.userPhotoURL,
+        type: data.type as ProjectActivityType,
+        content: data.content,
+        fileName: data.fileName,
+        fileType: data.fileType,
+        status: data.status as ProjectActivityStatus,
+        messageForManager: data.messageForManager,
+        managerFeedback: data.managerFeedback,
+        createdAt: convertToISOString(data.createdAt)!,
+        updatedAt: convertToISOString(data.updatedAt),
+      } as ProjectActivity;
+    });
+    return activityList;
+  } catch (error: any) {
+    console.error("Error fetching pending approval activities: ", error);
+    let userMessage = "Onay bekleyen aktiviteler alınırken bir hata oluştu.";
+     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+        userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
+    }
+    throw new Error(userMessage);
   }
 }
