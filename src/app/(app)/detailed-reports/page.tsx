@@ -18,7 +18,7 @@ import { getGlobalActivityLog, type ProjectActivity, type ProjectActivityType } 
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppLogo } from '@/components/layout/app-logo';
 import { BarChart, Bar, Pie, PieChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid as isValidDate } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import Link from 'next/link';
 
@@ -50,9 +50,9 @@ export default function DetailedReportsPage() {
   const [activityLogError, setActivityLogError] = useState<string | null>(null);
   
   const [selectedUserIdFilter, setSelectedUserIdFilter] = useState<string>("all");
-  // For future use:
-  // const [selectedHotelFilter, setSelectedHotelFilter] = useState<string>("all");
-  // const [dateRangeFilter, setDateRangeFilter] = useState<{ start?: Date, end?: Date }>({});
+  const [startDateInput, setStartDateInput] = useState<string>(""); // YYYY-MM-DD
+  const [endDateInput, setEndDateInput] = useState<string>("");   // YYYY-MM-DD
+  // const [selectedHotelFilter, setSelectedHotelFilter] = useState<string>("all"); // For future use
 
   const fetchUsersForFilter = useCallback(async () => {
     if (!isAdminOrMarketingManager) return;
@@ -102,11 +102,27 @@ export default function DetailedReportsPage() {
     setIsLoadingActivityLog(true);
     setActivityLogError(null);
     try {
-      const logOptions: { limit: number; userId?: string } = { limit: 50 };
+      const options: { limit: number; userId?: string; dateStart?: Date; dateEnd?: Date } = { limit: 50 };
       if (selectedUserIdFilter !== "all") {
-        logOptions.userId = selectedUserIdFilter;
+        options.userId = selectedUserIdFilter;
       }
-      const log = await getGlobalActivityLog(logOptions);
+      if (startDateInput && isValidDate(new Date(startDateInput))) {
+        options.dateStart = new Date(startDateInput);
+      }
+      if (endDateInput && isValidDate(new Date(endDateInput))) {
+        const end = new Date(endDateInput);
+        end.setHours(23, 59, 59, 999); // Include the whole day
+        options.dateEnd = end;
+      }
+      
+      if (options.dateStart && options.dateEnd && options.dateStart > options.dateEnd) {
+        toast({ title: "Geçersiz Tarih Aralığı", description: "Başlangıç tarihi, bitiş tarihinden sonra olamaz.", variant: "destructive" });
+        setActivityLog([]);
+        setIsLoadingActivityLog(false);
+        return;
+      }
+
+      const log = await getGlobalActivityLog(options);
       setActivityLog(log);
     } catch (error: any) {
       setActivityLogError(error.message || "Aktivite kaydı yüklenemedi.");
@@ -114,26 +130,37 @@ export default function DetailedReportsPage() {
     } finally {
       setIsLoadingActivityLog(false);
     }
-  }, [isAdminOrMarketingManager, toast, selectedUserIdFilter]);
+  }, [isAdminOrMarketingManager, toast, selectedUserIdFilter, startDateInput, endDateInput]);
 
-  const fetchAllData = useCallback(() => {
-    fetchUsersForFilter();
-    fetchStaticReportData();
-    fetchActivityLogData(); // Initial fetch with default filter ("all")
-  }, [fetchUsersForFilter, fetchStaticReportData, fetchActivityLogData]);
+  const resetFiltersAndFetchAllData = useCallback(() => {
+    setSelectedUserIdFilter("all");
+    setStartDateInput("");
+    setEndDateInput("");
+    // setSelectedHotelFilter("all"); // For future use
+    
+    // Call all fetch functions. fetchActivityLogData will use the reset filter values.
+    if (isAdminOrMarketingManager) {
+      fetchUsersForFilter();
+      fetchStaticReportData();
+      fetchActivityLogData(); // This will now use the cleared (default) filters
+    }
+  }, [isAdminOrMarketingManager, fetchUsersForFilter, fetchStaticReportData, fetchActivityLogData]);
+
 
   useEffect(() => {
     if (isAdminOrMarketingManager) {
-      fetchAllData();
+      fetchUsersForFilter();
+      fetchStaticReportData();
+      // Initial activity log fetch will happen in the next useEffect based on default filters
     }
-  }, [isAdminOrMarketingManager, fetchAllData]);
+  }, [isAdminOrMarketingManager]); // Removed fetchAllData from here to avoid multiple calls on init
 
   useEffect(() => {
-    // Refetch activity log when user filter changes, but only if it's not the initial load
+    // Refetch activity log when filters change
     if (isAdminOrMarketingManager) {
         fetchActivityLogData();
     }
-  }, [selectedUserIdFilter, isAdminOrMarketingManager, fetchActivityLogData]);
+  }, [selectedUserIdFilter, startDateInput, endDateInput, isAdminOrMarketingManager, fetchActivityLogData]);
 
 
   const getActivityDescription = (activity: ProjectActivity): React.ReactNode => {
@@ -149,7 +176,7 @@ export default function DetailedReportsPage() {
         icon = <Upload className="mr-2 h-4 w-4 text-green-500 flex-shrink-0" />;
         text = `"${activity.fileName || 'bir dosya'}" yükledi. ${activity.content ? `(Not: ${activity.content.substring(0,30)}...)` : '' }`;
         break;
-      case 'status_update': // This could be for task/project status or activity approval status
+      case 'status_update':
         icon = <Settings2Icon className="mr-2 h-4 w-4 text-purple-500 flex-shrink-0" />;
         if (activity.status === 'approved') text = `içeriği onayladı.`;
         else if (activity.status === 'rejected') text = `içeriği reddetti.`;
@@ -202,7 +229,7 @@ export default function DetailedReportsPage() {
   };
 
 
-  if (!isAdminOrMarketingManager && !isLoadingUsers) { // Check isLoadingUsers to avoid flash of this message
+  if (!isAdminOrMarketingManager && !isLoadingUsers) { 
      return (
       <div className="flex flex-col items-center justify-center h-full text-center p-6">
         <AppLogo className="h-20 w-auto text-destructive mb-6" />
@@ -217,19 +244,16 @@ export default function DetailedReportsPage() {
       <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
         <h1 className="text-3xl font-headline font-bold">Detaylı Raporlar</h1>
          <div className="flex space-x-2">
-            <Button variant="outline" onClick={fetchAllData} disabled={isLoadingUsers || isLoadingProjectStatus || isLoadingTaskStatus || isLoadingActivityLog}>
-                <RefreshCw className="mr-2 h-4 w-4" /> Verileri Yenile
+            <Button variant="outline" onClick={resetFiltersAndFetchAllData} disabled={isLoadingUsers || isLoadingProjectStatus || isLoadingTaskStatus || isLoadingActivityLog}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Filtreleri Sıfırla & Yenile
             </Button>
-            {/* <Button variant="outline" disabled>
-                <SlidersHorizontal className="mr-2 h-4 w-4" /> Raporu Özelleştir
-            </Button> */}
         </div>
       </div>
 
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline flex items-center"><Filter className="mr-2 h-5 w-5 text-primary"/> Filtreleme Seçenekleri</CardTitle>
-          <CardDescription>Aktivite kaydını kullanıcıya göre filtreleyebilirsiniz. Diğer filtreler ve raporlar yakında eklenecektir.</CardDescription>
+          <CardDescription>Aktivite kaydını kullanıcıya ve tarih aralığına göre filtreleyebilirsiniz. Diğer filtreler yakında eklenecektir.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -255,15 +279,28 @@ export default function DetailedReportsPage() {
                 )}
               </SelectContent>
             </Select>
-            <Select disabled>
+            <Input 
+              type="date" 
+              placeholder="Başlangıç Tarihi" 
+              value={startDateInput}
+              onChange={(e) => setStartDateInput(e.target.value)}
+              disabled={isLoadingActivityLog}
+            />
+            <Input 
+              type="date" 
+              placeholder="Bitiş Tarihi" 
+              value={endDateInput}
+              onChange={(e) => setEndDateInput(e.target.value)}
+              disabled={isLoadingActivityLog}
+              min={startDateInput || undefined} // Prevent selecting end date before start date
+            />
+             <Select disabled>
               <SelectTrigger><SelectValue placeholder="Otel Seçin (Yakında)" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tüm Oteller</SelectItem>
                 {HOTEL_NAMES.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Input type="date" placeholder="Başlangıç Tarihi (Yakında)" disabled />
-            <Input type="date" placeholder="Bitiş Tarihi (Yakında)" disabled />
           </div>
         </CardContent>
       </Card>
@@ -271,7 +308,7 @@ export default function DetailedReportsPage() {
       <Card className="shadow-lg">
         <CardHeader>
             <CardTitle className="font-headline flex items-center"><AreaChart className="mr-2 h-5 w-5 text-primary"/> Genel İstatistikler</CardTitle>
-            <CardDescription>Proje ve görev durumlarının genel dağılımı.</CardDescription>
+            <CardDescription>Proje ve görev durumlarının genel dağılımı. Bu grafikler şu anda filtreden etkilenmemektedir.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {renderPieChart(projectStatusData, "Proje Durum Dağılımı", isLoadingProjectStatus, projectStatusError)}
@@ -316,6 +353,3 @@ export default function DetailedReportsPage() {
     </div>
   );
 }
-
-
-    
