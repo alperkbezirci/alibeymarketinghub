@@ -6,16 +6,23 @@
  * - getWeatherForecast - Fetches current weather, today's hourly, and a 3-day forecast.
  */
 
+import { config as dotenvConfig } from 'dotenv'; // Import dotenv
+dotenvConfig(); // Load .env file contents into process.env
+
 import axios from 'axios';
 import { format, parseISO, addDays, startOfDay } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import type { WeatherRequestInput, WeatherInfoOutput } from '@/ai/schemas/weather-schemas'; // Import types
 
+// Read the API key AFTER dotenv.config() has been called
 const OPENWEATHERMAP_API_KEY = process.env.OPENWEATHERMAP_API_KEY;
 
 async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutput> {
+  // Log the API key value that the function sees
+  console.log('[weather-forecast-flow] Attempting to use OPENWEATHERMAP_API_KEY:', OPENWEATHERMAP_API_KEY ? 'Key Found (length: ' + OPENWEATHERMAP_API_KEY.length + ')' : 'Key NOT Found');
+
   if (!OPENWEATHERMAP_API_KEY) {
-    console.error("OpenWeatherMap API key is not configured.");
+    console.error("[weather-forecast-flow] OpenWeatherMap API key is not configured in process.env. Please check your .env file and server restart.");
     return {
       location,
       error: "Hava durumu servisi yapılandırılamadı (API anahtarı eksik)."
@@ -39,7 +46,7 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
             windSpeed: cwData.wind.speed,
         };
     } catch (currentError: any) {
-        console.warn(`Could not fetch current weather for ${location}: ${currentError.message}`);
+        console.warn(`[weather-forecast-flow] Could not fetch current weather for ${location}: ${currentError.message}`);
         // Continue to fetch forecast even if current weather fails
     }
 
@@ -132,6 +139,7 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
     }
 
     if (!currentWeatherData && processedHourlyToday.length === 0 && processedThreeDaySummary.length === 0) {
+        console.warn('[weather-forecast-flow] No weather data (current, hourly, or 3-day) could be processed.');
         return {
             location,
             error: "Hava durumu verileri alınamadı."
@@ -146,7 +154,7 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
     };
 
   } catch (error: any) {
-    console.error("Error fetching or processing weather data:", error.response?.data || error.message);
+    console.error("[weather-forecast-flow] Error fetching or processing weather data:", error.response?.data || error.message, error);
     return {
       location,
       error: `Hava durumu alınırken bir hata oluştu: ${error.response?.data?.message || error.message}`
@@ -158,5 +166,6 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
 export async function getWeatherForecast(input: WeatherRequestInput): Promise<WeatherInfoOutput> {
   // This function is the only export from this 'use server' file.
   // It directly calls the internal fetchAndProcessWeather.
+  console.log(`[weather-forecast-flow] getWeatherForecast called for location: ${input.location}`);
   return fetchAndProcessWeather(input.location);
 }
