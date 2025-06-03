@@ -3,9 +3,10 @@
 "use server";
 
 import { admin } from '@/lib/firebase-admin';
-import { getUserRoles } from '@/services/user-service'; 
+import { getUserRoles } from '@/services/user-service';
 import { revalidatePath } from 'next/cache';
 import { USER_ROLES } from '@/lib/constants';
+import { getProjectById } from '@/services/project-service'; // Proje servisinden otel bilgisini almak için
 
 interface UpdateActivityResult {
   success: boolean;
@@ -16,20 +17,34 @@ interface UpdateActivityResult {
 
 async function checkAdminPrivilegesForAction(idToken?: string | null): Promise<boolean> {
   if (!idToken) {
-    console.warn("[CMS Action - checkAdminPrivilegesForAction] No ID token provided.");
+    console.warn("[CMS Action - checkAdminPrivilegesForAction] No ID token provided. Access denied.");
     return false;
   }
   try {
+    console.log("[CMS Action - checkAdminPrivilegesForAction] Verifying ID token...");
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const roles = await getUserRoles(decodedToken.uid); 
-                                                      
-    if (roles && roles.includes(USER_ROLES.ADMIN)) {
-      return true;
+    console.log(`[CMS Action - checkAdminPrivilegesForAction] ID Token for UID ${decodedToken.uid} verified. Fetching roles...`);
+    
+    const roles = await getUserRoles(decodedToken.uid);
+    
+    // Loglamayı detaylandıralım
+    console.log(`[CMS Action - checkAdminPrivilegesForAction] Fetched roles for UID ${decodedToken.uid}:`, JSON.stringify(roles));
+    console.log(`[CMS Action - checkAdminPrivilegesForAction] Expected Admin role constant: '${USER_ROLES.ADMIN}'`);
+
+    if (roles && Array.isArray(roles)) {
+      if (roles.includes(USER_ROLES.ADMIN)) {
+        console.log(`[CMS Action - checkAdminPrivilegesForAction] User ${decodedToken.uid} IS an Admin. Roles: ${JSON.stringify(roles)}. Access GRANTED.`);
+        return true;
+      } else {
+        console.warn(`[CMS Action - checkAdminPrivilegesForAction] User ${decodedToken.uid} is NOT an Admin. Actual roles: ${JSON.stringify(roles)}. Expected: "${USER_ROLES.ADMIN}". Access DENIED.`);
+        return false;
+      }
+    } else {
+      console.warn(`[CMS Action - checkAdminPrivilegesForAction] User ${decodedToken.uid} has no roles array or roles are null. Fetched roles: ${JSON.stringify(roles)}. Access DENIED.`);
+      return false;
     }
-    console.warn(`[CMS Action - checkAdminPrivilegesForAction] User ${decodedToken.uid} is not an Admin. Roles: ${roles}`);
-    return false;
   } catch (error: any) {
-    console.error("[CMS Action - checkAdminPrivilegesForAction] Error verifying ID token or fetching roles:", error.message);
+    console.error("[CMS Action - checkAdminPrivilegesForAction] Error during privilege check:", error.message, error.code ? `(Code: ${error.code})` : '');
     return false;
   }
 }
@@ -46,7 +61,7 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
     return { success: false, message: "Bu işlemi yalnızca Admin rolüne sahip kullanıcılar gerçekleştirebilir." };
   }
 
-  console.log("[CMS Action] Starting updateActivitiesWithHotelInfoAction...");
+  console.log("[CMS Action] Starting updateActivitiesWithHotelInfoAction (Admin authorized)...");
   const db = admin.firestore();
   let updatedCount = 0;
   let processedCount = 0;
@@ -71,38 +86,33 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
         activityData.projectId
       ) {
         try {
-          const projectRef = db
-            .collection("projects")
-            .doc(activityData.projectId);
-          const projectSnap = await projectRef.get();
+          // Projeden otel bilgisini al
+          const projectDetails = await getProjectById(activityData.projectId);
+          
+          if (projectDetails && projectDetails.hotel) {
+            console.log(`[CMS Action] Updating activity ${activityDoc.id} with hotel: ${projectDetails.hotel}`);
+            batch.update(activityDoc.ref, { hotel: projectDetails.hotel });
+            updatedCount++;
+            operationsInBatch++;
 
-          if (projectSnap.exists()) {
-            const projectData = projectSnap.data();
-            if (projectData && projectData.hotel) {
-              console.log(`[CMS Action] Updating activity ${activityDoc.id} with hotel: ${projectData.hotel}`);
-              batch.update(activityDoc.ref, { hotel: projectData.hotel });
-              updatedCount++;
-              operationsInBatch++;
-
-              if (operationsInBatch >= batchSize) {
-                console.log(`[CMS Action] Committing batch of ${operationsInBatch} updates...`);
-                await batch.commit();
-                batch = db.batch(); 
-                operationsInBatch = 0;
-              }
-            } else {
-              console.warn(
-                `[CMS Action] Project ${activityData.projectId} for activity ${activityDoc.id} found, but has no hotel field.`
-              );
+            if (operationsInBatch >= batchSize) {
+              console.log(`[CMS Action] Committing batch of ${operationsInBatch} updates...`);
+              await batch.commit();
+              batch = db.batch(); 
+              operationsInBatch = 0;
             }
-          } else {
+          } else if (projectDetails) {
             console.warn(
+              `[CMS Action] Project ${activityData.projectId} for activity ${activityDoc.id} found, but has no hotel field.`
+            );
+          } else {
+             console.warn(
               `[CMS Action] Project ${activityData.projectId} for activity ${activityDoc.id} not found.`
             );
           }
         } catch (error: any) {
           console.error(
-            `[CMS Action] Error processing individual activity ${activityDoc.id}:`,
+            `[CMS Action] Error processing individual activity ${activityDoc.id} (fetching project or updating):`,
             error.message
           );
         }
@@ -116,7 +126,8 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
 
     const message = `İşlem tamamlandı. Toplam ${processedCount} aktivite işlendi. ${updatedCount} aktivite otel bilgisiyle güncellendi.`;
     console.log(`[CMS Action] ${message}`);
-    revalidatePath('/detailed-reports'); 
+    revalidatePath('/detailed-reports'); // Aktiviteler güncellendiği için raporlar sayfasını revalidate et
+    revalidatePath('/projects'); // Etkilenen proje detay sayfalarını da revalidate etmek iyi olabilir.
     return { success: true, message, updatedCount, processedCount };
 
   } catch (error: any) {
