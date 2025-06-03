@@ -99,6 +99,43 @@ export async function getProjectById(id: string): Promise<Project | null> {
   }
 }
 
+export async function getProjectsByUserId(userId: string): Promise<Project[]> {
+  if (!userId) return [];
+  try {
+    const projectsCollection = collection(db, PROJECTS_COLLECTION);
+    // Query for projects where the 'responsiblePersons' array contains the userId
+    const q = query(
+      projectsCollection,
+      where('responsiblePersons', 'array-contains', userId),
+      orderBy('createdAt', 'desc') // Order by most recently created
+    );
+    const projectSnapshot = await getDocs(q);
+    const projectList = projectSnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        projectName: data.projectName || 'İsimsiz Proje',
+        responsiblePersons: data.responsiblePersons || [],
+        startDate: convertToISOString(data.startDate),
+        endDate: convertToISOString(data.endDate),
+        status: data.status || 'Bilinmiyor',
+        hotel: data.hotel || 'Bilinmiyor',
+        description: data.description,
+        createdAt: convertToISOString(data.createdAt),
+        updatedAt: convertToISOString(data.updatedAt),
+      } as Project;
+    });
+    return projectList;
+  } catch (error: any) {
+    console.error(`Error fetching projects for user ${userId}: `, error);
+    let userMessage = `Kullanıcıya (${userId}) ait projeler alınırken bir hata oluştu.`;
+    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+        userMessage += " Lütfen Firestore için 'projects' koleksiyonunda 'responsiblePersons' (array-contains) ve 'createdAt' (desc) alanlarını içeren bir bileşik index oluşturduğunuzdan emin olun. Hata mesajında index oluşturma linki olabilir.";
+    }
+    throw new Error(userMessage);
+  }
+}
+
 
 export async function addProject(projectData: ProjectInputData): Promise<Project> {
   try {
@@ -246,3 +283,4 @@ export async function getProjectCreationTrend(): Promise<{ month: string; count:
     throw new Error("Proje oluşturma trendi alınırken bir hata oluştu.");
   }
 }
+
