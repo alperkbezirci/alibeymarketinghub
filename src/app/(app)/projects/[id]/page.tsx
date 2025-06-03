@@ -1,3 +1,4 @@
+
 // src/app/(app)/projects/[id]/page.tsx
 "use client";
 
@@ -24,7 +25,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 
 
@@ -41,7 +42,7 @@ function SubmitActivityButton() {
 export default function ProjectDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { user: currentUser, getDisplayName } = useAuth(); 
+  const { user: currentUser, getDisplayName } = useAuth();
   const { toast } = useToast();
   const projectId = typeof params.id === 'string' ? params.id : undefined;
 
@@ -49,7 +50,7 @@ export default function ProjectDetailsPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
   const [projectActivities, setProjectActivities] = useState<ProjectActivity[]>([]);
-  
+
   const [isLoadingProject, setIsLoadingProject] = useState(true);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
@@ -141,8 +142,8 @@ export default function ProjectDetailsPage() {
       if (addActivityState.success) {
         toast({ title: "Başarılı", description: addActivityState.message });
         activityFormRef.current?.reset();
-        if(fileInputRef.current) fileInputRef.current.value = ""; 
-        fetchActivitiesForProject(); 
+        if(fileInputRef.current) fileInputRef.current.value = "";
+        fetchActivitiesForProject();
       } else {
         toast({ title: "Hata", description: addActivityState.message, variant: "destructive" });
       }
@@ -174,7 +175,7 @@ export default function ProjectDetailsPage() {
       return 'Geçersiz Tarih';
     }
   };
-  
+
   const formatRelativeTime = (dateInput: string | undefined | null) => {
     if (!dateInput) return '';
     try {
@@ -205,7 +206,7 @@ export default function ProjectDetailsPage() {
       default: return 'bg-gray-500 hover:bg-gray-600';
     }
   };
-  
+
   const getActivityStatusInfo = (status: ProjectActivityStatus | undefined) => {
     if (!status) return { text: 'Bilinmiyor', icon: Info, color: 'bg-gray-500 text-gray-foreground', iconColor: 'text-gray-500' };
     switch (status) {
@@ -222,7 +223,7 @@ export default function ProjectDetailsPage() {
   if (isLoadingProject) {
     return (
       <div className="space-y-6 p-4 animate-pulse">
-        <Skeleton className="h-8 w-1/4 mb-4" /> 
+        <Skeleton className="h-8 w-1/4 mb-4" />
         <div className="grid md:grid-cols-3 gap-6">
           <div className="md:col-span-2 space-y-6">
             <Card><CardHeader><Skeleton className="h-10 w-3/4 mb-2" /><Skeleton className="h-5 w-1/2" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-5 w-full" /><Skeleton className="h-20 w-full" /></CardContent></Card>
@@ -288,7 +289,7 @@ export default function ProjectDetailsPage() {
                   <p><span className="font-medium text-muted-foreground">Bitiş:</span> {formatDateDisplay(project.endDate)}</p>
                 </div>
               </div>
-              
+
               <div>
                 <h3 className="text-lg font-semibold mb-2 flex items-center"><Users className="mr-2 h-5 w-5 text-primary" />Sorumlu Kişiler</h3>
                 <p className="text-sm pl-7">{getResponsiblePersonNames()}</p>
@@ -352,7 +353,7 @@ export default function ProjectDetailsPage() {
 
         {/* Sağ Sütun: İşbirliği Alanı */}
         <div className="lg:col-span-1 space-y-6 print:hidden">
-          <Card className="shadow-lg sticky top-20"> 
+          <Card className="shadow-lg sticky top-20">
             <CardHeader>
               <CardTitle className="font-headline text-xl flex items-center"><MessageSquare className="mr-2 h-5 w-5 text-primary" />Proje Akışı & Yorumlar</CardTitle>
             </CardHeader>
@@ -368,11 +369,11 @@ export default function ProjectDetailsPage() {
                 )}
                 <div>
                   <Label htmlFor="activityContent" className="sr-only">Yorumunuz</Label>
-                  <Textarea 
-                    id="activityContent" 
-                    name="content" 
-                    placeholder="Proje hakkında bir güncelleme, yorum veya soru yazın..." 
-                    rows={3} 
+                  <Textarea
+                    id="activityContent"
+                    name="content"
+                    placeholder="Proje hakkında bir güncelleme, yorum veya soru yazın..."
+                    rows={3}
                     className="bg-background"
                   />
                 </div>
@@ -401,7 +402,7 @@ export default function ProjectDetailsPage() {
                     ))}
                 </div>
               ) : projectActivities.length > 0 ? (
-                <ScrollArea className="h-[calc(100vh-380px)] min-h-[300px] pr-1"> 
+                <ScrollArea className="h-[calc(100vh-380px)] min-h-[300px] pr-1">
                   <ul className="space-y-4">
                     {projectActivities.map(activity => {
                       const activityStatusInfo = getActivityStatusInfo(activity.status);
@@ -421,8 +422,8 @@ export default function ProjectDetailsPage() {
                                 {formatRelativeTime(activity.createdAt)}
                                </p>
                             </div>
-                            
-                            {activity.type === 'comment' && activity.content && 
+
+                            {activity.type === 'comment' && activity.content &&
                                 <p className="text-sm text-foreground/90 mt-1 whitespace-pre-line leading-relaxed">{activity.content}</p>
                             }
                             {activity.type === 'file_upload' && (
@@ -448,7 +449,7 @@ export default function ProjectDetailsPage() {
                                             setApprovalMessage(activity.messageForManager || ""); // Pre-fill message if any
                                         } else {
                                             setActivityToApprove(null);
-                                            setApprovalMessage(""); 
+                                            setApprovalMessage("");
                                         }
                                     }}>
                                         <DialogTrigger asChild>
@@ -462,14 +463,14 @@ export default function ProjectDetailsPage() {
                                                 <DialogDescription>
                                                   Aşağıdaki güncellemeyi Pazarlama Müdürü'ne onaya göndermek üzeresiniz. İsteğe bağlı bir mesaj ekleyebilirsiniz.
                                                   <blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">
-                                                    {activity.content ? `"${activity.content.substring(0,100)}${activity.content.length > 100 ? "..." : ""}"` 
+                                                    {activity.content ? `"${activity.content.substring(0,100)}${activity.content.length > 100 ? "..." : ""}"`
                                                                     : `Dosya: "${activity.fileName}"`}
                                                   </blockquote>
                                                 </DialogDescription>
                                             </DialogHeader>
                                             <div className="py-2">
                                                 <Label htmlFor="approvalMessage" className="text-sm font-medium">Yönetici için Mesaj (Opsiyonel)</Label>
-                                                <Textarea 
+                                                <Textarea
                                                     id="approvalMessage"
                                                     placeholder="Onaylayan kişiye iletmek istediğiniz notlar..."
                                                     value={approvalMessage}
@@ -522,3 +523,4 @@ export default function ProjectDetailsPage() {
     </div>
   );
 }
+
