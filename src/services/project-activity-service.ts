@@ -38,6 +38,8 @@ export interface ProjectActivity {
   type: ProjectActivityType;
   content?: string;
   fileName?: string;
+  fileURL?: string;
+  storagePath?: string;
   fileType?: string;
   status: ProjectActivityStatus;
   messageForManager?: string; // Message from user when sending for approval
@@ -79,12 +81,27 @@ export async function addProjectActivity(activityData: ProjectActivityInputData)
     if (activityData.fileType) dataToSave.fileType = activityData.fileType;
     
     const docRef = await addDoc(collection(db, PROJECT_ACTIVITIES_COLLECTION), dataToSave);
+    const newActivitySnap = await getDoc(docRef);
+    const savedData = newActivitySnap.data();
     
     return {
       id: docRef.id,
       ...activityData, // original data passed, status will be from action
-      createdAt: new Date().toISOString(), // Approximation
-      updatedAt: new Date().toISOString(), // Approximation
+      projectId: savedData?.projectId,
+      userId: savedData?.userId,
+      userName: savedData?.userName,
+      userPhotoURL: savedData?.userPhotoURL,
+      type: savedData?.type as ProjectActivityType,
+      content: savedData?.content,
+      fileName: savedData?.fileName,
+      fileURL: savedData?.fileURL,
+      storagePath: savedData?.storagePath,
+      fileType: savedData?.fileType,
+      status: savedData?.status as ProjectActivityStatus,
+      messageForManager: savedData?.messageForManager,
+      managerFeedback: savedData?.managerFeedback,
+      createdAt: convertToISOString(savedData?.createdAt)!,
+      updatedAt: convertToISOString(savedData?.updatedAt),
     };
   } catch (error: any) {
     console.error("[SERVICE_ERROR] Original error in addProjectActivity:", error);
@@ -111,6 +128,8 @@ export async function getProjectActivities(projectId: string): Promise<ProjectAc
         type: data.type as ProjectActivityType,
         content: data.content,
         fileName: data.fileName,
+        fileURL: data.fileURL,
+        storagePath: data.storagePath,
         fileType: data.fileType,
         status: data.status as ProjectActivityStatus,
         messageForManager: data.messageForManager,
@@ -163,6 +182,8 @@ export async function getPendingApprovalActivities(limitCount: number = 5): Prom
         type: data.type as ProjectActivityType,
         content: data.content,
         fileName: data.fileName,
+        fileURL: data.fileURL,
+        storagePath: data.storagePath,
         fileType: data.fileType,
         status: data.status as ProjectActivityStatus,
         messageForManager: data.messageForManager,
@@ -176,6 +197,67 @@ export async function getPendingApprovalActivities(limitCount: number = 5): Prom
     console.error("Error fetching pending approval activities: ", error);
     let userMessage = "Onay bekleyen aktiviteler alınırken bir hata oluştu.";
      if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+        userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
+    }
+    throw new Error(userMessage);
+  }
+}
+
+export async function getGlobalActivityLog(options?: { 
+  limit?: number; 
+  userId?: string; 
+  dateStart?: Date; 
+  dateEnd?: Date;
+  // hotel?: string; // Hotel filtering would require activities to store hotel info or join with projects
+}): Promise<ProjectActivity[]> {
+  try {
+    const activitiesCollection = collection(db, PROJECT_ACTIVITIES_COLLECTION);
+    const queryConstraints = [];
+
+    if (options?.userId && options.userId !== 'all') {
+      queryConstraints.push(where('userId', '==', options.userId));
+    }
+    if (options?.dateStart) {
+      queryConstraints.push(where('createdAt', '>=', Timestamp.fromDate(options.dateStart)));
+    }
+    if (options?.dateEnd) {
+      queryConstraints.push(where('createdAt', '<=', Timestamp.fromDate(options.dateEnd)));
+    }
+    
+    queryConstraints.push(orderBy('createdAt', 'desc'));
+
+    if (options?.limit) {
+      queryConstraints.push(firestoreLimit(options.limit));
+    }
+
+    const q = query(activitiesCollection, ...queryConstraints);
+    const activitySnapshot = await getDocs(q);
+    const activityList = activitySnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        projectId: data.projectId,
+        userId: data.userId,
+        userName: data.userName,
+        userPhotoURL: data.userPhotoURL,
+        type: data.type as ProjectActivityType,
+        content: data.content,
+        fileName: data.fileName,
+        fileURL: data.fileURL,
+        storagePath: data.storagePath,
+        fileType: data.fileType,
+        status: data.status as ProjectActivityStatus,
+        messageForManager: data.messageForManager,
+        managerFeedback: data.managerFeedback,
+        createdAt: convertToISOString(data.createdAt)!,
+        updatedAt: convertToISOString(data.updatedAt),
+      } as ProjectActivity;
+    });
+    return activityList;
+  } catch (error: any) {
+    console.error("Error fetching global activity log: ", error);
+    let userMessage = "Global aktivite kaydı alınırken bir hata oluştu.";
+    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
         userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
     }
     throw new Error(userMessage);
