@@ -4,7 +4,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { addProjectActivity, updateProjectActivity, type ProjectActivityInputData, type ProjectActivityStatus } from '@/services/project-activity-service';
-import { auth } from '@/lib/firebase'; // To get current user if needed indirectly, though user info should come from form/client
+import { auth } from '@/lib/firebase'; 
 
 interface AddActivityFormState {
   success: boolean;
@@ -16,17 +16,21 @@ export async function handleAddProjectActivityAction(
   prevState: AddActivityFormState | undefined,
   formData: FormData
 ): Promise<AddActivityFormState> {
+  console.log("[Action Log] handleAddProjectActivityAction - FormData received:", Object.fromEntries(formData));
+
   const projectId = formData.get('projectId') as string;
-  const userId = formData.get('userId') as string; // Should be current authenticated user's ID
-  const userName = formData.get('userName') as string; // Should be current authenticated user's display name
+  const userId = formData.get('userId') as string; 
+  const userName = formData.get('userName') as string; 
   const userPhotoURL = formData.get('userPhotoURL') as string | undefined;
   const content = formData.get('content') as string;
   const fileInput = formData.get('file') as File | null;
 
   if (!projectId || !userId || !userName) {
+    console.error("[Action Log] Validation Error: Missing projectId, userId, or userName.");
     return { success: false, message: "Proje ID, kullanıcı ID ve kullanıcı adı zorunludur." };
   }
   if (!content && (!fileInput || fileInput.size === 0)) {
+    console.error("[Action Log] Validation Error: Content or file must be provided.");
     return { success: false, message: "Yorum veya dosya eklemelisiniz." };
   }
 
@@ -39,7 +43,6 @@ export async function handleAddProjectActivityAction(
     fileName = fileInput.name;
     fileType = fileInput.type;
     // TODO: Actual file upload to Firebase Storage would happen here
-    // For now, we're just saving metadata.
   }
 
   const activityData: ProjectActivityInputData = {
@@ -51,15 +54,18 @@ export async function handleAddProjectActivityAction(
     content: content || undefined,
     fileName,
     fileType,
-    status: 'information', // Or 'draft' if you want explicit user submission for comments/files
+    status: 'information', 
   };
+  console.log("[Action Log] handleAddProjectActivityAction - Activity data to be saved:", activityData);
 
   try {
     const newActivity = await addProjectActivity(activityData);
     revalidatePath(`/projects/${projectId}`);
     return { success: true, message: `${activityType === 'comment' ? 'Yorum' : 'Dosya'} başarıyla eklendi.`, activityId: newActivity.id };
   } catch (error: any) {
-    return { success: false, message: error.message || "Aktivite eklenirken bir hata oluştu." };
+    // Log the full error object for more details, especially for Firebase errors
+    console.error("[Action Log] Error in handleAddProjectActivityAction when calling service:", error);
+    return { success: false, message: error.message || "Aktivite eklenirken bir sunucu hatası oluştu." };
   }
 }
 
@@ -80,13 +86,14 @@ export async function handleUpdateActivityStatusAction(
     }
     try {
         const updates: Partial<ProjectActivity> = { status: newStatus };
-        if (messageForManager) {
-            updates.messageForManager = messageForManager;
+        if (messageForManager && messageForManager.trim() !== "") { // Ensure messageForManager is not just whitespace
+            updates.messageForManager = messageForManager.trim();
         }
         await updateProjectActivity(activityId, updates);
         revalidatePath(`/projects/${projectId}`);
         return { success: true, message: "Aktivite durumu başarıyla güncellendi." };
     } catch (error: any) {
+        console.error("[Action Log] Error in handleUpdateActivityStatusAction:", error);
         return { success: false, message: error.message || "Aktivite durumu güncellenirken bir hata oluştu." };
     }
 }

@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Label } from "@/components/ui/label"; // Added import for Label
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -41,7 +41,7 @@ function SubmitActivityButton() {
 export default function ProjectDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { user: currentUser, getDisplayName } = useAuth(); // For current user info
+  const { user: currentUser, getDisplayName } = useAuth(); 
   const { toast } = useToast();
   const projectId = typeof params.id === 'string' ? params.id : undefined;
 
@@ -97,7 +97,14 @@ export default function ProjectDetailsPage() {
       setProjectTasks(tasks);
     } catch (err: any) {
       console.error("Error fetching project tasks:", err);
-      toast({ title: "Görev Yükleme Hatası", description: err.message, variant: "destructive" });
+      // It's crucial for the user to check their browser console for Firestore index creation links.
+      let userFriendlyMessage = "Projeye ait görevler yüklenirken bir hata oluştu. ";
+      if (err.message && (err.message.includes("index required") || err.message.includes("needs an index"))) {
+          userFriendlyMessage += "Bu, genellikle Firestore'da eksik bir veritabanı indeksi anlamına gelir. Lütfen tarayıcı konsolundaki orijinal hata mesajını kontrol edin; orada indeksi oluşturmak için bir bağlantı olabilir.";
+      } else {
+          userFriendlyMessage += "Daha fazla bilgi için tarayıcı konsolunu kontrol edin.";
+      }
+      toast({ title: "Görev Yükleme Hatası", description: userFriendlyMessage, variant: "destructive", duration: 10000 });
     } finally {
       setIsLoadingTasks(false);
     }
@@ -111,7 +118,13 @@ export default function ProjectDetailsPage() {
       setProjectActivities(activities);
     } catch (err: any) {
       console.error("Error fetching project activities:", err);
-      toast({ title: "Aktivite Yükleme Hatası", description: err.message, variant: "destructive" });
+      let userFriendlyMessage = "Proje aktiviteleri yüklenirken bir hata oluştu. ";
+       if (err.message && (err.message.includes("index required") || err.message.includes("needs an index"))) {
+          userFriendlyMessage += "Bu, genellikle Firestore'da eksik bir veritabanı indeksi anlamına gelir. Lütfen tarayıcı konsolundaki orijinal hata mesajını kontrol edin; orada indeksi oluşturmak için bir bağlantı olabilir.";
+      } else {
+          userFriendlyMessage += "Daha fazla bilgi için tarayıcı konsolunu kontrol edin.";
+      }
+      toast({ title: "Aktivite Yükleme Hatası", description: userFriendlyMessage, variant: "destructive", duration: 10000 });
     } finally {
       setIsLoadingActivities(false);
     }
@@ -128,8 +141,8 @@ export default function ProjectDetailsPage() {
       if (addActivityState.success) {
         toast({ title: "Başarılı", description: addActivityState.message });
         activityFormRef.current?.reset();
-        if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
-        fetchActivitiesForProject(); // Re-fetch activities
+        if(fileInputRef.current) fileInputRef.current.value = ""; 
+        fetchActivitiesForProject(); 
       } else {
         toast({ title: "Hata", description: addActivityState.message, variant: "destructive" });
       }
@@ -330,7 +343,7 @@ export default function ProjectDetailsPage() {
 
         {/* Sağ Sütun: İşbirliği Alanı */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="shadow-lg sticky top-20"> {/* Sticky for better UX on scroll */}
+          <Card className="shadow-lg sticky top-20"> 
             <CardHeader>
               <CardTitle className="font-headline text-xl flex items-center"><MessageSquare className="mr-2 h-5 w-5 text-primary" />Proje Akışı & Yorumlar</CardTitle>
             </CardHeader>
@@ -365,7 +378,7 @@ export default function ProjectDetailsPage() {
                     <div className="flex items-start space-x-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1 flex-1"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-4 w-full" /></div></div>
                 </div>
               ) : projectActivities.length > 0 ? (
-                <ScrollArea className="h-[400px] pr-3"> {/* Max height for scroll */}
+                <ScrollArea className="h-[400px] pr-3"> 
                   <ul className="space-y-4">
                     {projectActivities.map(activity => {
                       const activityStatusInfo = getActivityStatusInfo(activity.status);
@@ -395,37 +408,43 @@ export default function ProjectDetailsPage() {
                                     {activityStatusInfo.text}
                                 </Badge>
                                 {activity.status === 'draft' && activity.userId === currentUser?.uid && (
-                                    <Dialog>
+                                    <Dialog open={activityToApprove?.id === activity.id} onOpenChange={(open) => {
+                                        if (open) {
+                                            setActivityToApprove(activity);
+                                        } else {
+                                            setActivityToApprove(null);
+                                            setApprovalMessage(""); // Reset message on close
+                                        }
+                                    }}>
                                         <DialogTrigger asChild>
-                                            <Button variant="outline" size="xs" className="text-xs" onClick={() => setActivityToApprove(activity)}>
+                                            <Button variant="outline" size="xs" className="text-xs">
                                                 <ThumbsUp className="mr-1 h-3 w-3" /> Onaya Gönder
                                             </Button>
                                         </DialogTrigger>
-                                        {activityToApprove && activityToApprove.id === activity.id && (
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>Onaya Gönder</DialogTitle>
-                                                    <DialogDescription>
-                                                        Bu güncellemeyi Pazarlama Müdürü'ne onaya göndermek üzeresiniz. İsteğe bağlı bir mesaj ekleyebilirsiniz.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <Textarea 
-                                                    placeholder="Pazarlama Müdürü için mesaj (opsiyonel)..."
-                                                    value={approvalMessage}
-                                                    onChange={(e) => setApprovalMessage(e.target.value)}
-                                                    rows={3}
-                                                />
-                                                <DialogFooter>
-                                                    <DialogClose asChild>
-                                                        <Button variant="ghost" onClick={() => {setActivityToApprove(null); setApprovalMessage("");}}>İptal</Button>
-                                                    </DialogClose>
-                                                    <Button onClick={handleSendForApproval} disabled={isSubmittingApproval}>
-                                                        {isSubmittingApproval && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                        Gönder
-                                                    </Button>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        )}
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>İçeriği Onaya Gönder</DialogTitle>
+                                                <DialogDescription>
+                                                    Bu güncellemeyi Pazarlama Müdürü'ne onaya göndermek üzeresiniz. İsteğe bağlı bir mesaj ekleyebilirsiniz.
+                                                    İçerik: "{activity.content || activity.fileName}"
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <Textarea 
+                                                placeholder="Pazarlama Müdürü için mesaj (opsiyonel)..."
+                                                value={approvalMessage}
+                                                onChange={(e) => setApprovalMessage(e.target.value)}
+                                                rows={3}
+                                            />
+                                            <DialogFooter>
+                                                <DialogClose asChild>
+                                                    <Button variant="ghost">İptal</Button>
+                                                </DialogClose>
+                                                <Button onClick={handleSendForApproval} disabled={isSubmittingApproval}>
+                                                    {isSubmittingApproval && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Gönder
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
                                     </Dialog>
                                 )}
                             </div>
