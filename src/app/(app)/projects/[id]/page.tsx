@@ -1,3 +1,4 @@
+
 // src/app/(app)/projects/[id]/page.tsx
 "use client";
 
@@ -10,7 +11,7 @@ import { getTasksByProjectId, type Task } from '@/services/task-service';
 import { getProjectActivities, type ProjectActivity, type ProjectActivityStatus } from '@/services/project-activity-service';
 import { handleAddProjectActivityAction, handleUpdateActivityStatusAction, handleApproveActivityAction, handleRejectActivityAction } from './actions';
 import { useAuth } from '@/contexts/auth-context';
-import { auth } from '@/lib/firebase'; // Import Firebase auth
+import { auth } from '@/lib/firebase'; 
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud, Download } from 'lucide-react'; // Added Download
 import { format, formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -75,17 +76,17 @@ export default function ProjectDetailsPage() {
   const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
 
   useEffect(() => {
-    if (auth.currentUser) { // Check auth.currentUser instead of currentUser from useAuth context for getIdToken
+    if (auth.currentUser) { 
       auth.currentUser.getIdToken().then(token => {
         setIdTokenForActivityForm(token);
       }).catch(err => {
         console.error("Error getting ID token for activity form:", err);
         toast({ title: "Kimlik Doğrulama Hatası", description: "Form gönderimi için kullanıcı kimliği alınamadı.", variant: "destructive" });
       });
-    } else if (currentUser) { // Fallback or initial check if currentUser from context exists
+    } else if (currentUser) { 
         console.warn("currentUser (from context) exists, but auth.currentUser (from SDK) is null. Token might not be available immediately.");
     }
-  }, [currentUser, toast]); // Depend on currentUser from context to re-run when auth state might have settled
+  }, [currentUser, toast]); 
 
 
   const fetchProjectDetails = useCallback(async () => {
@@ -166,7 +167,7 @@ export default function ProjectDetailsPage() {
         if(fileInputRef.current) fileInputRef.current.value = "";
         setSelectedActivityFileName(null);
         fetchActivitiesForProject();
-        if (auth.currentUser) { // Use auth.currentUser for getIdToken
+        if (auth.currentUser) { 
           auth.currentUser.getIdToken(true).then(token => {
             setIdTokenForActivityForm(token);
           }).catch(err => console.error("Error refreshing ID token:", err));
@@ -175,7 +176,7 @@ export default function ProjectDetailsPage() {
         toast({ title: "Hata", description: addActivityState.message, variant: "destructive" });
       }
     }
-  }, [addActivityState, toast, fetchActivitiesForProject]); // Removed currentUser dependency as auth.currentUser is used directly
+  }, [addActivityState, toast, fetchActivitiesForProject]);
 
 
   const handleSendForApproval = async () => {
@@ -338,6 +339,19 @@ export default function ProjectDetailsPage() {
                   <p className="text-sm pl-7 whitespace-pre-line leading-relaxed">{project.description}</p>
                 </div>
               )}
+              
+              {project.projectFileURL && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 flex items-center"><Paperclip className="mr-2 h-5 w-5 text-primary" />Proje Ana Dosyası</h3>
+                  <p className="text-sm pl-7">
+                    <a href={project.projectFileURL} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center">
+                      <Download className="mr-1 h-4 w-4" /> 
+                      {project.projectStoragePath?.split('/').pop()?.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, '') || "Dosyayı İndir"}
+                    </a>
+                  </p>
+                </div>
+              )}
+
 
               <div className="text-xs text-muted-foreground pt-4 border-t mt-6">
                 <p>Oluşturulma Tarihi: {formatDateDisplay(project.createdAt, 'dd.MM.yyyy HH:mm')}</p>
@@ -434,7 +448,6 @@ export default function ProjectDetailsPage() {
                         ) : (
                             <p className="text-xs text-muted-foreground mt-1">Dosya seçilmedi.</p>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">Dosya yükleme işlevi tam olarak aktif değildir. Şimdilik sadece dosya adı kaydedilir.</p>
                     </div>
                     <SubmitActivityButton />
                 </div>
@@ -479,16 +492,27 @@ export default function ProjectDetailsPage() {
                             {activity.type === 'comment' && activity.content &&
                                 <p className="text-sm text-foreground/90 mt-1 whitespace-pre-line leading-relaxed">{activity.content}</p>
                             }
-                            {activity.type === 'file_upload' && (
+                            {activity.type === 'file_upload' && activity.fileURL && (
                               <div className="mt-1.5 p-2.5 border rounded-md bg-muted/40 hover:bg-muted/60 transition-colors">
                                 <div className="flex items-center text-sm">
                                     <Paperclip className="mr-2 h-4 w-4 text-muted-foreground" />
-                                    <span className="font-medium text-foreground/90">{activity.fileName}</span>
+                                    <a href={activity.fileURL} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                                      {activity.fileName || "Dosyayı Görüntüle"}
+                                    </a>
                                 </div>
                                 {activity.fileType && <p className="text-xs text-muted-foreground ml-6">{activity.fileType}</p>}
                                 {activity.content && <p className="text-xs text-muted-foreground mt-1 ml-6 pt-1 border-t border-dashed">{activity.content}</p>}
                               </div>
                             )}
+                             {activity.type === 'file_upload' && !activity.fileURL && activity.fileName && (
+                                <div className="mt-1.5 p-2.5 border rounded-md bg-muted/40">
+                                    <div className="flex items-center text-sm">
+                                        <Paperclip className="mr-2 h-4 w-4 text-muted-foreground" />
+                                        <span className="font-medium text-foreground/90">{activity.fileName} (URL yok)</span>
+                                    </div>
+                                </div>
+                            )}
+
 
                             <div className={cn("flex items-center justify-between mt-2.5 pt-2 border-t border-dashed", activity.status === 'pending_approval' && isAdminOrMarketingManager ? "flex-wrap gap-y-2" : "")}>
                                 <Badge variant="outline" className={cn("text-xs font-medium py-0.5 px-2", activityStatusInfo.color)}>
@@ -638,3 +662,5 @@ export default function ProjectDetailsPage() {
     </div>
   );
 }
+
+    

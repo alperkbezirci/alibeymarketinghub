@@ -1,8 +1,9 @@
+
 // src/components/projects/project-form.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants
+import React, { useState, useEffect, useCallback, useRef } from 'react'; // Added useRef
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,17 +13,17 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HOTEL_NAMES, PROJECT_STATUSES } from "@/lib/constants";
-import { CalendarIcon, Info, Loader2, ChevronDown, Users, UploadCloud } from "lucide-react"; // Added UploadCloud
+import { CalendarIcon, Info, Loader2, ChevronDown, Users, UploadCloud } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { generateDescription } from '@/ai/flows/ai-assisted-descriptions';
-import type { Project, ProjectInputData } from '@/services/project-service'; 
+import type { Project, ProjectFormData } from '@/services/project-service'; // Updated to ProjectFormData
 import { getAllUsers, type User } from '@/services/user-service';
-import { cn } from "@/lib/utils"; // Added cn
+import { cn } from "@/lib/utils";
 
 interface ProjectFormProps {
-  onSave: (formData: ProjectInputData) => Promise<void>;
+  onSave: (formData: ProjectFormData) => Promise<void>; // Expects ProjectFormData now
   initialData?: Partial<Project>; 
   onClose: () => void;
   isSaving?: boolean;
@@ -45,7 +46,10 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
   const [selectedResponsiblePersons, setSelectedResponsiblePersons] = useState<string[]>(
     Array.isArray(initialData?.responsiblePersons) ? initialData.responsiblePersons : []
   );
-  const [selectedProjectFilesName, setSelectedProjectFilesName] = useState<string | null>(null);
+  
+  const [projectFile, setProjectFile] = useState<File | null>(null);
+  const [selectedProjectFileName, setSelectedProjectFileName] = useState<string | null>(null);
+  const projectFileInputRef = useRef<HTMLInputElement>(null);
 
 
   const { toast } = useToast();
@@ -67,6 +71,22 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // If initialData includes a projectFileURL, try to display a file name
+  useEffect(() => {
+    if (initialData?.projectFileURL) {
+        try {
+            const url = new URL(initialData.projectFileURL);
+            const pathSegments = url.pathname.split('/');
+            const lastSegment = decodeURIComponent(pathSegments[pathSegments.length - 1]);
+            // Extract the original filename if it was appended after a UUID-like part
+            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i;
+            setSelectedProjectFileName(lastSegment.replace(uuidPattern, ''));
+        } catch (e) {
+            setSelectedProjectFileName("Mevcut dosya");
+        }
+    }
+  }, [initialData?.projectFileURL]);
 
   const handleResponsiblePersonChange = (userId: string, checked: boolean) => {
     setSelectedResponsiblePersons(prev =>
@@ -98,6 +118,20 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
     }
   };
 
+  const handleProjectFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setProjectFile(e.target.files[0]);
+      setSelectedProjectFileName(e.target.files[0].name);
+    } else {
+      setProjectFile(null);
+      setSelectedProjectFileName(null);
+      // If user deselects, clear the input so they can select the same file again if needed
+      if (projectFileInputRef.current) {
+        projectFileInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectName || !endDate) {
@@ -109,14 +143,15 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
       return;
     }
 
-    const formData: ProjectInputData = {
+    const formData: ProjectFormData = {
       projectName,
       responsiblePersons: selectedResponsiblePersons,
       startDate: startDate || undefined, 
       endDate, 
       status,
       hotel,
-      description
+      description,
+      projectFile: projectFile // Pass the File object
     };
     await onSave(formData);
   };
@@ -125,13 +160,13 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <Label htmlFor="projectName">Proje Adı *</Label>
-        <Input id="projectName" value={projectName} onChange={(e) => setProjectName(e.target.value)} required />
+        <Input id="projectName" value={projectName} onChange={(e) => setProjectName(e.target.value)} required disabled={isSaving}/>
       </div>
       <div>
         <Label htmlFor="responsiblePersons">Sorumlu Kişiler</Label>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="w-full justify-start text-left font-normal flex items-center">
+            <Button variant="outline" className="w-full justify-start text-left font-normal flex items-center" disabled={isSaving}>
               <Users className="mr-2 h-4 w-4" />
               {selectedResponsiblePersons.length > 0
                 ? `${selectedResponsiblePersons.length} kullanıcı seçildi`
@@ -159,6 +194,7 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
                       id={`user-${user.uid}`}
                       checked={selectedResponsiblePersons.includes(user.uid)}
                       onCheckedChange={(checked) => handleResponsiblePersonChange(user.uid, Boolean(checked))}
+                      disabled={isSaving}
                     />
                   </div>
                 ))}
@@ -173,7 +209,7 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
           <Label htmlFor="startDate">Başlangıç Tarihi</Label>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant={"outline"} className="w-full justify-start text-left font-normal">
+              <Button variant={"outline"} className="w-full justify-start text-left font-normal" disabled={isSaving}>
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {startDate ? format(startDate, "PPP", { locale: tr }) : <span>Tarih seçin</span>}
               </Button>
@@ -187,7 +223,7 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
           <Label htmlFor="endDate">Bitiş Tarihi *</Label>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant={"outline"} className="w-full justify-start text-left font-normal">
+              <Button variant={"outline"} className="w-full justify-start text-left font-normal" disabled={isSaving}>
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {endDate ? format(endDate, "PPP", { locale: tr }) : <span>Tarih seçin</span>}
               </Button>
@@ -201,7 +237,7 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="status">Proje Durumu</Label>
-          <Select value={status} onValueChange={setStatus}>
+          <Select value={status} onValueChange={setStatus} disabled={isSaving}>
             <SelectTrigger id="status"><SelectValue placeholder="Durum seçin" /></SelectTrigger>
             <SelectContent>
               {PROJECT_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -210,7 +246,7 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
         </div>
         <div>
           <Label htmlFor="hotel">Otel</Label>
-          <Select value={hotel} onValueChange={setHotel}>
+          <Select value={hotel} onValueChange={setHotel} disabled={isSaving}>
             <SelectTrigger id="hotel"><SelectValue placeholder="Otel seçin" /></SelectTrigger>
             <SelectContent>
               {HOTEL_NAMES.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
@@ -220,10 +256,10 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
       </div>
       <div>
         <Label htmlFor="description">Açıklama</Label>
-        <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
+        <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} disabled={isSaving}/>
       </div>
       <div className="items-top flex space-x-2">
-        <Checkbox id="aiAssist" checked={aiAssist} onCheckedChange={(checked) => setAiAssist(Boolean(checked))} />
+        <Checkbox id="aiAssist" checked={aiAssist} onCheckedChange={(checked) => setAiAssist(Boolean(checked))} disabled={isSaving}/>
         <div className="grid gap-1.5 leading-none">
           <label htmlFor="aiAssist" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
             Açıklama için Yapay Zeka Desteği
@@ -236,7 +272,7 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
       {aiAssist && (
         <div className="space-y-2 rounded-md border p-4">
           <Label htmlFor="aiDetails">Yapay Zeka için Proje Detayları</Label>
-          <Textarea id="aiDetails" value={aiDetails} onChange={(e) => setAiDetails(e.target.value)} placeholder="Proje hedefleri, anahtar noktalar, hedef kitle vb." rows={3}/>
+          <Textarea id="aiDetails" value={aiDetails} onChange={(e) => setAiDetails(e.target.value)} placeholder="Proje hedefleri, anahtar noktalar, hedef kitle vb." rows={3} disabled={isSaving || isGeneratingDescription}/>
           <Button type="button" variant="outline" size="sm" onClick={handleGenerateDescription} disabled={isGeneratingDescription || isSaving}>
             {isGeneratingDescription ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Info className="mr-2 h-4 w-4" />}
             Açıklama Oluştur
@@ -244,47 +280,46 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
         </div>
       )}
       <div>
-        <Label htmlFor="files">Dosya Yükleme (Yapım Aşamasında)</Label>
+        <Label htmlFor="projectFile">Proje Ana Dosyası (Opsiyonel)</Label>
         <div className="flex flex-col gap-2 mt-1">
             <Input 
-                id="files" 
+                id="projectFile"
+                name="projectFile"
                 type="file" 
-                multiple 
-                disabled 
+                ref={projectFileInputRef}
                 className="hidden"
-                onChange={(e) => setSelectedProjectFilesName(
-                    e.target.files && e.target.files.length > 0
-                    ? Array.from(e.target.files).map(f => f.name).join(', ')
-                    : null
-                )}
+                onChange={handleProjectFileChange}
+                disabled={isSaving}
             />
             <Label
-                htmlFor="files"
+                htmlFor="projectFile"
                 className={cn(
                     buttonVariants({ variant: "outline" }),
                     "cursor-pointer w-full sm:w-auto justify-center flex items-center",
-                    true ? "opacity-50 cursor-not-allowed" : "" // Always disabled styling for now
+                    isSaving && "opacity-50 cursor-not-allowed"
                 )}
-                onClick={(e) => { if (true) e.preventDefault(); }} // Prevent click because it's disabled
+                onClick={(e) => { if (isSaving) e.preventDefault(); }}
             >
                 <UploadCloud className="mr-2 h-4 w-4" />
-                Dosyaları Seç
+                Dosya Seç
             </Label>
-            {selectedProjectFilesName ? (
-                <p className="text-sm text-muted-foreground">Seçilen: {selectedProjectFilesName}</p>
+            {selectedProjectFileName ? (
+                <p className="text-sm text-muted-foreground">Seçilen dosya: {selectedProjectFileName}</p>
             ) : (
-                <p className="text-sm text-muted-foreground">Dosya seçilmedi.</p>
+                <p className="text-sm text-muted-foreground">Ana proje dosyası seçilmedi.</p>
             )}
         </div>
-        <p className="text-xs text-muted-foreground mt-1">Birden fazla dosya seçebilirsiniz. Bu özellik yakında eklenecektir.</p>
+        <p className="text-xs text-muted-foreground mt-1">Tek bir ana proje dosyası yükleyebilirsiniz (örn: sunum, plan).</p>
       </div>
       <div className="flex justify-end space-x-2 pt-4">
         <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>İptal</Button>
-        <Button type="submit" disabled={isSaving}>
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button type="submit" disabled={isSaving || isGeneratingDescription}>
+          {(isSaving || isGeneratingDescription) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {initialData?.id ? 'Güncelle' : 'Kaydet'}
         </Button>
       </div>
     </form>
   );
 }
+
+    

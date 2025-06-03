@@ -5,7 +5,10 @@
  * @fileOverview Firestore service for managing projects.
  */
 import { db } from '@/lib/firebase';
+import { admin } from '@/lib/firebase-admin'; // For storage delete
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp, getDoc as getFirestoreDoc, where, limit as firestoreLimit } from 'firebase/firestore';
+
+const STORAGE_BUCKET_NAME = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'alibey-marketing-hub.appspot.com';
 
 const convertToISOString = (dateField: Timestamp | Date | string | undefined | null): string | undefined => {
   if (dateField === undefined || dateField === null) return undefined;
@@ -28,11 +31,14 @@ export interface Project {
   status?: string;
   hotel?: string;
   description?: string;
+  projectFileURL?: string; // URL to access the main project file
+  projectStoragePath?: string; // Path in Firebase Storage for the main project file
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
 }
 
-export interface ProjectInputData {
+// Data expected by the service for adding/updating, file URL and path are strings here
+export interface ProjectInputDataForService {
   projectName: string;
   responsiblePersons?: string[];
   startDate?: Date;
@@ -40,7 +46,17 @@ export interface ProjectInputData {
   status: string;
   hotel: string;
   description?: string;
+  projectFileURL?: string;
+  projectStoragePath?: string;
 }
+
+// Data coming from the form, which might include a File object
+export interface ProjectFormData extends Omit<ProjectInputDataForService, 'projectFileURL' | 'projectStoragePath' | 'startDate' | 'endDate' > {
+  startDate?: Date;
+  endDate: Date;
+  projectFile?: File | null;
+}
+
 
 const PROJECTS_COLLECTION = 'projects';
 
@@ -60,6 +76,8 @@ export async function getProjects(): Promise<Project[]> {
         status: data.status || 'Bilinmiyor',
         hotel: data.hotel || 'Bilinmiyor',
         description: data.description,
+        projectFileURL: data.projectFileURL,
+        projectStoragePath: data.projectStoragePath,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
       } as Project;
@@ -87,6 +105,8 @@ export async function getProjectById(id: string): Promise<Project | null> {
         status: data.status || 'Bilinmiyor',
         hotel: data.hotel || 'Bilinmiyor',
         description: data.description,
+        projectFileURL: data.projectFileURL,
+        projectStoragePath: data.projectStoragePath,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
       } as Project;
@@ -103,11 +123,10 @@ export async function getProjectsByUserId(userId: string): Promise<Project[]> {
   if (!userId) return [];
   try {
     const projectsCollection = collection(db, PROJECTS_COLLECTION);
-    // Query for projects where the 'responsiblePersons' array contains the userId
     const q = query(
       projectsCollection,
       where('responsiblePersons', 'array-contains', userId),
-      orderBy('createdAt', 'desc') // Order by most recently created
+      orderBy('createdAt', 'desc') 
     );
     const projectSnapshot = await getDocs(q);
     const projectList = projectSnapshot.docs.map(docSnap => {
@@ -121,6 +140,8 @@ export async function getProjectsByUserId(userId: string): Promise<Project[]> {
         status: data.status || 'Bilinmiyor',
         hotel: data.hotel || 'Bilinmiyor',
         description: data.description,
+        projectFileURL: data.projectFileURL,
+        projectStoragePath: data.projectStoragePath,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
       } as Project;
@@ -137,17 +158,24 @@ export async function getProjectsByUserId(userId: string): Promise<Project[]> {
 }
 
 
-export async function addProject(projectData: ProjectInputData): Promise<Project> {
+export async function addProject(projectData: ProjectInputDataForService): Promise<Project> {
   try {
     const dataToSave = {
-      ...projectData,
+      projectName: projectData.projectName,
+      responsiblePersons: projectData.responsiblePersons || [],
       startDate: projectData.startDate ? Timestamp.fromDate(projectData.startDate) : null,
       endDate: Timestamp.fromDate(projectData.endDate),
-      responsiblePersons: projectData.responsiblePersons || [],
+      status: projectData.status,
+      hotel: projectData.hotel,
+      description: projectData.description || '',
+      projectFileURL: projectData.projectFileURL || null,
+      projectStoragePath: projectData.projectStoragePath || null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
     const docRef = await addDoc(collection(db, PROJECTS_COLLECTION), dataToSave);
+    const newDocSnap = await getFirestoreDoc(doc(db, PROJECTS_COLLECTION, docRef.id));
+    const savedData = newDocSnap.data();
 
     return {
       id: docRef.id,
@@ -158,8 +186,10 @@ export async function addProject(projectData: ProjectInputData): Promise<Project
       status: projectData.status,
       hotel: projectData.hotel,
       description: projectData.description,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      projectFileURL: savedData?.projectFileURL,
+      projectStoragePath: savedData?.projectStoragePath,
+      createdAt: convertToISOString(savedData?.createdAt) || new Date().toISOString(),
+      updatedAt: convertToISOString(savedData?.updatedAt) || new Date().toISOString(),
     };
   } catch (error) {
     console.error("Error adding project: ", error);
@@ -167,7 +197,11 @@ export async function addProject(projectData: ProjectInputData): Promise<Project
   }
 }
 
-export async function updateProject(id: string, projectData: Partial<ProjectInputData>): Promise<void> {
+// Note: Updating project file via this function is not directly supported.
+// File updates typically involve deleting the old file (if name changes or file is removed)
+// and uploading the new one, then updating URL/path.
+// This updateProject is for other metadata.
+export async function updateProject(id: string, projectData: Partial<ProjectInputDataForService>): Promise<void> {
   try {
     const projectDoc = doc(db, PROJECTS_COLLECTION, id);
     const updateData: any = { ...projectData, updatedAt: serverTimestamp() };
@@ -180,6 +214,13 @@ export async function updateProject(id: string, projectData: Partial<ProjectInpu
     if (projectData.responsiblePersons) {
         updateData.responsiblePersons = projectData.responsiblePersons;
     }
+    // projectFileURL and projectStoragePath should be updated carefully, typically after a new upload
+    if (projectData.hasOwnProperty('projectFileURL')) {
+        updateData.projectFileURL = projectData.projectFileURL;
+    }
+    if (projectData.hasOwnProperty('projectStoragePath')) {
+        updateData.projectStoragePath = projectData.projectStoragePath;
+    }
     await updateDoc(projectDoc, updateData);
   } catch (error) {
     console.error("Error updating project: ", error);
@@ -188,14 +229,34 @@ export async function updateProject(id: string, projectData: Partial<ProjectInpu
 }
 
 export async function deleteProject(id: string): Promise<void> {
+  const projectDocRef = doc(db, PROJECTS_COLLECTION, id);
   try {
-    const projectDoc = doc(db, PROJECTS_COLLECTION, id);
-    await deleteDoc(projectDoc);
-  } catch (error) {
+    const projectSnap = await getFirestoreDoc(projectDocRef);
+    if (projectSnap.exists()) {
+      const projectData = projectSnap.data() as Project;
+      if (projectData.projectStoragePath) {
+        try {
+          if (!admin.apps.length) {
+            console.warn("Firebase Admin SDK not initialized. Cannot delete file from Storage for project:", id);
+          } else {
+            const bucket = admin.storage().bucket(STORAGE_BUCKET_NAME);
+            await bucket.file(projectData.projectStoragePath).delete();
+            console.log(`File ${projectData.projectStoragePath} for project ${id} deleted from Firebase Storage.`);
+          }
+        } catch (storageError: any) {
+          console.error(`Failed to delete file ${projectData.projectStoragePath} from Storage for project ${id}:`, storageError);
+          // Decide if you want to stop project deletion if file deletion fails.
+        }
+      }
+    }
+    await deleteDoc(projectDocRef);
+    console.log(`Project with ID: ${id} successfully deleted from Firestore.`);
+  } catch (error: any) {
     console.error("Error deleting project: ", error);
-    throw new Error("Proje silinirken bir hata oluştu.");
+    throw new Error(`Proje (ID: ${id}) silinirken bir hata oluştu: ${error.message || 'Bilinmeyen sunucu hatası'}`);
   }
 }
+
 
 export async function getActiveProjects(limitCount: number = 5): Promise<Project[]> {
   try {
@@ -204,7 +265,6 @@ export async function getActiveProjects(limitCount: number = 5): Promise<Project
     const q = query(
       projectsCollection,
       where('status', 'in', activeStatuses),
-      // orderBy('endDate', 'asc'), // Bu satır eksik indeks hatasına neden oluyordu, kaldırıldı.
       firestoreLimit(limitCount)
     );
     const projectSnapshot = await getDocs(q);
@@ -219,6 +279,8 @@ export async function getActiveProjects(limitCount: number = 5): Promise<Project
         status: data.status || 'Bilinmiyor',
         hotel: data.hotel || 'Bilinmiyor',
         description: data.description,
+        projectFileURL: data.projectFileURL,
+        projectStoragePath: data.projectStoragePath,
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
       } as Project;
@@ -284,3 +346,4 @@ export async function getProjectCreationTrend(): Promise<{ month: string; count:
   }
 }
 
+    

@@ -15,10 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES, PROJECT_STATUSES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { getProjects, addProject, type Project, type ProjectInputData } from "@/services/project-service";
+import { getProjects, addProject, type Project, type ProjectFormData, type ProjectInputDataForService } from "@/services/project-service";
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Skeleton } from "@/components/ui/skeleton";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { v4 as uuidv4 } from 'uuid';
 
 export default function ProjectsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -54,18 +56,48 @@ export default function ProjectsPage() {
     const action = searchParams.get('action');
     if (action === 'new') {
       setIsDialogOpen(true);
-      // Clear the query parameter to prevent re-opening on refresh/navigation
       router.replace(pathname, { scroll: false });
     }
   }, [searchParams, router, pathname, setIsDialogOpen]);
 
-  const handleSaveProject = async (formData: ProjectInputData) => {
+  const handleSaveProject = async (formData: ProjectFormData) => {
     setIsSaving(true);
+    let projectFileURL: string | undefined = undefined;
+    let projectStoragePath: string | undefined = undefined;
+
     try {
-      await addProject(formData);
+      if (formData.projectFile) {
+        const file = formData.projectFile;
+        const uniqueFileName = `${uuidv4()}-${file.name}`;
+        // Store in a general projects folder or projects/{projectId}/ - projectId not available yet
+        const filePath = `project-files/${uniqueFileName}`; 
+        
+        const clientSideStorage = getStorage();
+        const fileRef = storageRef(clientSideStorage, filePath);
+
+        toast({ title: "Yükleniyor...", description: `Proje dosyası "${file.name}" yükleniyor.`});
+        await uploadBytes(fileRef, file);
+        projectFileURL = await getDownloadURL(fileRef);
+        projectStoragePath = filePath;
+        toast({ title: "Başarılı", description: `Proje dosyası "${file.name}" başarıyla yüklendi.`});
+      }
+
+      const projectDataForService: ProjectInputDataForService = {
+        projectName: formData.projectName,
+        responsiblePersons: formData.responsiblePersons,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        status: formData.status,
+        hotel: formData.hotel,
+        description: formData.description,
+        projectFileURL: projectFileURL,
+        projectStoragePath: projectStoragePath,
+      };
+      
+      await addProject(projectDataForService);
       toast({ title: "Başarılı", description: `${formData.projectName} adlı proje oluşturuldu.` });
       setIsDialogOpen(false);
-      fetchProjects(); // Refresh the list
+      fetchProjects();
     } catch (err: any)      {
       toast({ title: "Hata", description: err.message || "Proje kaydedilirken bir hata oluştu.", variant: "destructive" });
     } finally {
@@ -90,7 +122,8 @@ export default function ProjectsPage() {
         <h1 className="text-3xl font-headline font-bold">Projeler</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Proje Oluştur
             </Button>
           </DialogTrigger>
@@ -196,3 +229,4 @@ export default function ProjectsPage() {
     </div>
   );
 }
+    
