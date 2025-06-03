@@ -18,8 +18,8 @@ import { useSpendingCategories, type SpendingCategory } from "@/contexts/spendin
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { getHotelBudgetLimits, type HotelBudgetLimits } from "@/services/budget-config-service";
-import { addInvoice, getAllInvoices, type Invoice, type InvoiceInputData } from "@/services/invoice-service";
-import { addTask, updateTaskAssignees, type TaskInputData } from "@/services/task-service";
+import { addInvoice, getAllInvoices, type Invoice, type InvoiceInputData, linkTaskToInvoice } from '@/services/invoice-service';
+import { addTask, updateTaskAssignees, type TaskInputData } from '@/services/task-service';
 import { getAllUsers, type User as AppUser } from "@/services/user-service";
 import { format, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -53,6 +53,7 @@ export default function BudgetPage() {
 
   const [isTurqualityDialogOpen, setIsTurqualityDialogOpen] = useState(false);
   const [pendingInvoiceData, setPendingInvoiceData] = useState<InvoiceInputData | null>(null);
+  const [lastAddedInvoiceId, setLastAddedInvoiceId] = useState<string | null>(null);
   const [isAssignTaskDialogOpen, setIsAssignTaskDialogOpen] = useState(false);
   const [newlyCreatedTurqualityTaskId, setNewlyCreatedTurqualityTaskId] = useState<string | null>(null);
   const [usersForAssignment, setUsersForAssignment] = useState<AppUser[]>([]);
@@ -122,25 +123,37 @@ export default function BudgetPage() {
   }, [spendingCategoriesFromContext, invoices, isLoadingSpendingCategories]);
 
 
-  const handleSaveInvoice = (formData: InvoiceInputData) => {
+  const handleSaveInvoice = async (formData: InvoiceInputData) => {
     setPendingInvoiceData(formData);
     setIsInvoiceDialogOpen(false); 
-    setIsTurqualityDialogOpen(true); 
+    
+    // First, try to add the invoice
+    setIsSubmittingTurquality(true); // Use this state for the whole process
+    try {
+      const newInvoice = await addInvoice(formData);
+      setLastAddedInvoiceId(newInvoice.id); // Store ID for later
+      setIsTurqualityDialogOpen(true); // Ask about Turquality only after successful invoice save
+    } catch (error: any) {
+      toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
+      setPendingInvoiceData(null); // Clear pending data on error
+    } finally {
+        // Don't set isSubmittingTurquality to false here yet, wait for Turquality dialog
+    }
   };
   
   const handleTurqualityConfirmation = async (isTurqualityApplicable: boolean) => {
-    if (!pendingInvoiceData) return;
-    setIsSubmittingTurquality(true);
+    if (!pendingInvoiceData || !lastAddedInvoiceId) {
+        setIsSubmittingTurquality(false);
+        return;
+    }
+    // isSubmittingTurquality should already be true from handleSaveInvoice
 
-    const baseDescription = `Fatura No: ${pendingInvoiceData.invoiceNumber}, ${pendingInvoiceData.originalAmount.toLocaleString('tr-TR')} ${pendingInvoiceData.originalCurrency} tutarında eklendi.`;
-    let fullDescription = baseDescription;
+    let mainToastDescription = `Fatura No: ${pendingInvoiceData.invoiceNumber} eklendi.`;
      if (pendingInvoiceData.originalCurrency !== 'EUR' && pendingInvoiceData.amountInEur) {
-      fullDescription += ` (EUR karşılığı: ${pendingInvoiceData.amountInEur.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })})`;
+      mainToastDescription += ` (EUR karşılığı: ${pendingInvoiceData.amountInEur.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })})`;
     }
 
     try {
-      await addInvoice(pendingInvoiceData);
-
       if (isTurqualityApplicable && pendingInvoiceData.invoiceDate && pendingInvoiceData.companyName) {
         const taskDueDate = addDays(new Date(pendingInvoiceData.invoiceDate), 7);
         const taskData: TaskInputData = {
@@ -155,6 +168,14 @@ export default function BudgetPage() {
         };
         const newTask = await addTask(taskData);
         setNewlyCreatedTurqualityTaskId(newTask.id);
+
+        try {
+            await linkTaskToInvoice(lastAddedInvoiceId, newTask.id);
+            mainToastDescription += ` Turquality görevi oluşturuldu ve faturaya başarıyla bağlandı.`;
+        } catch (linkError: any) {
+            mainToastDescription += ` Turquality görevi oluşturuldu ancak faturaya bağlanırken bir hata oluştu: ${linkError.message}`;
+            toast({ title: "Bağlantı Hatası", description: `Görev faturaya bağlanamadı: ${linkError.message}`, variant: "warning" });
+        }
         
         setIsLoadingUsersForAssignment(true);
         try {
@@ -162,39 +183,47 @@ export default function BudgetPage() {
             setUsersForAssignment(users.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
         } catch (userError) {
             console.error("Error fetching users for task assignment:", userError);
+            mainToastDescription += " Atama için kullanıcılar yüklenemedi.";
             toast({ title: "Kullanıcı Yükleme Hatası", description: "Görev ataması için kullanıcılar yüklenemedi.", variant: "destructive" });
         } finally {
             setIsLoadingUsersForAssignment(false);
         }
         
         setIsAssignTaskDialogOpen(true); 
-        toast({ title: "Başarılı", description: `${fullDescription} Turquality görevi oluşturuldu. Bütçe özeti güncellendi.` });
+        toast({ title: "Başarılı", description: mainToastDescription });
 
       } else {
-        toast({ title: "Başarılı", description: `${fullDescription} Bütçe özeti güncellendi.` });
+        toast({ title: "Başarılı", description: mainToastDescription });
       }
       
       fetchBudgetData(); 
     } catch (error: any) {
- toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
+      toast({ title: "Turquality İşlem Hatası", description: error.message || "Turquality görevi oluşturulurken veya fatura güncellenirken bir sorun oluştu.", variant: "destructive" });
     } finally {
       setIsTurqualityDialogOpen(false);
       setPendingInvoiceData(null);
-      setIsSubmittingTurquality(false);
+      setLastAddedInvoiceId(null);
+      setIsSubmittingTurquality(false); // Set to false after all operations
     }
   };
 
-  const handleAssignTaskAndClose = async () => { // Fixed ESLint error: Missing return type on function.
+  const handleAssignTaskAndClose = async () => { 
     if (!newlyCreatedTurqualityTaskId || selectedTaskAssignees.length === 0) {
-      toast({ title: "Atama Yapılmadı", description: "Lütfen en az bir sorumlu seçin veya bu adımı iptal edin.", variant: "destructive" });
-      return; 
+      toast({ title: "Atama Yapılmadı", description: "Lütfen en az bir sorumlu seçin veya bu adımı iptal edin.", variant: "warning" });
+      // Do not return here if you want the dialog to close anyway
+      // return; 
     }
-    setIsSubmittingTurquality(true);
+    setIsSubmittingTurquality(true); // Re-use for this submission
     try {
-      await updateTaskAssignees(newlyCreatedTurqualityTaskId, selectedTaskAssignees);
-      toast({ title: "Görev Atandı", description: "Turquality görevi seçilen kişilere atandı." });
+      if (newlyCreatedTurqualityTaskId && selectedTaskAssignees.length > 0) {
+        await updateTaskAssignees(newlyCreatedTurqualityTaskId, selectedTaskAssignees);
+        toast({ title: "Görev Atandı", description: "Turquality görevi seçilen kişilere atandı." });
+      } else {
+        // If no one selected, but user chose "Ata ve Kapat", it implies skipping assignment for now
+        toast({ title: "Bilgi", description: "Turquality görevine kimse atanmadı. Görevi daha sonra manuel olarak atayabilirsiniz.", variant: "default" });
+      }
     } catch (error: any) {
- toast({ title: "Görev Atama Hatası", description: error.message || "Görev atanırken bir sorun oluştu.", variant: "destructive" });
+      toast({ title: "Görev Atama Hatası", description: error.message || "Görev atanırken bir sorun oluştu.", variant: "destructive" });
     } finally {
       setIsAssignTaskDialogOpen(false);
       setNewlyCreatedTurqualityTaskId(null);
@@ -218,7 +247,13 @@ export default function BudgetPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
         <h1 className="text-3xl font-headline font-bold">Bütçe Yönetimi</h1>
-        <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
+        <Dialog open={isInvoiceDialogOpen} onOpenChange={(open) => {
+            setIsInvoiceDialogOpen(open);
+            if (!open) {
+              setPendingInvoiceData(null); // Clear pending data if dialog is closed
+              setLastAddedInvoiceId(null);
+            }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Yeni Fatura Ekle
@@ -231,7 +266,11 @@ export default function BudgetPage() {
                 Yeni bir fatura kaydı oluşturmak için lütfen fatura detaylarını girin.
               </DialogDescription>
             </DialogHeader>
-            <InvoiceForm onSave={handleSaveInvoice} onClose={() => setIsInvoiceDialogOpen(false)} />
+            <InvoiceForm onSave={handleSaveInvoice} onClose={() => {
+                setIsInvoiceDialogOpen(false);
+                setPendingInvoiceData(null);
+                setLastAddedInvoiceId(null);
+            }} />
           </DialogContent>
         </Dialog>
       </div>
@@ -240,6 +279,8 @@ export default function BudgetPage() {
           if (!open && !isAssignTaskDialogOpen) { 
             setIsTurqualityDialogOpen(false);
             setPendingInvoiceData(null); 
+            setLastAddedInvoiceId(null);
+            setIsSubmittingTurquality(false); // Ensure submission state is reset
           }
         }}>
         <AlertDialogContent>
@@ -264,6 +305,7 @@ export default function BudgetPage() {
               setIsAssignTaskDialogOpen(false);
               setNewlyCreatedTurqualityTaskId(null);
               setSelectedTaskAssignees([]);
+              setIsSubmittingTurquality(false); // Ensure submission state is reset
           }
       }}>
         <DialogContent className="sm:max-w-md">
@@ -301,10 +343,11 @@ export default function BudgetPage() {
                 setIsAssignTaskDialogOpen(false); 
                 setNewlyCreatedTurqualityTaskId(null); 
                 setSelectedTaskAssignees([]);
+                setIsSubmittingTurquality(false);
             }} disabled={isSubmittingTurquality}>
                 İptal / Daha Sonra Ata
             </Button>
-            <Button onClick={handleAssignTaskAndClose} disabled={isSubmittingTurquality || isLoadingUsersForAssignment || selectedTaskAssignees.length === 0}>
+            <Button onClick={handleAssignTaskAndClose} disabled={isSubmittingTurquality || isLoadingUsersForAssignment}>
               {isSubmittingTurquality && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ata ve Kapat
             </Button>
@@ -407,4 +450,5 @@ export default function BudgetPage() {
       
 
     
+
 

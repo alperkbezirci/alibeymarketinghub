@@ -185,6 +185,21 @@ export async function updateTask(taskId: string, updates: Partial<Omit<TaskInput
   await updateDoc(taskDoc, dataToUpdate);
 }
 
+export async function deleteTask(taskId: string): Promise<void> {
+  if (!taskId) {
+    throw new Error("Görev ID'si silme işlemi için zorunludur.");
+  }
+  try {
+    const taskDocRef = doc(db, TASKS_COLLECTION, taskId);
+    await deleteDoc(taskDocRef);
+    console.log(`Task with ID: ${taskId} successfully deleted from Firestore.`);
+  } catch (error: any) {
+    console.error(`Error deleting task with ID ${taskId} from Firestore: `, error);
+    throw new Error(`Görev (ID: ${taskId}) Firestore'dan silinirken bir hata oluştu: ${error.message || 'Bilinmeyen sunucu hatası'}`);
+  }
+}
+
+
 export async function getTaskCountByStatus(): Promise<{ status: string; count: number }[]> {
   try {
     const tasksCollection = collection(db, TASKS_COLLECTION);
@@ -339,7 +354,7 @@ export async function getActiveTasks(limitCount: number = 5): Promise<Task[]> {
     const q = query(
       tasksCollection,
       where('status', 'in', activeStatuses),
-      orderBy('dueDate', 'asc'), // Re-added for intended functionality
+      orderBy('dueDate', 'asc'), 
       firestoreLimit(limitCount)
     );
 
@@ -381,7 +396,7 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
       tasksCollection,
       where('dueDate', '<', now),
       where('status', 'in', openStatuses), 
-      orderBy('dueDate', 'asc'), // Re-added for intended functionality
+      orderBy('dueDate', 'asc'), 
       firestoreLimit(limitCount)
     );
 
@@ -412,3 +427,4 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
     throw new Error(userMessage);
   }
 }
+

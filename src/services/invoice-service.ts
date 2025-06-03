@@ -6,6 +6,7 @@
  */
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, serverTimestamp, Timestamp, query, orderBy, doc, updateDoc, getDoc as getFirestoreDoc, deleteDoc } from 'firebase/firestore';
+import { deleteTask } from './task-service'; // Import deleteTask
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
@@ -87,6 +88,7 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
       exchangeRateToEur: invoiceData.exchangeRateToEur === undefined ? null : invoiceData.exchangeRateToEur,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      // turqualityTaskId will be linked later
     };
 
     const docRef = await addDoc(collection(db, INVOICES_COLLECTION), dataToSave);
@@ -109,12 +111,30 @@ export async function addInvoice(invoiceData: InvoiceInputData): Promise<Invoice
       exchangeRateToEur: invoiceData.exchangeRateToEur === undefined ? null : invoiceData.exchangeRateToEur,
       createdAt: convertToISOString(savedData?.createdAt) || new Date().toISOString(),
       updatedAt: convertToISOString(savedData?.updatedAt) || new Date().toISOString(),
-      turqualityApplicable: savedData?.turqualityApplicable,
-      turqualityTaskId: savedData?.turqualityTaskId,
+      turqualityApplicable: savedData?.turqualityApplicable, // This might not be set at initial save
+      turqualityTaskId: savedData?.turqualityTaskId, // This will be undefined at initial save
     };
   } catch (error: any) {
     console.error("Error adding invoice: ", error);
     throw new Error(error.message || "Fatura eklenirken bir hata oluştu.");
+  }
+}
+
+export async function linkTaskToInvoice(invoiceId: string, turqualityTaskId: string): Promise<void> {
+  if (!invoiceId || !turqualityTaskId) {
+    throw new Error("Fatura ID ve Görev ID, ilişkilendirme için zorunludur.");
+  }
+  try {
+    const invoiceDocRef = doc(db, INVOICES_COLLECTION, invoiceId);
+    await updateDoc(invoiceDocRef, {
+      turqualityTaskId: turqualityTaskId,
+      turqualityApplicable: true, // Mark as applicable if a task is linked
+      updatedAt: serverTimestamp()
+    });
+    console.log(`Task ${turqualityTaskId} successfully linked to invoice ${invoiceId}.`);
+  } catch (error: any) {
+    console.error(`Error linking task ${turqualityTaskId} to invoice ${invoiceId}: `, error);
+    throw new Error(`Görev faturaya bağlanırken bir hata oluştu: ${error.message}`);
   }
 }
 
@@ -170,6 +190,10 @@ export async function updateInvoice(id: string, updates: Partial<Omit<Invoice, '
   if (updates.exchangeRateToEur === undefined) {
     dataToUpdate.exchangeRateToEur = null;
   }
+  // If turqualityApplicable is explicitly set to false, ensure turqualityTaskId is cleared
+  if (updates.turqualityApplicable === false) {
+    dataToUpdate.turqualityTaskId = null; // Or deleteField() if you prefer
+  }
   await updateDoc(invoiceDoc, dataToUpdate);
 }
 
@@ -178,8 +202,26 @@ export async function deleteInvoice(id: string): Promise<void> {
     throw new Error("Fatura ID'si silme işlemi için zorunludur.");
   }
   try {
-    const invoiceDoc = doc(db, INVOICES_COLLECTION, id);
-    await deleteDoc(invoiceDoc);
+    const invoiceDocRef = doc(db, INVOICES_COLLECTION, id);
+    const invoiceSnap = await getFirestoreDoc(invoiceDocRef); // Fetch the doc first
+
+    if (invoiceSnap.exists()) {
+      const invoiceData = invoiceSnap.data(); 
+      if (invoiceData && invoiceData.turqualityTaskId) {
+        try {
+          await deleteTask(invoiceData.turqualityTaskId); 
+          console.log(`Associated task ${invoiceData.turqualityTaskId} for invoice ${id} deleted.`);
+        } catch (taskDeleteError: any) {
+          console.error(`Failed to delete associated task ${invoiceData.turqualityTaskId} for invoice ${id}:`, taskDeleteError);
+          // Continue to delete invoice even if task deletion fails, but log error.
+          // Optionally, rethrow or handle more gracefully.
+        }
+      }
+    } else {
+      console.warn(`Invoice ${id} not found during deletion check, cannot check for associated task.`);
+    }
+
+    await deleteDoc(invoiceDocRef); // Delete the invoice itself
     console.log(`Invoice with ID: ${id} successfully deleted from Firestore.`);
   } catch (error: any) {
     console.error(`Error deleting invoice with ID ${id} from Firestore: `, error);

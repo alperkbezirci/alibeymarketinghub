@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // Removed DialogTrigger, DialogClose
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { InvoiceForm } from "@/components/budget/invoice-form";
-import { addInvoice, type InvoiceInputData } from '@/services/invoice-service';
+import { addInvoice, type InvoiceInputData, linkTaskToInvoice } from '@/services/invoice-service';
 import { getAllUsers, type User as AppUser } from "@/services/user-service";
 import { format, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -56,6 +56,7 @@ export default function DashboardPage() {
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isTurqualityDialogOpen, setIsTurqualityDialogOpen] = useState(false);
   const [pendingInvoiceData, setPendingInvoiceData] = useState<InvoiceInputData | null>(null);
+  const [lastAddedInvoiceId, setLastAddedInvoiceId] = useState<string | null>(null);
   const [isAssignTaskDialogOpen, setIsAssignTaskDialogOpen] = useState(false);
   const [newlyCreatedTurqualityTaskId, setNewlyCreatedTurqualityTaskId] = useState<string | null>(null);
   const [usersForAssignment, setUsersForAssignment] = useState<AppUser[]>([]);
@@ -97,20 +98,35 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleSaveInvoiceForDashboard = (formData: InvoiceInputData) => {
+  const handleSaveInvoiceForDashboard = async (formData: InvoiceInputData) => {
     setPendingInvoiceData(formData);
     setIsInvoiceDialogOpen(false);
-    setIsTurqualityDialogOpen(true);
+    setIsSubmittingInvoice(true);
+    try {
+      const newInvoice = await addInvoice(formData);
+      setLastAddedInvoiceId(newInvoice.id);
+      setIsTurqualityDialogOpen(true);
+    } catch (error: any) {
+      toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
+      setPendingInvoiceData(null);
+      setIsSubmittingInvoice(false); // Reset on error
+    }
+    // isSubmittingInvoice will be reset in handleTurqualityConfirmationForDashboard's finally block
   };
 
   const handleTurqualityConfirmationForDashboard = async (isTurqualityApplicable: boolean) => {
-    if (!pendingInvoiceData) return;
-    setIsSubmittingInvoice(true);
-    const baseDescription = `Fatura No: ${pendingInvoiceData.invoiceNumber}, ${pendingInvoiceData.originalAmount.toLocaleString('tr-TR')} ${pendingInvoiceData.originalCurrency} tutarında eklendi.`;
+    if (!pendingInvoiceData || !lastAddedInvoiceId) {
+        setIsSubmittingInvoice(false); // Reset if essential data is missing
+        return;
+    }
+    // isSubmittingInvoice should already be true
+
+    let mainToastDescription = `Fatura No: ${pendingInvoiceData.invoiceNumber} eklendi.`;
+    if (pendingInvoiceData.originalCurrency !== 'EUR' && pendingInvoiceData.amountInEur) {
+      mainToastDescription += ` (EUR karşılığı: ${pendingInvoiceData.amountInEur.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })})`;
+    }
 
     try {
-      await addInvoice(pendingInvoiceData);
-
       if (isTurqualityApplicable && pendingInvoiceData.invoiceDate && pendingInvoiceData.companyName) {
         const taskDueDate = addDays(new Date(pendingInvoiceData.invoiceDate), 7);
         const taskData: TaskInputData = {
@@ -125,6 +141,14 @@ export default function DashboardPage() {
         };
         const newTask = await addTask(taskData);
         setNewlyCreatedTurqualityTaskId(newTask.id);
+
+        try {
+            await linkTaskToInvoice(lastAddedInvoiceId, newTask.id);
+            mainToastDescription += ` Turquality görevi oluşturuldu ve faturaya başarıyla bağlandı.`;
+        } catch (linkError: any) {
+            mainToastDescription += ` Turquality görevi oluşturuldu ancak faturaya bağlanırken bir hata oluştu: ${linkError.message}`;
+            toast({ title: "Bağlantı Hatası", description: `Görev faturaya bağlanamadı: ${linkError.message}`, variant: "warning" });
+        }
         
         setIsLoadingUsersForAssignment(true);
         try {
@@ -132,34 +156,40 @@ export default function DashboardPage() {
             setUsersForAssignment(users.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
         } catch (userError) {
             console.error("Error fetching users for task assignment:", userError);
+            mainToastDescription += " Atama için kullanıcılar yüklenemedi.";
             toast({ title: "Kullanıcı Yükleme Hatası", description: "Görev ataması için kullanıcılar yüklenemedi.", variant: "destructive" });
         } finally {
             setIsLoadingUsersForAssignment(false);
         }
         
         setIsAssignTaskDialogOpen(true);
-        toast({ title: "Başarılı", description: `${baseDescription} Turquality görevi oluşturuldu.` });
+        toast({ title: "Başarılı", description: mainToastDescription });
       } else {
-        toast({ title: "Başarılı", description: `${baseDescription} Bütçe detayları için Bütçe sayfasını kontrol edin.` });
+        toast({ title: "Başarılı", description: `${mainToastDescription} Bütçe detayları için Bütçe sayfasını kontrol edin.` });
       }
+      fetchDashboardData(); // Refresh dashboard data potentially including tasks
     } catch (error: any) {
-      toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
+      toast({ title: "Turquality İşlem Hatası", description: error.message || "Turquality işlemi sırasında bir sorun oluştu.", variant: "destructive" });
     } finally {
       setIsTurqualityDialogOpen(false);
       setPendingInvoiceData(null);
-      setIsSubmittingInvoice(false);
+      setLastAddedInvoiceId(null);
+      setIsSubmittingInvoice(false); // Reset submission state here
     }
   };
 
   const handleAssignTaskAndCloseForDashboard = async () => {
     if (!newlyCreatedTurqualityTaskId || selectedTaskAssignees.length === 0) {
-      toast({ title: "Atama Yapılmadı", description: "Lütfen en az bir sorumlu seçin veya bu adımı iptal edin.", variant: "destructive" });
-      return;
+      toast({ title: "Atama Yapılmadı", description: "Lütfen en az bir sorumlu seçin veya bu adımı iptal edin.", variant: "warning" });
     }
-    setIsSubmittingInvoice(true);
+    setIsSubmittingInvoice(true); // Reuse state for this submission
     try {
-      await updateTaskAssignees(newlyCreatedTurqualityTaskId, selectedTaskAssignees);
-      toast({ title: "Görev Atandı", description: "Turquality görevi seçilen kişilere atandı." });
+      if (newlyCreatedTurqualityTaskId && selectedTaskAssignees.length > 0) {
+        await updateTaskAssignees(newlyCreatedTurqualityTaskId, selectedTaskAssignees);
+        toast({ title: "Görev Atandı", description: "Turquality görevi seçilen kişilere atandı." });
+      } else {
+        toast({ title: "Bilgi", description: "Turquality görevine kimse atanmadı. Görevi daha sonra manuel olarak atayabilirsiniz.", variant: "default" });
+      }
     } catch (error: any) {
       toast({ title: "Görev Atama Hatası", description: error.message || "Görev atanırken bir sorun oluştu.", variant: "destructive" });
     } finally {
@@ -167,6 +197,7 @@ export default function DashboardPage() {
       setNewlyCreatedTurqualityTaskId(null);
       setSelectedTaskAssignees([]);
       setIsSubmittingInvoice(false);
+      fetchDashboardData(); // Refresh tasks on dashboard
     }
   };
 
@@ -212,7 +243,13 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <Dialog open={isInvoiceDialogOpen} onOpenChange={setIsInvoiceDialogOpen}>
+      <Dialog open={isInvoiceDialogOpen} onOpenChange={(open) => {
+        setIsInvoiceDialogOpen(open);
+        if(!open) {
+            setPendingInvoiceData(null);
+            setLastAddedInvoiceId(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-headline text-2xl">Yeni Fatura Ekle (Hızlı Eylem)</DialogTitle>
@@ -220,7 +257,11 @@ export default function DashboardPage() {
               Yeni bir fatura kaydı oluşturmak için lütfen fatura detaylarını girin.
             </DialogDescription>
           </DialogHeader>
-          <InvoiceForm onSave={handleSaveInvoiceForDashboard} onClose={() => setIsInvoiceDialogOpen(false)} />
+          <InvoiceForm onSave={handleSaveInvoiceForDashboard} onClose={() => {
+            setIsInvoiceDialogOpen(false);
+            setPendingInvoiceData(null);
+            setLastAddedInvoiceId(null);
+          }} />
         </DialogContent>
       </Dialog>
 
@@ -228,6 +269,8 @@ export default function DashboardPage() {
           if (!open && !isAssignTaskDialogOpen) {
             setIsTurqualityDialogOpen(false);
             setPendingInvoiceData(null);
+            setLastAddedInvoiceId(null);
+            setIsSubmittingInvoice(false);
           }
         }}>
         <AlertDialogContent>
@@ -252,6 +295,7 @@ export default function DashboardPage() {
               setIsAssignTaskDialogOpen(false);
               setNewlyCreatedTurqualityTaskId(null);
               setSelectedTaskAssignees([]);
+              setIsSubmittingInvoice(false);
           }
       }}>
         <DialogContent className="sm:max-w-md">
@@ -289,10 +333,11 @@ export default function DashboardPage() {
                 setIsAssignTaskDialogOpen(false); 
                 setNewlyCreatedTurqualityTaskId(null); 
                 setSelectedTaskAssignees([]);
+                setIsSubmittingInvoice(false);
             }} disabled={isSubmittingInvoice}>
                 İptal / Daha Sonra Ata
             </Button>
-            <Button onClick={handleAssignTaskAndCloseForDashboard} disabled={isSubmittingInvoice || isLoadingUsersForAssignment || selectedTaskAssignees.length === 0}>
+            <Button onClick={handleAssignTaskAndCloseForDashboard} disabled={isSubmittingInvoice || isLoadingUsersForAssignment}>
               {isSubmittingInvoice && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ata ve Kapat
             </Button>
