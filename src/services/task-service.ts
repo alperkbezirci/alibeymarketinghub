@@ -338,11 +338,11 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
     
     const openStatuses = ['Yapılacak', 'Devam Ediyor', 'Gözden Geçiriliyor', 'Engellendi']; 
 
+    // orderBy('dueDate', 'asc') kaldırıldı. Kullanıcıya indeks oluşturması önerilmeli.
     const q = query(
       tasksCollection,
       where('dueDate', '<', now),
       where('status', 'in', openStatuses), 
-      orderBy('dueDate', 'asc'), 
       firestoreLimit(limitCount)
     );
 
@@ -363,6 +363,8 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
         updatedAt: convertToISOString(data.updatedAt),
       } as Task;
     });
+    // Son teslim tarihine göre sıralama istemci tarafında yapılabilir, ancak Firestore'da indeks ile yapmak daha verimlidir.
+    // Şimdilik, sıralama olmadan döndürüyoruz.
     return taskList;
   } catch (error: any) {
     console.error("Error fetching overdue tasks: ", error);
