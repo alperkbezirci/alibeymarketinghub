@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import Link from "next/link"; // Link import edildi
 import { Button } from "@/components/ui/button";
 import { PlusCircle, TrendingUp, Layers, Loader2, Users, CheckCircle, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -25,6 +26,7 @@ import { tr } from "date-fns/locale";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils"; // cn import edildi
 
 interface BudgetSummaryItem {
   name: string;
@@ -33,7 +35,7 @@ interface BudgetSummaryItem {
   remaining: number;
 }
 
-const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; // Specified Turquality Project ID
+const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; 
 
 export default function BudgetPage() {
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
@@ -49,7 +51,6 @@ export default function BudgetPage() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // Turquality Dialog States
   const [isTurqualityDialogOpen, setIsTurqualityDialogOpen] = useState(false);
   const [pendingInvoiceData, setPendingInvoiceData] = useState<InvoiceInputData | null>(null);
   const [isAssignTaskDialogOpen, setIsAssignTaskDialogOpen] = useState(false);
@@ -144,7 +145,7 @@ export default function BudgetPage() {
         const taskDueDate = addDays(new Date(pendingInvoiceData.invoiceDate), 7);
         const taskData: TaskInputData = {
           taskName: `Turquality: ${format(new Date(pendingInvoiceData.invoiceDate), "dd.MM.yyyy")} - ${pendingInvoiceData.companyName}`,
-          project: TURQUALITY_PROJECT_ID, // Assign to specific Turquality project ID
+          project: TURQUALITY_PROJECT_ID, 
           hotel: pendingInvoiceData.hotel,
           status: "Yapılacak",
           priority: "Yüksek",
@@ -362,7 +363,7 @@ export default function BudgetPage() {
           <CardTitle className="font-headline text-xl flex items-center">
             <Layers className="mr-2 h-5 w-5 text-primary" /> Harcama Kategorileri
           </CardTitle>
-          <CardDescription>Kategori bazında bütçe limitleri (CMS'den) ve harcamalar (faturalardan hesaplanmaktadır).</CardDescription>
+          <CardDescription>Kategori bazında bütçe limitleri (CMS'den) ve harcamalar (faturalardan hesaplanmaktadır). Detayları görmek için bir kategoriye tıklayın.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(isLoadingSpendingCategories || isLoadingInvoices) ? (
@@ -380,19 +381,21 @@ export default function BudgetPage() {
           ) : categoriesError ? (
              <p className="text-sm text-destructive col-span-full text-center">{categoriesError} <Button variant="link" size="sm" onClick={refetchCategories}>Tekrar Dene</Button></p>
           ) : spendingCategoriesData.length > 0 ? spendingCategoriesData.map(category => (
-            <Card key={category.id} className="bg-card/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">{category.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Progress value={(category.limit > 0 ? (category.spent / category.limit) * 100 : 0)} className="h-2 mb-1" 
-                  aria-label={`${category.name} bütçe kullanımı: ${(category.limit > 0 ? (category.spent / category.limit) * 100 : 0).toFixed(1)}%`}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {category.spent.toLocaleString('tr-TR', {style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0})} / {category.limit.toLocaleString('tr-TR', {style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                </p>
-              </CardContent>
-            </Card>
+            <Link key={category.id} href={`/budget/category/${category.id}`} passHref>
+              <Card className={cn("bg-card/50 hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-medium">{category.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <Progress value={(category.limit > 0 ? (category.spent / category.limit) * 100 : 0)} className="h-2 mb-1" 
+                    aria-label={`${category.name} bütçe kullanımı: ${(category.limit > 0 ? (category.spent / category.limit) * 100 : 0).toFixed(1)}%`}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {category.spent.toLocaleString('tr-TR', {style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0})} / {category.limit.toLocaleString('tr-TR', {style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           )) : (
             <p className="text-sm text-muted-foreground col-span-full text-center">Yönetilecek harcama kategorisi bulunmuyor. CMS sayfasından ekleyebilirsiniz.</p>
           )}
