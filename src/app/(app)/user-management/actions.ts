@@ -3,8 +3,10 @@
 "use server";
 
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { createUserDocumentInFirestore, deleteUserDocument, updateUserProfile } from "@/services/user-service";
+import { auth } from "@/lib/firebase"; // Client SDK auth
+import { createUserDocumentInFirestore, deleteUserDocument, updateUserProfile, getUserRoles } from "@/services/user-service"; // getUserRoles eklendi
+// import { auth as adminAuth } from '@/lib/firebase-admin'; // Firebase Admin SDK'nız varsa
+// import { USER_ROLES } from '@/lib/constants'; // USER_ROLES eklendi
 
 interface AddUserResult {
   success: boolean;
@@ -12,7 +14,36 @@ interface AddUserResult {
   uid?: string;
 }
 
+// ÖNEMLİ GÜVENLİK NOTU:
+// Gerçek bir uygulamada, aşağıdaki `isCurrentUserAdminOnServer` fonksiyonu,
+// sunucu tarafında geçerli kullanıcının oturumunu (örneğin, bir çerez veya token aracılığıyla)
+// doğrulamalı ve kullanıcının rollerini güvenli bir şekilde (örneğin, Firestore'dan veya özel claim'lerden)
+// almalıdır. Bu, client SDK'nın `auth.currentUser` özelliğine dayanmamalıdır çünkü bu sunucu eylemlerinde
+// güvenilir bir şekilde kullanılamaz. Firebase Admin SDK veya NextAuth.js gibi bir kütüphane bu amaç için daha uygundur.
+
+// YER TUTUCU: Gerçek sunucu tarafı admin kontrol fonksiyonu
+async function checkAdminPrivileges(): Promise<boolean> {
+  // Bu fonksiyon, sunucu tarafında kimliği doğrulanmış kullanıcının
+  // Admin rolüne sahip olup olmadığını kontrol etmelidir.
+  // Örnek:
+  // const session = await getServerSession(authOptions); // NextAuth.js örneği
+  // if (!session?.user?.id) return false;
+  // const userRoles = await getUserRoles(session.user.id); // Firestore'dan rolleri çek
+  // return userRoles.includes(USER_ROLES.ADMIN);
+
+  console.warn("SECURITY_WARNING: `checkAdminPrivileges` in user-management/actions.ts is a placeholder and NOT SECURE for production. Implement proper server-side session and role verification.");
+  // Şimdilik, bu fonksiyonun her zaman true döndürdüğünü varsayalım (BU GÜVENLİ DEĞİLDİR).
+  // GERÇEK UYGULAMADA BU KESİNLİKLE DEĞİŞTİRİLMELİDİR.
+  return true;
+}
+
+
 export async function handleAddUserAction(prevState: any, formData: FormData): Promise<AddUserResult> {
+  const isAdmin = await checkAdminPrivileges();
+  if (!isAdmin) {
+    return { success: false, message: "Bu işlemi gerçekleştirmek için yönetici yetkiniz bulunmamaktadır." };
+  }
+
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const firstName = formData.get("firstName") as string;
@@ -27,7 +58,10 @@ export async function handleAddUserAction(prevState: any, formData: FormData): P
   }
 
   try {
-    // Step 1: Create user in Firebase Authentication
+    // Step 1: Create user in Firebase Authentication (Client SDK)
+    // Sunucu eylemi olduğu için bu işlem doğrudan Admin SDK ile yapılabilir veya
+    // istemcinin yaptığı bir kimlik doğrulama sonrası tetiklenebilir.
+    // Mevcut yapı Client SDK kullanıyor.
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const authUser = userCredential.user;
 
@@ -69,6 +103,11 @@ interface UpdateUserResult {
 }
 
 export async function handleUpdateUserAction(prevState: any, formData: FormData): Promise<UpdateUserResult> {
+  const isAdmin = await checkAdminPrivileges();
+  if (!isAdmin) {
+    return { success: false, message: "Bu işlemi gerçekleştirmek için yönetici yetkiniz bulunmamaktadır." };
+  }
+
   const uid = formData.get("uid") as string;
   const firstName = formData.get("firstName") as string;
   const lastName = formData.get("lastName") as string;
@@ -97,6 +136,11 @@ interface DeleteUserResult {
 }
 
 export async function handleDeleteUserAction(uid: string, userFullName: string): Promise<DeleteUserResult> {
+  const isAdmin = await checkAdminPrivileges();
+  if (!isAdmin) {
+    return { success: false, message: "Bu işlemi gerçekleştirmek için yönetici yetkiniz bulunmamaktadır." };
+  }
+  
   if (!uid) {
     return { success: false, message: "Kullanıcı ID'si silme işlemi için zorunludur." };
   }
@@ -106,12 +150,17 @@ export async function handleDeleteUserAction(uid: string, userFullName: string):
     await deleteUserDocument(uid);
 
     // Step 2: Delete Firebase Authentication user
-    // IMPORTANT TODO: THIS REQUIRES ADMIN SDK. The current user (admin) CANNOT delete another user via client SDK.
-    console.warn(`TODO: Firebase Auth kullanıcısı (UID: ${uid}) silme işlemi Admin SDK gerektirir ve burada tam olarak uygulanamamıştır.`);
+    // ÖNEMLİ GÜVENLİK NOTU: Firebase Authentication kullanıcısını silmek için Firebase Admin SDK gereklidir.
+    // İstemci SDK'sı (mevcut 'auth' nesnesi) başka bir kullanıcıyı silemez.
+    // Bu işlem sunucu tarafında Admin SDK ile yapılmalıdır.
+    // Örnek: await adminAuth.deleteUser(uid);
+    console.warn(`TODO: Firebase Auth kullanıcısı (UID: ${uid}) silme işlemi Admin SDK gerektirir ve burada tam olarak uygulanamamıştır. Sadece Firestore belgesi silindi.`);
     
-    return { success: true, message: `"${userFullName}" kullanıcısının Firestore belgesi silindi. (Auth silme işlemi Admin SDK gerektirir)` };
+    return { success: true, message: `"${userFullName}" kullanıcısının Firestore belgesi silindi. (Auth silme işlemi için Admin SDK gereklidir ve ayrıca yapılmalıdır)` };
   } catch (error: any) {
     console.error("Error deleting user:", error);
     return { success: false, message: `"${userFullName}" kullanıcısı silinirken hata: ${error.message}. Auth silme Admin SDK gerektirebilir.` };
   }
 }
+
+    
