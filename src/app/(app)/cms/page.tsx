@@ -2,26 +2,39 @@
 // src/app/(app)/cms/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useActionState } from 'react';
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Settings, Palette, DollarSign, ListPlus, Edit2, Trash2, Loader2, UploadCloud } from "lucide-react"; // SlidersVertical kaldırıldı
+import { Settings, Palette, DollarSign, ListPlus, Edit2, Trash2, Loader2, UploadCloud, DatabaseZap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSpendingCategories, type SpendingCategory } from '@/contexts/spending-categories-context';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { CategoryEditForm } from "@/components/cms/category-edit-form";
 import { Skeleton } from '@/components/ui/skeleton';
 import { getHotelBudgetLimitsForCms, saveHotelBudgetLimitsCms, type BudgetConfigData } from '@/services/budget-config-service';
-import { getUiSettings, saveUiSettings, type UiSettings } from '@/services/ui-config-service'; 
+import { getUiSettings, saveUiSettings, type UiSettings } from '@/services/ui-config-service';
 import { cn } from '@/lib/utils';
-import { AppLogo } from '@/components/layout/app-logo'; // AppLogo import edildi
+import { AppLogo } from '@/components/layout/app-logo';
+import { handleUpdateActivitiesWithHotelInfoAction } from './actions'; // Yeni action'ı import et
+import { auth } from '@/lib/firebase'; // ID Token almak için
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 export default function CmsPage() {
-  const { isAdminOrMarketingManager } = useAuth();
+  const { user: currentUser, isAdminOrMarketingManager } = useAuth();
   const { toast } = useToast();
   const { categories, addCategory, updateCategory, isLoading: isLoadingCategories, error: categoriesError, refetchCategories } = useSpendingCategories();
   
@@ -44,6 +57,8 @@ export default function CmsPage() {
   const [isSavingUiSettings, setIsSavingUiSettings] = useState(false);
   const [selectedLogoFileName, setSelectedLogoFileName] = useState<string | null>(null);
   const logoFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [updateActivitiesState, handleUpdateActivitiesSubmit, isUpdatingActivitiesPending] = useActionState(handleUpdateActivitiesWithHotelInfoAction, undefined);
 
 
   const fetchBudgetLimits = useCallback(async () => {
@@ -79,6 +94,26 @@ export default function CmsPage() {
       fetchUiSettings();
     }
   }, [isAdminOrMarketingManager, fetchBudgetLimits, fetchUiSettings]);
+
+  useEffect(() => {
+    if (updateActivitiesState?.message) {
+      if (updateActivitiesState.success) {
+        toast({
+          title: "Başarılı",
+          description: `${updateActivitiesState.message} (İşlenen: ${updateActivitiesState.processedCount}, Güncellenen: ${updateActivitiesState.updatedCount})`,
+          duration: 7000,
+        });
+      } else {
+        toast({
+          title: "Hata",
+          description: updateActivitiesState.message,
+          variant: "destructive",
+          duration: 7000,
+        });
+      }
+    }
+  }, [updateActivitiesState, toast]);
+
 
   const handleBudgetLimitChange = (hotelKey: keyof BudgetConfigData, value: string) => {
     const numericValue = parseFloat(value);
@@ -162,6 +197,25 @@ export default function CmsPage() {
     await updateCategory(id, name, limit);
     setIsEditDialogOpen(false);
     setSelectedCategory(null);
+  };
+
+  const onRunActivityUpdate = async () => {
+    if (!currentUser) {
+      toast({ title: "Hata", description: "İşlemi yapmak için kullanıcı bilgisi bulunamadı.", variant: "destructive" });
+      return;
+    }
+    try {
+      const idToken = await auth.currentUser?.getIdToken(true);
+      if (!idToken) {
+        toast({ title: "Kimlik Doğrulama Hatası", description: "İşlem için kimlik doğrulama token'ı alınamadı.", variant: "destructive" });
+        return;
+      }
+      const formData = new FormData();
+      formData.append('idToken', idToken);
+      handleUpdateActivitiesSubmit(formData);
+    } catch (error: any) {
+      toast({ title: "Token Hatası", description: `Kimlik token'ı alınırken hata: ${error.message}`, variant: "destructive" });
+    }
   };
   
   return (
@@ -359,6 +413,46 @@ export default function CmsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {isAdminOrMarketingManager && ( // Sadece adminler bu bölümü görsün
+            <Card className="shadow-lg md:col-span-2">
+                <CardHeader>
+                <CardTitle className="font-headline flex items-center"><DatabaseZap className="mr-2 h-5 w-5 text-primary"/> Veri Güncelleme Araçları</CardTitle>
+                <CardDescription>
+                    Bu araçlar, toplu veri güncellemeleri için kullanılır. Dikkatli olun, bu işlemler geri alınamaz olabilir.
+                </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="outline" disabled={isUpdatingActivitiesPending}>
+                                {isUpdatingActivitiesPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Aktiviteleri Otel Bilgisiyle Güncelle
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                            Bu işlem, 'hotel' alanı olmayan tüm proje aktivitelerini, bağlı oldukları projenin otel bilgisiyle güncelleyecektir.
+                            Çok sayıda aktivite varsa bu işlem biraz zaman alabilir. Devam etmek istiyor musunuz?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isUpdatingActivitiesPending}>İptal</AlertDialogCancel>
+                            <AlertDialogAction onClick={onRunActivityUpdate} disabled={isUpdatingActivitiesPending}>
+                                {isUpdatingActivitiesPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Evet, Güncelle
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <p className="text-xs text-muted-foreground mt-2">
+                        Bu, mevcut proje aktivitelerine 'hotel' alanını ekler. Yeni aktiviteler zaten bu bilgiyle oluşturulacaktır.
+                    </p>
+                </CardContent>
+            </Card>
+        )}
       </div>
        <p className="text-center text-muted-foreground">
         Bu alanda uygulamanın çeşitli iç ayarlarını ve içeriklerini yönetebilirsiniz.
@@ -366,8 +460,8 @@ export default function CmsPage() {
 
       {selectedCategory && (
         <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-            setIsEditDialogOpen(open);
             if (!open) setSelectedCategory(null);
+            setIsEditDialogOpen(open); // isEditDialogOpen state'ini senkronize et
         }}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -390,4 +484,3 @@ export default function CmsPage() {
     </div>
   );
 }
-
