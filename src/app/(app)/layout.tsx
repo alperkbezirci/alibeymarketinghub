@@ -7,9 +7,10 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarInset, SidebarHeader, SidebarFooter } from '@/components/ui/sidebar';
 import { AppLogo } from '@/components/layout/app-logo'; 
-import { AppLogotype } from '@/components/layout/app-logotype'; // Import logotype
+import { AppLogotype } from '@/components/layout/app-logotype';
 import Link from 'next/link';
 import { SpendingCategoriesProvider } from '@/contexts/spending-categories-context';
+import { GlobalLoader } from '@/components/layout/global-loader'; // GlobalLoader import edildi
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -25,11 +26,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [user, loading, router]);
 
   if (loading || !user) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p>Yükleniyor...</p>
-      </div>
-    );
+    // AuthProvider'dan gelen 'loading' veya 'user' null ise GlobalLoader göster
+    return <GlobalLoader />;
   }
 
   return (

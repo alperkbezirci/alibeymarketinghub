@@ -2,16 +2,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth, type User } from "@/contexts/auth-context"; // Import User type
+import { useAuth, type User } from "@/contexts/auth-context"; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Filter, SlidersHorizontal, AreaChart, History, ServerCrash, Loader2 } from "lucide-react";
+import { Filter, SlidersHorizontal, AreaChart, History, Loader2 } from "lucide-react"; // ServerCrash kaldırıldı
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { getAllUsers } from '@/services/user-service'; // Import user service
+import { getAllUsers } from '@/services/user-service'; 
 import { Skeleton } from '@/components/ui/skeleton';
+import { AppLogo } from '@/components/layout/app-logo'; // AppLogo import edildi
 
 interface TimelineItem {
   id?: string;
@@ -54,20 +55,14 @@ export default function DetailedReportsPage() {
   useEffect(() => {
     if (isAdminOrMarketingManager) {
         console.log("DetailedReportsPage: useEffect - A_FETCH_ACTIVITY_LOG_FROM_FIREBASE");
-        // TODO: Fetch timeline data from Firebase
-        // const fetchActivities = async () => {
-        //   // const activities = await getActivityLogFromFirestore();
-        //   // setTimelineData(activities);
-        // };
-        // fetchActivities();
     }
   }, [isAdminOrMarketingManager]);
 
   if (!isAdminOrMarketingManager) {
      return (
-      <div className="flex flex-col items-center justify-center h-full text-center">
-        <ServerCrash className="w-16 h-16 text-destructive mb-4" />
-        <h1 className="text-2xl font-bold">Erişim Reddedildi</h1>
+      <div className="flex flex-col items-center justify-center h-full text-center p-6">
+        <AppLogo className="h-20 w-auto text-destructive mb-6" />
+        <h1 className="text-2xl font-bold mb-2">Erişim Reddedildi</h1>
         <p className="text-muted-foreground">Bu sayfayı görüntüleme yetkiniz bulunmamaktadır.</p>
       </div>
     );
@@ -134,7 +129,6 @@ export default function DetailedReportsPage() {
             <CardDescription>Uygulama genelindeki önemli metrikler ve performans göstergeleri (Firebase'den gelecek).</CardDescription>
         </CardHeader>
         <CardContent>
-            {/* TODO: Display charts and stats from Firebase */}
             <p className="text-center text-muted-foreground p-8">Detaylı istatistik grafikleri ve tabloları burada yer alacak. Veriler Firebase'den yüklenecektir.</p>
         </CardContent>
       </Card>

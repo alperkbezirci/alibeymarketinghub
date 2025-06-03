@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/auth-context';
 import { ThemeProvider } from '@/components/theme-provider';
+import { GlobalLoader } from '@/components/layout/global-loader'; // GlobalLoader import edildi
 
 export const metadata: Metadata = {
   title: 'Ali Bey Marketing Hub',
@@ -30,6 +31,13 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
+            {/* AuthProvider içindeki loading state'i için bir fallback gösterilebilir.
+                Ancak AuthProvider'ın kendisi zaten bir loading state yönetiyor.
+                Bu örnekte, AuthProvider'ın children'ı doğrudan render ediyoruz.
+                AuthProvider kendi içinde GlobalLoader'ı kullanacak şekilde güncellenebilir
+                veya burada sarmalayıcı bir React.Suspense ile birlikte kullanılabilir.
+                Şimdilik AuthProvider'ın kendi iç mantığına güveniyoruz.
+            */}
             {children}
             <Toaster />
           </AuthProvider>

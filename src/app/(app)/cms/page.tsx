@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Settings, Palette, DollarSign, ListPlus, SlidersVertical, Edit2, Trash2, Loader2, UploadCloud } from "lucide-react";
+import { Settings, Palette, DollarSign, ListPlus, Edit2, Trash2, Loader2, UploadCloud } from "lucide-react"; // SlidersVertical kaldırıldı
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -14,8 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { CategoryEditForm } from "@/components/cms/category-edit-form";
 import { Skeleton } from '@/components/ui/skeleton';
 import { getHotelBudgetLimitsForCms, saveHotelBudgetLimitsCms, type BudgetConfigData } from '@/services/budget-config-service';
-import { getUiSettings, saveUiSettings, type UiSettings } from '@/services/ui-config-service'; // Import UI config service
+import { getUiSettings, saveUiSettings, type UiSettings } from '@/services/ui-config-service'; 
 import { cn } from '@/lib/utils';
+import { AppLogo } from '@/components/layout/app-logo'; // AppLogo import edildi
 
 
 export default function CmsPage() {
@@ -37,7 +38,6 @@ export default function CmsPage() {
   const [isLoadingBudgetLimits, setIsLoadingBudgetLimits] = useState(true);
   const [isSavingBudgetLimits, setIsSavingBudgetLimits] = useState(false);
 
-  // UI Settings State
   const [uiSettings, setUiSettings] = useState<UiSettings>({ mainTitle: '', logoUrl: '' });
   const [isLoadingUiSettings, setIsLoadingUiSettings] = useState(true);
   const [isSavingUiSettings, setIsSavingUiSettings] = useState(false);
@@ -63,7 +63,6 @@ export default function CmsPage() {
       const settings = await getUiSettings();
       setUiSettings(settings);
       if (settings.logoUrl && !settings.logoUrl.startsWith('https://placehold.co')) {
-        // Potentially extract filename from URL if it's a real uploaded file in future
       }
     } catch (error: any) {
       toast({ title: "Hata", description: error.message || "Arayüz ayarları yüklenemedi.", variant: "destructive" });
@@ -112,23 +111,14 @@ export default function CmsPage() {
   const handleSaveUISettings = async () => {
     setIsSavingUiSettings(true);
     try {
-      // For now, if a new file is selected, we're not uploading it, just clearing selection.
-      // Real file upload would be more complex.
-      // If a file was selected via selectedLogoFileName, we could *try* to use it,
-      // but for now, saveUiSettings expects a URL.
       const settingsToSave: UiSettings = {
         mainTitle: uiSettings.mainTitle,
-        // If selectedLogoFileName is set, it means user tried to pick a new file.
-        // We'd need to upload it first and get a URL.
-        // For this iteration, we'll just keep existing logoUrl or a placeholder if new file was picked but not uploaded.
         logoUrl: uiSettings.logoUrl || 'https://placehold.co/150x50.png?text=LOGO' 
       };
       await saveUiSettings(settingsToSave);
       toast({ title: "Başarılı", description: "Arayüz ayarları kaydedildi." });
-      // Optionally re-fetch settings or update local state if saveUiSettings doesn't return the full object
-      // fetchUiSettings(); 
-      setSelectedLogoFileName(null); // Clear file name after save attempt
-      if (logoFileInputRef.current) logoFileInputRef.current.value = ""; // Reset file input
+      setSelectedLogoFileName(null); 
+      if (logoFileInputRef.current) logoFileInputRef.current.value = ""; 
     } catch (error: any) {
       toast({ title: "Hata", description: error.message || "Arayüz ayarları kaydedilemedi.", variant: "destructive" });
     } finally {
@@ -139,9 +129,9 @@ export default function CmsPage() {
 
   if (!isAdminOrMarketingManager) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center">
-        <SlidersVertical className="w-16 h-16 text-destructive mb-4" />
-        <h1 className="text-2xl font-bold">Erişim Reddedildi</h1>
+      <div className="flex flex-col items-center justify-center h-full text-center p-6">
+        <AppLogo className="h-20 w-auto text-destructive mb-6" />
+        <h1 className="text-2xl font-bold mb-2">Erişim Reddedildi</h1>
         <p className="text-muted-foreground">Bu sayfayı görüntüleme yetkiniz bulunmamaktadır.</p>
       </div>
     );
@@ -178,7 +168,6 @@ export default function CmsPage() {
       <h1 className="text-3xl font-headline font-bold">İçerik Yönetim Sistemi (CMS)</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* UI Customization Placeholder */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><Palette className="mr-2 h-5 w-5 text-primary"/> Arayüz Özelleştirme</CardTitle>
@@ -213,8 +202,6 @@ export default function CmsPage() {
                         accept="image/png, image/jpeg"
                         onChange={(e) => {
                             setSelectedLogoFileName(e.target.files?.[0]?.name || null);
-                            // If you want to preview image, you'd handle e.target.files[0] here
-                            // For now, just updating the name. Actual upload needs more logic.
                         }}
                         ref={logoFileInputRef}
                     />
@@ -247,7 +234,6 @@ export default function CmsPage() {
           </CardContent>
         </Card>
 
-        {/* Budget Management */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/> Ana Bütçe Limitleri</CardTitle>
@@ -305,7 +291,6 @@ export default function CmsPage() {
           </CardContent>
         </Card>
 
-        {/* Spending Categories */}
         <Card className="shadow-lg md:col-span-2">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><ListPlus className="mr-2 h-5 w-5 text-primary"/> Harcama Kategorileri</CardTitle>
@@ -334,11 +319,6 @@ export default function CmsPage() {
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600 hover:text-blue-500" onClick={() => handleEditCategory(category)}>
                           <Edit2 className="h-4 w-4" />
                         </Button>
-                        {/* 
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive/80" onClick={() => handleDeleteCategory(category.id, category.name)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        */}
                       </div>
                     </li>
                   ))}

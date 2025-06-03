@@ -1,9 +1,10 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useEffect } from 'react'; // Added React import
+import React, { useEffect } from 'react'; 
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { GlobalLoader } from '@/components/layout/global-loader'; // GlobalLoader import edildi
 
 export default function RootPage() {
   const { user, loading } = useAuth();
@@ -19,9 +20,12 @@ export default function RootPage() {
     }
   }, [user, loading, router]);
 
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <p>Yükleniyor...</p>
-    </div>
-  );
+  // Auth durumu belirlenene kadar GlobalLoader göster
+  if (loading) {
+    return <GlobalLoader />;
+  }
+  
+  // Kullanıcı durumu netleşene kadar veya yönlendirme gerçekleşene kadar bir yükleme ekranı.
+  // Bu, AuthProvider'ın yönlendirmesi beklenirken kısa bir süre görünebilir.
+  return <GlobalLoader message="Yönlendiriliyor..." />;
 }

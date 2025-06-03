@@ -13,19 +13,21 @@ import { useAuth } from '@/contexts/auth-context';
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from "@/components/ui/button"; // Added buttonVariants
+import { Button, buttonVariants } from "@/components/ui/button"; 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud } from 'lucide-react'; // Added UploadCloud
+import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud } from 'lucide-react'; 
 import { format, formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
+import { AppLogo } from '@/components/layout/app-logo'; // AppLogo import edildi
+import { GlobalLoader } from '@/components/layout/global-loader'; // GlobalLoader import edildi
 
 
 function SubmitActivityButton() {
@@ -41,7 +43,7 @@ function SubmitActivityButton() {
 export default function ProjectDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const { user: currentUser, isAdminOrMarketingManager } = useAuth(); // Removed getDisplayName for now
+  const { user: currentUser, isAdminOrMarketingManager } = useAuth(); 
   const { toast } = useToast();
   const projectId = typeof params.id === 'string' ? params.id : undefined;
 
@@ -159,11 +161,10 @@ export default function ProjectDetailsPage() {
         toast({ title: "Başarılı", description: addActivityState.message });
         activityFormRef.current?.reset();
         if(fileInputRef.current) fileInputRef.current.value = "";
-        setSelectedActivityFileName(null); // Reset selected file name
+        setSelectedActivityFileName(null); 
         fetchActivitiesForProject();
-        // Refresh token for next submission
         if (currentUser) {
-          currentUser.getIdToken(true).then(token => { // Force refresh token
+          currentUser.getIdToken(true).then(token => { 
             setIdTokenForActivityForm(token);
           }).catch(err => console.error("Error refreshing ID token:", err));
         }
@@ -196,7 +197,7 @@ export default function ProjectDetailsPage() {
     let result;
     if (decisionType === 'approve') {
       result = await handleApproveActivityAction(activityForDecision.id, projectId, managerFeedbackInput);
-    } else { // decisionType === 'reject'
+    } else { 
       result = await handleRejectActivityAction(activityForDecision.id, projectId, managerFeedbackInput);
     }
 
@@ -266,28 +267,15 @@ export default function ProjectDetailsPage() {
   };
 
 
-  if (isLoadingProject) {
-    return (
-      <div className="space-y-6 p-4 animate-pulse">
-        <Skeleton className="h-8 w-1/4 mb-4" />
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6">
-            <Card><CardHeader><Skeleton className="h-10 w-3/4 mb-2" /><Skeleton className="h-5 w-1/2" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-5 w-full" /><Skeleton className="h-20 w-full" /></CardContent></Card>
-            <Card><CardHeader><Skeleton className="h-8 w-1/3" /></CardHeader><CardContent><Skeleton className="h-16 w-full" /></CardContent></Card>
-          </div>
-          <div className="md:col-span-1 space-y-6">
-            <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent><Skeleton className="h-24 w-full" /><Skeleton className="h-10 w-1/3 mt-2" /></CardContent></Card>
-            <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></CardContent></Card>
-          </div>
-        </div>
-      </div>
-    );
+  if (isLoadingProject || isLoadingTasks || isLoadingActivities) {
+    return <GlobalLoader message="Proje detayları yükleniyor..." />;
   }
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
+        <AppLogo className="h-16 w-auto text-destructive mb-4" />
+        <AlertTriangle className="w-12 h-12 text-destructive mb-3" />
         <h2 className="text-2xl font-semibold mb-2">Hata</h2>
         <p className="text-muted-foreground mb-4">{error}</p>
         <Button onClick={() => router.push('/projects')}>Proje Listesine Dön</Button>
@@ -298,7 +286,8 @@ export default function ProjectDetailsPage() {
   if (!project) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
+        <AppLogo className="h-16 w-auto text-muted-foreground mb-4" />
+        <AlertTriangle className="w-12 h-12 text-destructive mb-3" />
         <h2 className="text-2xl font-semibold mb-2">Proje Bulunamadı</h2>
         <p className="text-muted-foreground mb-4">Aradığınız proje mevcut değil veya silinmiş olabilir.</p>
         <Button onClick={() => router.push('/projects')}>Proje Listesine Dön</Button>
@@ -598,7 +587,6 @@ export default function ProjectDetailsPage() {
         </div>
       </div>
 
-      {/* Manager Decision Dialog */}
       <Dialog open={!!activityForDecision && !!decisionType} onOpenChange={(open) => {
         if (!open) {
           setActivityForDecision(null);

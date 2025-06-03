@@ -1,4 +1,3 @@
-
 // src/app/(app)/user-management/page.tsx
 "use client";
 
@@ -6,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, type User } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { PlusCircle, Edit3, Trash2, UserCog, Loader2, RefreshCw } from "lucide-react";
+import { PlusCircle, Edit3, Trash2, Loader2, RefreshCw } from "lucide-react"; // UserCog kaldırıldı
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +16,7 @@ import { AddUserForm } from '@/components/user-management/add-user-form';
 import { EditUserForm } from '@/components/user-management/edit-user-form';
 import { handleDeleteUserAction } from './actions';
 import { USER_ROLES } from '@/lib/constants';
+import { AppLogo } from '@/components/layout/app-logo'; // AppLogo import edildi
 
 
 export default function UserManagementPage() {
@@ -85,7 +85,7 @@ export default function UserManagementPage() {
           <h1 className="text-3xl font-headline font-bold">Kullanıcı Yönetimi</h1>
         </div>
          <div className="flex flex-col items-center justify-center h-64 text-center border rounded-lg p-8">
-          <UserCog className="w-16 h-16 text-destructive mb-4" />
+          <AppLogo className="h-16 w-auto text-destructive mb-6" />
           <h1 className="text-2xl font-bold">Erişim Kısıtlı</h1>
           <p className="text-muted-foreground">Bu sayfayı görüntülemek için yönetici olarak giriş yapmalısınız.</p>
         </div>
@@ -236,4 +236,3 @@ export default function UserManagementPage() {
     </div>
   );
 }
-
