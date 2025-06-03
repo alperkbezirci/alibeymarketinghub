@@ -3,10 +3,15 @@
 'use server';
 /**
  * @fileOverview Firestore service for managing project activities (comments, file uploads, status changes).
+ * Firestore Rules Reminder for 'projectActivities' collection:
+ * Ensure that authenticated users have permission to:
+ * - read activities (e.g., allow read: if request.auth != null;)
+ * - create activities, matching their userId (e.g., allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;)
+ * - update their own draft activities (e.g., allow update: if request.auth != null && request.auth.uid == resource.data.userId && resource.data.status == 'draft';)
+ * Marketing Managers/Admins might need broader update permissions for changing status from 'pending_approval' to 'approved'/'rejected'.
  */
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, Timestamp, doc, updateDoc } from 'firebase/firestore';
-import type { User } from '@/contexts/auth-context'; // For user info
 
 // Helper to safely convert Firestore Timestamps or Dates to ISO strings
 const convertToISOString = (dateField: any): string | undefined => {
@@ -21,28 +26,11 @@ const convertToISOString = (dateField: any): string | undefined => {
   }
 };
 
-export type ProjectActivityType = 'comment' | 'file_upload' | 'status_update';
+export type ProjectActivityType = 'comment' | 'file_upload' | 'status_update'; // 'status_update' can be used for approval log later
 export type ProjectActivityStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'information';
 
 export interface ProjectActivity {
   id: string;
-  projectId: string;
-  userId: string;
-  userName: string; // Denormalized for easier display
-  userPhotoURL?: string; // Denormalized
-  type: ProjectActivityType;
-  content?: string; // For comments or messages
-  fileName?: string;
-  fileType?: string; // e.g., 'image/png', 'application/pdf'
-  // fileURL will be added once actual file storage is implemented
-  newStatus?: string; // For status_update type
-  previousStatus?: string; // For status_update type
-  status: ProjectActivityStatus; // For the activity itself (e.g., comment awaiting approval)
-  messageForManager?: string;
-  createdAt: string; // ISO string
-}
-
-export interface ProjectActivityInputData {
   projectId: string;
   userId: string;
   userName: string;
@@ -51,32 +39,58 @@ export interface ProjectActivityInputData {
   content?: string;
   fileName?: string;
   fileType?: string;
-  newStatus?: string;
-  previousStatus?: string;
-  status: ProjectActivityStatus; // Initial status (e.g., 'draft' or 'information')
-  messageForManager?: string;
+  status: ProjectActivityStatus;
+  messageForManager?: string; // Message from user when sending for approval
+  managerFeedback?: string; // Feedback from manager when approving/rejecting
+  createdAt: string; // ISO string
+  updatedAt?: string; // ISO string for status changes or edits
+}
+
+export interface ProjectActivityInputData {
+  projectId: string;
+  userId: string;
+  userName: string;
+  userPhotoURL?: string;
+  type: ProjectActivityType;
+  status: ProjectActivityStatus; // Action will determine this
+  content?: string;
+  fileName?: string;
+  fileType?: string;
+  // messageForManager is handled in update, not initial creation via this direct service input
 }
 
 const PROJECT_ACTIVITIES_COLLECTION = 'projectActivities';
 
 export async function addProjectActivity(activityData: ProjectActivityInputData): Promise<ProjectActivity> {
   try {
-    const dataToSave = {
-      ...activityData,
+    const dataToSave: any = {
+      projectId: activityData.projectId,
+      userId: activityData.userId,
+      userName: activityData.userName,
+      type: activityData.type,
+      status: activityData.status, // Status is now set by the action
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(), // Initialize updatedAt
     };
+
+    if (activityData.userPhotoURL) dataToSave.userPhotoURL = activityData.userPhotoURL;
+    if (activityData.content) dataToSave.content = activityData.content;
+    if (activityData.fileName) dataToSave.fileName = activityData.fileName;
+    if (activityData.fileType) dataToSave.fileType = activityData.fileType;
+    
     const docRef = await addDoc(collection(db, PROJECT_ACTIVITIES_COLLECTION), dataToSave);
     
-    // For consistency, we should ideally fetch the document to get the server timestamp
-    // but for now, we'll approximate or rely on client-side re-fetch.
     return {
       id: docRef.id,
-      ...activityData,
+      ...activityData, // original data passed, status will be from action
       createdAt: new Date().toISOString(), // Approximation
+      updatedAt: new Date().toISOString(), // Approximation
     };
-  } catch (error) {
-    console.error("Error adding project activity: ", error);
-    throw new Error("Proje aktivitesi eklenirken bir hata oluştu.");
+  } catch (error: any) {
+    console.error("[SERVICE_ERROR] Original error in addProjectActivity:", error);
+    // Log the full error object for more details, especially for Firebase errors
+    console.error("Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    throw new Error(`Proje aktivitesi eklenirken bir hata oluştu: ${error.message || 'Bilinmeyen sunucu hatası'}. Lütfen konsolu kontrol edin.`);
   }
 }
 
@@ -98,26 +112,32 @@ export async function getProjectActivities(projectId: string): Promise<ProjectAc
         content: data.content,
         fileName: data.fileName,
         fileType: data.fileType,
-        newStatus: data.newStatus,
-        previousStatus: data.previousStatus,
         status: data.status as ProjectActivityStatus,
         messageForManager: data.messageForManager,
-        createdAt: convertToISOString(data.createdAt)!, // createdAt should always exist
+        managerFeedback: data.managerFeedback,
+        createdAt: convertToISOString(data.createdAt)!, 
+        updatedAt: convertToISOString(data.updatedAt),
       } as ProjectActivity;
     });
     return activityList;
-  } catch (error) {
-    console.error(`Error fetching activities for project ID ${projectId}: `, error);
-    throw new Error(`Projeye ait aktiviteler alınırken bir hata oluştu (Proje ID: ${projectId}).`);
+  } catch (error:any) {
+    console.error(`[SERVICE_ERROR] Original error fetching activities for project ID ${projectId}: `, error);
+    let detailedMessage = `Projeye ait aktiviteler alınırken bir hata oluştu (Proje ID: ${projectId}). `;
+    if (error.code === "failed-precondition" || (error.message && error.message.toLowerCase().includes("index required"))) {
+        detailedMessage += "Bu, genellikle Firestore'da eksik bir veritabanı indeksi anlamına gelir. Lütfen tarayıcı konsolundaki orijinal hata mesajını kontrol edin; orada indeksi oluşturmak için bir bağlantı olabilir.";
+    } else {
+        detailedMessage += "Daha fazla bilgi için tarayıcı konsolunu kontrol edin.";
+    }
+    throw new Error(detailedMessage);
   }
 }
 
 export async function updateProjectActivity(activityId: string, updates: Partial<Omit<ProjectActivity, 'id' | 'projectId' | 'userId' | 'userName' | 'createdAt'>>): Promise<void> {
   try {
     const activityDoc = doc(db, PROJECT_ACTIVITIES_COLLECTION, activityId);
-    await updateDoc(activityDoc, updates);
-  } catch (error) {
-    console.error(`Error updating project activity ${activityId}: `, error);
-    throw new Error(`Proje aktivitesi (${activityId}) güncellenirken bir hata oluştu.`);
+    await updateDoc(activityDoc, { ...updates, updatedAt: serverTimestamp() });
+  } catch (error: any) {
+    console.error(`[SERVICE_ERROR] Error updating project activity ${activityId}: `, error);
+    throw new Error(`Proje aktivitesi (${activityId}) güncellenirken bir hata oluştu: ${error.message || 'Bilinmeyen sunucu hatası'}`);
   }
 }

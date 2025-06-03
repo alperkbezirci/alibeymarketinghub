@@ -20,18 +20,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { cn } from '@/lib/utils';
 
 
 function SubmitActivityButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} size="sm">
+    <Button type="submit" disabled={pending} className="w-full sm:w-auto">
       {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
       Gönder
     </Button>
@@ -56,7 +57,7 @@ export default function ProjectDetailsPage() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const [addActivityState, handleAddActivitySubmit, isAddActivityPending] = useActionState(handleAddProjectActivityAction, undefined);
+  const [addActivityState, handleAddActivitySubmit] = useActionState(handleAddProjectActivityAction, undefined);
   const activityFormRef = React.useRef<HTMLFormElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -77,6 +78,9 @@ export default function ProjectDetailsPage() {
       const fetchedProject = await getProjectById(projectId);
       setProject(fetchedProject);
       if (fetchedProject && fetchedProject.responsiblePersons && fetchedProject.responsiblePersons.length > 0) {
+        const fetchedUsers = await getAllUsers(); // Fetch all users if project has responsible persons
+        setUsers(fetchedUsers);
+      } else if (fetchedProject) { // Project exists but no responsible persons, still need users for activity display
         const fetchedUsers = await getAllUsers();
         setUsers(fetchedUsers);
       }
@@ -97,14 +101,13 @@ export default function ProjectDetailsPage() {
       setProjectTasks(tasks);
     } catch (err: any) {
       console.error("Error fetching project tasks:", err);
-      // It's crucial for the user to check their browser console for Firestore index creation links.
       let userFriendlyMessage = "Projeye ait görevler yüklenirken bir hata oluştu. ";
       if (err.message && (err.message.includes("index required") || err.message.includes("needs an index"))) {
           userFriendlyMessage += "Bu, genellikle Firestore'da eksik bir veritabanı indeksi anlamına gelir. Lütfen tarayıcı konsolundaki orijinal hata mesajını kontrol edin; orada indeksi oluşturmak için bir bağlantı olabilir.";
       } else {
           userFriendlyMessage += "Daha fazla bilgi için tarayıcı konsolunu kontrol edin.";
       }
-      toast({ title: "Görev Yükleme Hatası", description: userFriendlyMessage, variant: "destructive", duration: 10000 });
+      toast({ title: "Görev Yükleme Hatası", description: userFriendlyMessage, variant: "destructive", duration: 15000 });
     } finally {
       setIsLoadingTasks(false);
     }
@@ -124,7 +127,7 @@ export default function ProjectDetailsPage() {
       } else {
           userFriendlyMessage += "Daha fazla bilgi için tarayıcı konsolunu kontrol edin.";
       }
-      toast({ title: "Aktivite Yükleme Hatası", description: userFriendlyMessage, variant: "destructive", duration: 10000 });
+      toast({ title: "Aktivite Yükleme Hatası", description: userFriendlyMessage, variant: "destructive", duration: 15000 });
     } finally {
       setIsLoadingActivities(false);
     }
@@ -156,9 +159,9 @@ export default function ProjectDetailsPage() {
     const result = await handleUpdateActivityStatusAction(activityToApprove.id, projectId, 'pending_approval', approvalMessage);
     if (result.success) {
         toast({ title: "Başarılı", description: result.message });
-        fetchActivitiesForProject();
-        setActivityToApprove(null);
-        setApprovalMessage("");
+        fetchActivitiesForProject(); // Refresh activities to show new status
+        setActivityToApprove(null); // Close dialog
+        setApprovalMessage("");     // Reset message
     } else {
         toast({ title: "Hata", description: result.message, variant: "destructive" });
     }
@@ -206,22 +209,23 @@ export default function ProjectDetailsPage() {
     }
   };
   
-  const getActivityStatusInfo = (status: ProjectActivityStatus) => {
+  const getActivityStatusInfo = (status: ProjectActivityStatus | undefined) => {
+    if (!status) return { text: 'Bilinmiyor', icon: Info, color: 'bg-gray-500 text-gray-foreground', iconColor: 'text-gray-500' };
     switch (status) {
-      case 'draft': return { text: 'Taslak', icon: Edit, color: 'bg-yellow-500 text-yellow-foreground' };
-      case 'pending_approval': return { text: 'Onay Bekliyor', icon: Clock, color: 'bg-orange-500 text-orange-foreground' };
-      case 'approved': return { text: 'Onaylandı', icon: CheckCircle, color: 'bg-green-500 text-green-foreground' };
-      case 'rejected': return { text: 'Reddedildi', icon: AlertCircle, color: 'bg-red-500 text-red-foreground' };
-      case 'information': return { text: 'Bilgi', icon: Info, color: 'bg-blue-500 text-blue-foreground' };
-      default: return { text: status, icon: Info, color: 'bg-gray-500 text-gray-foreground' };
+      case 'draft': return { text: 'Taslak', icon: Edit, color: 'bg-yellow-100 dark:bg-yellow-800/30 text-yellow-700 dark:text-yellow-300', iconColor: 'text-yellow-500' };
+      case 'pending_approval': return { text: 'Onay Bekliyor', icon: Clock, color: 'bg-orange-100 dark:bg-orange-800/30 text-orange-700 dark:text-orange-300', iconColor: 'text-orange-500' };
+      case 'approved': return { text: 'Onaylandı', icon: CheckCircle, color: 'bg-green-100 dark:bg-green-800/30 text-green-700 dark:text-green-300', iconColor: 'text-green-500' };
+      case 'rejected': return { text: 'Reddedildi', icon: AlertCircle, color: 'bg-red-100 dark:bg-red-800/30 text-red-700 dark:text-red-300', iconColor: 'text-red-500' };
+      case 'information': return { text: 'Bilgi', icon: Info, color: 'bg-blue-100 dark:bg-blue-800/30 text-blue-700 dark:text-blue-300', iconColor: 'text-blue-500' };
+      default: return { text: status, icon: Info, color: 'bg-gray-100 dark:bg-gray-700/30 text-gray-700 dark:text-gray-300', iconColor: 'text-gray-500' };
     }
   };
 
 
   if (isLoadingProject) {
     return (
-      <div className="space-y-6 p-4">
-        <Skeleton className="h-8 w-1/4" />
+      <div className="space-y-6 p-4 animate-pulse">
+        <Skeleton className="h-8 w-1/4 mb-4" /> 
         <div className="grid md:grid-cols-3 gap-6">
           <div className="md:col-span-2 space-y-6">
             <Card><CardHeader><Skeleton className="h-10 w-3/4 mb-2" /><Skeleton className="h-5 w-1/2" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-5 w-full" /><Skeleton className="h-20 w-full" /></CardContent></Card>
@@ -229,6 +233,7 @@ export default function ProjectDetailsPage() {
           </div>
           <div className="md:col-span-1 space-y-6">
             <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent><Skeleton className="h-24 w-full" /><Skeleton className="h-10 w-1/3 mt-2" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></CardContent></Card>
           </div>
         </div>
       </div>
@@ -259,14 +264,14 @@ export default function ProjectDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <Button variant="outline" onClick={() => router.push('/projects')} className="mb-4">
+      <Button variant="outline" onClick={() => router.push('/projects')} className="mb-4 print:hidden">
         <ArrowLeft className="mr-2 h-4 w-4" /> Proje Listesine Dön
       </Button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Sol Sütun: Proje Detayları ve Görevler */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="shadow-lg">
+          <Card className="shadow-lg print:shadow-none">
             <CardHeader>
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                 <div>
@@ -275,7 +280,7 @@ export default function ProjectDetailsPage() {
                     <Hotel className="mr-2 h-4 w-4 text-muted-foreground" /> {project.hotel || 'Belirtilmemiş'}
                   </CardDescription>
                 </div>
-                {project.status && <Badge className={`text-sm px-3 py-1 ${getStatusColor(project.status)}`}>{project.status}</Badge>}
+                {project.status && <Badge className={cn("text-sm px-3 py-1", getStatusColor(project.status))}>{project.status}</Badge>}
               </div>
             </CardHeader>
             <CardContent className="space-y-6 text-sm sm:text-base">
@@ -301,31 +306,31 @@ export default function ProjectDetailsPage() {
 
               <div className="text-xs text-muted-foreground pt-4 border-t mt-6">
                 <p>Oluşturulma Tarihi: {formatDateDisplay(project.createdAt, 'dd.MM.yyyy HH:mm')}</p>
-                {project.updatedAt && <p>Son Güncelleme: {formatDateDisplay(project.updatedAt, 'dd.MM.yyyy HH:mm')}</p>}
+                {project.updatedAt && project.updatedAt !== project.createdAt && <p>Son Güncelleme: {formatDateDisplay(project.updatedAt, 'dd.MM.yyyy HH:mm')}</p>}
               </div>
             </CardContent>
-            <CardFooter className="flex justify-end">
+            <CardFooter className="flex justify-end print:hidden">
               <Button variant="outline" onClick={() => toast({title: "Düzenleme Modu", description:"Proje düzenleme formu burada açılacak."})}>
-                Projeyi Düzenle
+                <Edit className="mr-2 h-4 w-4" /> Projeyi Düzenle
               </Button>
             </CardFooter>
           </Card>
 
-          <Card className="shadow-lg">
+          <Card className="shadow-lg print:shadow-none">
             <CardHeader>
               <CardTitle className="font-headline text-xl flex items-center"><GitBranch className="mr-2 h-5 w-5 text-primary"/>Bağlı Görevler</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoadingTasks ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
+                <div className="space-y-3">
+                  <Skeleton className="h-12 w-full rounded-md" />
+                  <Skeleton className="h-12 w-full rounded-md" />
                 </div>
               ) : projectTasks.length > 0 ? (
                 <ul className="space-y-3">
                   {projectTasks.map(task => (
-                    <li key={task.id} className="p-3 border rounded-md hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start">
+                    <li key={task.id} className="p-3 border rounded-md hover:shadow-md transition-shadow bg-card/50">
+                      <div className="flex justify-between items-start mb-1">
                         <p className="font-semibold text-base">{task.taskName}</p>
                         <Badge variant={task.status === "Tamamlandı" ? "default" : "secondary"}>{task.status}</Badge>
                       </div>
@@ -342,13 +347,13 @@ export default function ProjectDetailsPage() {
         </div>
 
         {/* Sağ Sütun: İşbirliği Alanı */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-6 print:hidden">
           <Card className="shadow-lg sticky top-20"> 
             <CardHeader>
               <CardTitle className="font-headline text-xl flex items-center"><MessageSquare className="mr-2 h-5 w-5 text-primary" />Proje Akışı & Yorumlar</CardTitle>
             </CardHeader>
-            <CardContent>
-              <form action={handleAddActivitySubmit} ref={activityFormRef} className="space-y-3 mb-6">
+            <CardContent className="pt-0"> {/* pt-0 to align with new form structure */}
+              <form action={handleAddActivitySubmit} ref={activityFormRef} className="space-y-4 mb-6 p-4 border rounded-lg bg-muted/20">
                 <input type="hidden" name="projectId" value={projectId} />
                 {currentUser && (
                   <>
@@ -358,83 +363,117 @@ export default function ProjectDetailsPage() {
                   </>
                 )}
                 <div>
-                  <Label htmlFor="activityContent">Yorum veya Güncelleme Ekle</Label>
-                  <Textarea id="activityContent" name="content" placeholder="Proje hakkında bir güncelleme yazın..." rows={3} />
+                  <Label htmlFor="activityContent" className="sr-only">Yorumunuz</Label>
+                  <Textarea 
+                    id="activityContent" 
+                    name="content" 
+                    placeholder="Proje hakkında bir güncelleme, yorum veya soru yazın..." 
+                    rows={3} 
+                    className="bg-background"
+                  />
                 </div>
-                <div>
-                  <Label htmlFor="activityFile">Dosya Ekle (Opsiyonel)</Label>
-                  <Input id="activityFile" name="file" type="file" ref={fileInputRef} />
-                  <p className="text-xs text-muted-foreground mt-1">Dosya yükleme işlevi yakında eklenecektir. Şimdilik sadece dosya adı kaydedilir.</p>
-                </div>
-                <div className="flex justify-end">
-                  <SubmitActivityButton />
+                <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                    <div className="flex-grow">
+                        <Label htmlFor="activityFile" className="text-xs font-medium">Dosya Ekle (Opsiyonel)</Label>
+                        <Input id="activityFile" name="file" type="file" ref={fileInputRef} className="mt-1 text-sm bg-background file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:bg-muted file:text-muted-foreground hover:file:bg-muted/80" />
+                        <p className="text-xs text-muted-foreground mt-1">Dosya yükleme işlevi tam olarak aktif değildir. Şimdilik sadece dosya adı kaydedilir.</p>
+                    </div>
+                    <SubmitActivityButton />
                 </div>
               </form>
 
-              <h4 className="text-md font-semibold mb-2 border-t pt-4">Geçmiş Aktiviteler</h4>
+              <h4 className="text-md font-semibold mb-3 mt-6 border-t pt-4">Geçmiş Aktiviteler</h4>
               {isLoadingActivities ? (
-                <div className="space-y-3">
-                    <div className="flex items-start space-x-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1 flex-1"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" /></div></div>
-                    <div className="flex items-start space-x-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="space-y-1 flex-1"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-4 w-full" /></div></div>
+                <div className="space-y-4">
+                    {[1,2,3].map(i => (
+                        <div key={i} className="flex items-start space-x-3 p-3 border rounded-md bg-background/30 animate-pulse">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="space-y-2 flex-1">
+                                <Skeleton className="h-4 w-1/3" />
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-2/3" />
+                            </div>
+                        </div>
+                    ))}
                 </div>
               ) : projectActivities.length > 0 ? (
-                <ScrollArea className="h-[400px] pr-3"> 
+                <ScrollArea className="h-[calc(100vh-380px)] min-h-[300px] pr-1"> 
                   <ul className="space-y-4">
                     {projectActivities.map(activity => {
                       const activityStatusInfo = getActivityStatusInfo(activity.status);
                       const Icon = activityStatusInfo.icon;
+                      const isCurrentUserAuthor = activity.userId === currentUser?.uid;
+
                       return (
-                        <li key={activity.id} className="flex items-start space-x-3 p-3 border rounded-md bg-card/50">
-                           <Avatar className="h-10 w-10 border">
+                        <li key={activity.id} className="flex space-x-3 p-3.5 border rounded-lg shadow-sm bg-card hover:shadow-md transition-shadow duration-200">
+                           <Avatar className="h-10 w-10 border mt-0.5">
                             <AvatarImage src={activity.userPhotoURL || `https://placehold.co/40x40.png`} alt={activity.userName} data-ai-hint="user avatar" />
-                            <AvatarFallback>{activity.userName?.substring(0,1) || 'K'}</AvatarFallback>
+                            <AvatarFallback>{activity.userName?.substring(0,1).toUpperCase() || 'K'}</AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                               <p className="text-sm font-semibold">{activity.userName}</p>
-                               <p className="text-xs text-muted-foreground">{formatRelativeTime(activity.createdAt)}</p>
+                            <div className="flex items-center justify-between mb-0.5">
+                               <p className="text-sm font-semibold text-card-foreground">{activity.userName}</p>
+                               <p className="text-xs text-muted-foreground" title={formatDateDisplay(activity.createdAt, 'dd MMMM yyyy, HH:mm:ss')}>
+                                {formatRelativeTime(activity.createdAt)}
+                               </p>
                             </div>
-                            {activity.type === 'comment' && activity.content && <p className="text-sm mt-1 whitespace-pre-line">{activity.content}</p>}
-                            {activity.type === 'file_upload' && activity.fileName && (
-                              <div className="mt-1 p-2 border rounded-md bg-muted/30">
-                                <Paperclip className="inline mr-2 h-4 w-4" />
-                                <span className="text-sm font-medium">{activity.fileName}</span>
-                                {activity.content && <p className="text-xs text-muted-foreground mt-1">{activity.content}</p>}
+                            
+                            {activity.type === 'comment' && activity.content && 
+                                <p className="text-sm text-foreground/90 mt-1 whitespace-pre-line leading-relaxed">{activity.content}</p>
+                            }
+                            {activity.type === 'file_upload' && (
+                              <div className="mt-1.5 p-2.5 border rounded-md bg-muted/40 hover:bg-muted/60 transition-colors">
+                                <div className="flex items-center text-sm">
+                                    <Paperclip className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium text-foreground/90">{activity.fileName}</span>
+                                </div>
+                                {activity.fileType && <p className="text-xs text-muted-foreground ml-6">{activity.fileType}</p>}
+                                {activity.content && <p className="text-xs text-muted-foreground mt-1 ml-6 pt-1 border-t border-dashed">{activity.content}</p>}
                               </div>
                             )}
-                            <div className="flex items-center justify-between mt-2">
-                                <Badge variant="outline" className={`text-xs ${activityStatusInfo.color}`}>
-                                    <Icon className="mr-1 h-3 w-3" />
+
+                            <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-dashed">
+                                <Badge variant="outline" className={cn("text-xs font-medium py-0.5 px-2", activityStatusInfo.color)}>
+                                    <Icon className={cn("mr-1.5 h-3.5 w-3.5", activityStatusInfo.iconColor)} />
                                     {activityStatusInfo.text}
                                 </Badge>
-                                {activity.status === 'draft' && activity.userId === currentUser?.uid && (
+                                {activity.status === 'draft' && isCurrentUserAuthor && (
                                     <Dialog open={activityToApprove?.id === activity.id} onOpenChange={(open) => {
                                         if (open) {
                                             setActivityToApprove(activity);
+                                            setApprovalMessage(activity.messageForManager || ""); // Pre-fill message if any
                                         } else {
                                             setActivityToApprove(null);
-                                            setApprovalMessage(""); // Reset message on close
+                                            setApprovalMessage(""); 
                                         }
                                     }}>
                                         <DialogTrigger asChild>
-                                            <Button variant="outline" size="xs" className="text-xs">
-                                                <ThumbsUp className="mr-1 h-3 w-3" /> Onaya Gönder
+                                            <Button variant="outline" size="xs" className="text-xs h-7 px-2 py-1 text-primary hover:bg-primary/5 border-primary/50">
+                                                <ThumbsUp className="mr-1 h-3.5 w-3.5" /> Onaya Gönder
                                             </Button>
                                         </DialogTrigger>
                                         <DialogContent>
                                             <DialogHeader>
-                                                <DialogTitle>İçeriği Onaya Gönder</DialogTitle>
+                                                <DialogTitle className="font-headline text-xl">İçeriği Onaya Gönder</DialogTitle>
                                                 <DialogDescription>
-                                                    Bu güncellemeyi Pazarlama Müdürü'ne onaya göndermek üzeresiniz. İsteğe bağlı bir mesaj ekleyebilirsiniz.
-                                                    İçerik: "{activity.content || activity.fileName}"
+                                                  Aşağıdaki güncellemeyi Pazarlama Müdürü'ne onaya göndermek üzeresiniz. İsteğe bağlı bir mesaj ekleyebilirsiniz.
+                                                  <blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">
+                                                    {activity.content ? `"${activity.content.substring(0,100)}${activity.content.length > 100 ? "..." : ""}"` 
+                                                                    : `Dosya: "${activity.fileName}"`}
+                                                  </blockquote>
                                                 </DialogDescription>
                                             </DialogHeader>
-                                            <Textarea 
-                                                placeholder="Pazarlama Müdürü için mesaj (opsiyonel)..."
-                                                value={approvalMessage}
-                                                onChange={(e) => setApprovalMessage(e.target.value)}
-                                                rows={3}
-                                            />
+                                            <div className="py-2">
+                                                <Label htmlFor="approvalMessage" className="text-sm font-medium">Yönetici için Mesaj (Opsiyonel)</Label>
+                                                <Textarea 
+                                                    id="approvalMessage"
+                                                    placeholder="Onaylayan kişiye iletmek istediğiniz notlar..."
+                                                    value={approvalMessage}
+                                                    onChange={(e) => setApprovalMessage(e.target.value)}
+                                                    rows={3}
+                                                    className="mt-1"
+                                                />
+                                            </div>
                                             <DialogFooter>
                                                 <DialogClose asChild>
                                                     <Button variant="ghost">İptal</Button>
@@ -449,7 +488,14 @@ export default function ProjectDetailsPage() {
                                 )}
                             </div>
                             {activity.status === 'pending_approval' && activity.messageForManager && (
-                                <p className="text-xs italic text-muted-foreground mt-1 border-l-2 border-orange-500 pl-2">Yönetici Mesajı: {activity.messageForManager}</p>
+                                <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-orange-400 dark:border-orange-600 pl-2 py-1 bg-orange-50 dark:bg-orange-900/30 rounded-r-md">
+                                  <span className="font-semibold not-italic">Kullanıcı Notu:</span> {activity.messageForManager}
+                                </p>
+                            )}
+                             {activity.status === 'rejected' && activity.managerFeedback && (
+                                <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-red-400 dark:border-red-600 pl-2 py-1 bg-red-50 dark:bg-red-900/30 rounded-r-md">
+                                  <span className="font-semibold not-italic">Yönetici Geri Bildirimi:</span> {activity.managerFeedback}
+                                </p>
                             )}
                           </div>
                         </li>
@@ -458,7 +504,11 @@ export default function ProjectDetailsPage() {
                   </ul>
                 </ScrollArea>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">Bu proje için henüz bir aktivite (yorum, dosya vb.) bulunmamaktadır.</p>
+                <div className="text-center py-10">
+                    <SmilePlus className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground">Bu proje için henüz bir aktivite (yorum, dosya vb.) bulunmamaktadır.</p>
+                    <p className="text-xs text-muted-foreground mt-1">İlk güncellemeyi siz ekleyebilirsiniz!</p>
+                </div>
               )}
             </CardContent>
           </Card>
