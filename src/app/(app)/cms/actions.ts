@@ -3,7 +3,7 @@
 "use server";
 
 import { admin } from '@/lib/firebase-admin';
-import { getUserRoles } from '@/services/user-service'; // Assuming this can be called server-side
+import { getUserRoles } from '@/services/user-service'; 
 import { revalidatePath } from 'next/cache';
 import { USER_ROLES } from '@/lib/constants';
 
@@ -21,9 +21,8 @@ async function checkAdminPrivilegesForAction(idToken?: string | null): Promise<b
   }
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    // Firestore'dan kullanıcının rollerini çek
-    const roles = await getUserRoles(decodedToken.uid); // Bu fonksiyonun sunucuda çalışabilir olması lazım.
-                                                      // Veya custom claims kullanılıyorsa: const roles = decodedToken.roles as string[];
+    const roles = await getUserRoles(decodedToken.uid); 
+                                                      
     if (roles && roles.includes(USER_ROLES.ADMIN)) {
       return true;
     }
@@ -60,7 +59,7 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
       return { success: true, message: "Güncellenecek proje aktivitesi bulunamadı.", updatedCount: 0, processedCount };
     }
 
-    const batchSize = 200; // Firestore batch write limiti 500'dür
+    const batchSize = 200; 
     let batch = db.batch();
     let operationsInBatch = 0;
 
@@ -88,7 +87,7 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
               if (operationsInBatch >= batchSize) {
                 console.log(`[CMS Action] Committing batch of ${operationsInBatch} updates...`);
                 await batch.commit();
-                batch = db.batch(); // Yeni bir batch başlat
+                batch = db.batch(); 
                 operationsInBatch = 0;
               }
             } else {
@@ -106,7 +105,6 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
             `[CMS Action] Error processing individual activity ${activityDoc.id}:`,
             error.message
           );
-          // Tek bir aktivitede hata olursa logla ve devam et
         }
       }
     }
@@ -118,7 +116,7 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
 
     const message = `İşlem tamamlandı. Toplam ${processedCount} aktivite işlendi. ${updatedCount} aktivite otel bilgisiyle güncellendi.`;
     console.log(`[CMS Action] ${message}`);
-    revalidatePath('/detailed-reports'); // Raporlar sayfasını yenilemek için
+    revalidatePath('/detailed-reports'); 
     return { success: true, message, updatedCount, processedCount };
 
   } catch (error: any) {

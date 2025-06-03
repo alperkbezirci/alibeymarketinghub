@@ -8,9 +8,10 @@
  * - getAllUsers: Fetches all user documents from Firestore.
  * - updateUserProfile: Updates a user's profile in Firestore.
  * - deleteUserDocument: Deletes a user's document from Firestore.
+ * - getUserRoles: Fetches a user's roles from Firestore.
  */
 import { db } from '@/lib/firebase';
-import { collection, doc, setDoc, serverTimestamp, getDoc, getDocs, updateDoc, deleteDoc, query, Timestamp } from 'firebase/firestore'; // Removed orderBy from here as it's not used directly now
+import { collection, doc, setDoc, serverTimestamp, getDoc, getDocs, updateDoc, deleteDoc, query, Timestamp } from 'firebase/firestore';
 import type { User } from '@/contexts/auth-context';
 
 export interface UserProfileData {
@@ -81,8 +82,7 @@ export async function createUserDocumentInFirestore(
 export async function getAllUsers(): Promise<User[]> {
   try {
     const usersCollection = collection(db, USERS_COLLECTION);
-    // const q = query(usersCollection, orderBy("firstName"), orderBy("lastName")); // Removed orderBy to prevent index errors
-    const q = query(usersCollection); // Fetch without server-side ordering
+    const q = query(usersCollection); 
     const usersSnapshot = await getDocs(q);
     const usersList = usersSnapshot.docs.map(docSnap => {
       const data = docSnap.data() as UserProfileData;
@@ -93,19 +93,45 @@ export async function getAllUsers(): Promise<User[]> {
         lastName: data.lastName,
         title: data.title,
         organization: data.organization,
-        roles: data.roles || [], // Ensure roles is always an array
+        roles: data.roles || [], 
         authorizationLevel: data.authorizationLevel,
         photoURL: data.photoURL,
-      } as User; // Casting to User, ensure User type matches these fields
+      } as User; 
     });
     return usersList;
   } catch (error) {
     console.error("Error fetching all users: ", error);
-    // The actual Firebase error object (logged above) will contain more specific details,
-    // possibly including a link to create the required index if that was the issue.
     throw new Error("Tüm kullanıcılar alınırken bir hata oluştu.");
   }
 }
+
+export async function getUserRoles(uid: string): Promise<string[] | null> {
+  if (!uid) {
+    console.warn("[user-service] getUserRoles: UID is required.");
+    return null;
+  }
+  try {
+    const userDocRef = doc(db, USERS_COLLECTION, uid);
+    const docSnap = await getDoc(userDocRef);
+
+    if (docSnap.exists()) {
+      const userData = docSnap.data();
+      if (userData && Array.isArray(userData.roles)) {
+        return userData.roles as string[];
+      } else {
+        console.warn(`[user-service] getUserRoles: User ${uid} document exists but 'roles' field is missing or not an array.`);
+        return []; // Return empty array if roles field is malformed
+      }
+    } else {
+      console.warn(`[user-service] getUserRoles: No user document found for UID: ${uid}`);
+      return null; // User document doesn't exist
+    }
+  } catch (error) {
+    console.error(`[user-service] getUserRoles: Error fetching roles for UID ${uid}:`, error);
+    return null; 
+  }
+}
+
 
 export async function updateUserProfile(
   uid: string,
