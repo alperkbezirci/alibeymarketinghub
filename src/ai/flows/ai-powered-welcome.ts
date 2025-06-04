@@ -153,3 +153,5 @@ export async function generateWelcomeMessage(input: WelcomeMessageInput): Promis
     return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Sistemimiz (prompt hatası) size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!` };
   }
 }
+
+    
