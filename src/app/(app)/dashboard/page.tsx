@@ -2,9 +2,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-// WelcomeMessage importu kaldırıldı
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { OverviewCard } from "@/components/dashboard/overview-card";
+import { WeatherWidget } from "@/components/dashboard/weather-widget"; // WeatherWidget import edildi
 import { useAuth } from "@/contexts/auth-context";
 import { ClipboardList, ListTodo, CheckSquare, Loader2, AlertTriangle, PlusCircle } from "lucide-react";
 import { getActiveTasks, getOverdueTasks, addTask, updateTaskAssignees, type Task, type TaskInputData } from '@/services/task-service';
@@ -12,8 +12,8 @@ import { getPendingApprovalActivities, type ProjectActivity } from '@/services/p
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { InvoiceForm } from "@/components/budget/invoice-form";
-import { addInvoice, type InvoiceInputData, linkTaskToInvoice } from '@/services/invoice-service';
+import { InvoiceForm } from "@/components/budget/invoice-form"; // InvoiceFormData düzeltildi, type InvoiceInputDataForService olmalıydı. Bu form kendi state'i için InvoiceFormData kullanıyor, servise gönderirken dönüşüm yapılıyor.
+import { addInvoice, type InvoiceInputDataForService, linkTaskToInvoice } from '@/services/invoice-service'; // Service için doğru tip
 import { getAllUsers, type User as AppUser } from "@/services/user-service";
 import { format, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -54,14 +54,14 @@ export default function DashboardPage() {
 
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
   const [isTurqualityDialogOpen, setIsTurqualityDialogOpen] = useState(false);
-  const [pendingInvoiceData, setPendingInvoiceData] = useState<InvoiceInputData | null>(null);
+  const [pendingInvoiceData, setPendingInvoiceData] = useState<InvoiceInputDataForService | null>(null); // Form datası service için hazırlanacak
   const [lastAddedInvoiceId, setLastAddedInvoiceId] = useState<string | null>(null);
   const [isAssignTaskDialogOpen, setIsAssignTaskDialogOpen] = useState(false);
   const [newlyCreatedTurqualityTaskId, setNewlyCreatedTurqualityTaskId] = useState<string | null>(null);
   const [usersForAssignment, setUsersForAssignment] = useState<AppUser[]>([]);
   const [isLoadingUsersForAssignment, setIsLoadingUsersForAssignment] = useState(false);
   const [selectedTaskAssignees, setSelectedTaskAssignees] = useState<string[]>([]);
-  const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false);
+  const [isSubmittingProcess, setIsSubmittingProcess] = useState(false); // Changed from isSubmittingInvoice for general purpose
 
 
   const fetchDashboardData = useCallback(async () => {
@@ -97,28 +97,42 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleSaveInvoiceForDashboard = async (formData: InvoiceInputData) => {
-    setPendingInvoiceData(formData);
+  const handleSaveInvoiceForDashboard = async (formDataFromComponent: import('@/components/budget/invoice-form').InvoiceFormData) => {
+    setIsSubmittingProcess(true); // Start general submission process
     setIsInvoiceDialogOpen(false);
-    setIsSubmittingInvoice(true);
+    
+    const invoiceDataForService: InvoiceInputDataForService = {
+      invoiceNumber: formDataFromComponent.invoiceNumber,
+      invoiceDate: formDataFromComponent.invoiceDate, // Already Date object from form
+      hotel: formDataFromComponent.hotel,
+      spendingCategoryName: formDataFromComponent.spendingCategoryName,
+      companyName: formDataFromComponent.companyName,
+      originalAmount: formDataFromComponent.originalAmount,
+      originalCurrency: formDataFromComponent.originalCurrency,
+      description: formDataFromComponent.description,
+      amountInEur: formDataFromComponent.amountInEur,
+      exchangeRateToEur: formDataFromComponent.exchangeRateToEur,
+      // fileURL and storagePath will be handled if files are part of this quick action in future
+    };
+
+    setPendingInvoiceData(invoiceDataForService);
+
     try {
-      const newInvoice = await addInvoice(formData);
+      const newInvoice = await addInvoice(invoiceDataForService);
       setLastAddedInvoiceId(newInvoice.id);
       setIsTurqualityDialogOpen(true);
     } catch (error: any) {
       toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
       setPendingInvoiceData(null);
-      setIsSubmittingInvoice(false); // Reset on error
+      setIsSubmittingProcess(false);
     }
-    // isSubmittingInvoice will be reset in handleTurqualityConfirmationForDashboard's finally block
   };
 
   const handleTurqualityConfirmationForDashboard = async (isTurqualityApplicable: boolean) => {
     if (!pendingInvoiceData || !lastAddedInvoiceId) {
-        setIsSubmittingInvoice(false); // Reset if essential data is missing
+        setIsSubmittingProcess(false); 
         return;
     }
-    // isSubmittingInvoice should already be true
 
     let mainToastDescription = `Fatura No: ${pendingInvoiceData.invoiceNumber} eklendi.`;
     if (pendingInvoiceData.originalCurrency !== 'EUR' && pendingInvoiceData.amountInEur) {
@@ -166,27 +180,31 @@ export default function DashboardPage() {
       } else {
         toast({ title: "Başarılı", description: `${mainToastDescription} Bütçe detayları için Bütçe sayfasını kontrol edin.` });
       }
-      fetchDashboardData(); // Refresh dashboard data potentially including tasks
+      fetchDashboardData(); 
     } catch (error: any) {
       toast({ title: "Turquality İşlem Hatası", description: error.message || "Turquality işlemi sırasında bir sorun oluştu.", variant: "destructive" });
     } finally {
       setIsTurqualityDialogOpen(false);
       setPendingInvoiceData(null);
-      setLastAddedInvoiceId(null);
-      setIsSubmittingInvoice(false); // Reset submission state here
+      // lastAddedInvoiceId should be cleared after assign task dialog, not here
+      if (!isAssignTaskDialogOpen) { // Only reset if not opening assign task dialog
+        setIsSubmittingProcess(false);
+        setLastAddedInvoiceId(null);
+      }
     }
   };
 
   const handleAssignTaskAndCloseForDashboard = async () => {
-    if (!newlyCreatedTurqualityTaskId || selectedTaskAssignees.length === 0) {
+    if (!newlyCreatedTurqualityTaskId && selectedTaskAssignees.length > 0) { // Added check for assignees length
       toast({ title: "Atama Yapılmadı", description: "Lütfen en az bir sorumlu seçin veya bu adımı iptal edin.", variant: "warning" });
+      // No return here, allow to proceed if user wants to close without assigning
     }
-    setIsSubmittingInvoice(true); // Reuse state for this submission
+    setIsSubmittingProcess(true);
     try {
       if (newlyCreatedTurqualityTaskId && selectedTaskAssignees.length > 0) {
         await updateTaskAssignees(newlyCreatedTurqualityTaskId, selectedTaskAssignees);
         toast({ title: "Görev Atandı", description: "Turquality görevi seçilen kişilere atandı." });
-      } else {
+      } else if (newlyCreatedTurqualityTaskId) { // Task exists but no one selected
         toast({ title: "Bilgi", description: "Turquality görevine kimse atanmadı. Görevi daha sonra manuel olarak atayabilirsiniz.", variant: "default" });
       }
     } catch (error: any) {
@@ -195,8 +213,9 @@ export default function DashboardPage() {
       setIsAssignTaskDialogOpen(false);
       setNewlyCreatedTurqualityTaskId(null);
       setSelectedTaskAssignees([]);
-      setIsSubmittingInvoice(false);
-      fetchDashboardData(); // Refresh tasks on dashboard
+      setLastAddedInvoiceId(null); // Clear invoice ID here
+      setIsSubmittingProcess(false); // Final reset of submission state
+      fetchDashboardData(); 
     }
   };
 
@@ -208,45 +227,51 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* WelcomeMessage bileşeni kaldırıldı */}
       <QuickActions 
-        onAddInvoiceClick={() => setIsInvoiceDialogOpen(true)}
+        onAddInvoiceClick={() => setIsInvoiceDialogOpen(true)} // Ensure QuickActions correctly wires up
       />
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <OverviewCard 
-          title="Aktif Görevler" 
-          IconComponent={ClipboardList} 
-          items={activeTasksData.map(mapTaskToOverviewItem)} 
-          isLoading={isLoadingActiveTasks}
-          emptyMessage="Aktif görev bulunmamaktadır."
-          getItemHref={(item) => item.projectId ? `/projects/${item.projectId}` : undefined}
-        />
-        <OverviewCard 
-          title="Gecikmiş Görevler" 
-          IconComponent={ListTodo} 
-          items={overdueTasksData.map(mapTaskToOverviewItem)}
-          isLoading={isLoadingOverdueTasks}
-          emptyMessage="Gecikmiş görev bulunmamaktadır."
-          getItemHref={(item) => item.projectId ? `/projects/${item.projectId}` : undefined}
-        />
-        {isAdminOrMarketingManager && (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+           <WeatherWidget />
+        </div>
+        <div className="lg:col-span-1 space-y-6">
           <OverviewCard 
-            title="Onay Bekleyen İşler" 
-            IconComponent={CheckSquare} 
-            items={pendingApprovalsData.map(mapActivityToOverviewItem)}
-            isLoading={isLoadingPendingApprovals}
-            emptyMessage="Onay bekleyen iş bulunmamaktadır."
-            getItemHref={(item) => item.projectId ? `/projects/${item.projectId}` : undefined}
+            title="Aktif Görevler" 
+            IconComponent={ClipboardList} 
+            items={activeTasksData.map(mapTaskToOverviewItem)} 
+            isLoading={isLoadingActiveTasks}
+            emptyMessage="Aktif görev bulunmamaktadır."
+            getItemHref={(item) => item.projectId ? `/tasks/${item.id}` : `/tasks/${item.id}`}
           />
-        )}
+          <OverviewCard 
+            title="Gecikmiş Görevler" 
+            IconComponent={ListTodo} 
+            items={overdueTasksData.map(mapTaskToOverviewItem)}
+            isLoading={isLoadingOverdueTasks}
+            emptyMessage="Gecikmiş görev bulunmamaktadır."
+            getItemHref={(item) => item.projectId ? `/tasks/${item.id}` : `/tasks/${item.id}`}
+          />
+          {isAdminOrMarketingManager && (
+            <OverviewCard 
+              title="Onay Bekleyen İşler" 
+              IconComponent={CheckSquare} 
+              items={pendingApprovalsData.map(mapActivityToOverviewItem)}
+              isLoading={isLoadingPendingApprovals}
+              emptyMessage="Onay bekleyen iş bulunmamaktadır."
+              getItemHref={(item) => item.projectId ? `/projects/${item.projectId}` : undefined}
+            />
+          )}
+        </div>
       </div>
+
 
       <Dialog open={isInvoiceDialogOpen} onOpenChange={(open) => {
         setIsInvoiceDialogOpen(open);
         if(!open) {
             setPendingInvoiceData(null);
             setLastAddedInvoiceId(null);
+            if (!isTurqualityDialogOpen && !isAssignTaskDialogOpen) setIsSubmittingProcess(false); // Reset if flow aborted
         }
       }}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -256,20 +281,25 @@ export default function DashboardPage() {
               Yeni bir fatura kaydı oluşturmak için lütfen fatura detaylarını girin.
             </DialogDescription>
           </DialogHeader>
-          <InvoiceForm onSave={handleSaveInvoiceForDashboard} onClose={() => {
-            setIsInvoiceDialogOpen(false);
-            setPendingInvoiceData(null);
-            setLastAddedInvoiceId(null);
-          }} />
+          <InvoiceForm 
+            onSave={handleSaveInvoiceForDashboard} 
+            onClose={() => {
+                setIsInvoiceDialogOpen(false);
+                setPendingInvoiceData(null);
+                setLastAddedInvoiceId(null);
+                if (!isTurqualityDialogOpen && !isAssignTaskDialogOpen) setIsSubmittingProcess(false);
+            }}
+            isSaving={isSubmittingProcess} // Pass down the general submission state
+          />
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={isTurqualityDialogOpen} onOpenChange={(open) => {
-          if (!open && !isAssignTaskDialogOpen) {
+          if (!open && !isAssignTaskDialogOpen) { // Only fully close if not chaining to assign task
             setIsTurqualityDialogOpen(false);
             setPendingInvoiceData(null);
-            setLastAddedInvoiceId(null);
-            setIsSubmittingInvoice(false);
+            setLastAddedInvoiceId(null); 
+            setIsSubmittingProcess(false); // Reset if flow ends here
           }
         }}>
         <AlertDialogContent>
@@ -280,9 +310,9 @@ export default function DashboardPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => handleTurqualityConfirmationForDashboard(false)} disabled={isSubmittingInvoice}>Hayır</AlertDialogCancel>
-            <AlertDialogAction onClick={() => handleTurqualityConfirmationForDashboard(true)} disabled={isSubmittingInvoice}>
-              {isSubmittingInvoice && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <AlertDialogCancel onClick={() => handleTurqualityConfirmationForDashboard(false)} disabled={isSubmittingProcess}>Hayır</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleTurqualityConfirmationForDashboard(true)} disabled={isSubmittingProcess}>
+              {isSubmittingProcess && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Evet
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -294,7 +324,8 @@ export default function DashboardPage() {
               setIsAssignTaskDialogOpen(false);
               setNewlyCreatedTurqualityTaskId(null);
               setSelectedTaskAssignees([]);
-              setIsSubmittingInvoice(false);
+              setLastAddedInvoiceId(null); // Clear invoice ID when this dialog closes
+              setIsSubmittingProcess(false); // Final reset
           }
       }}>
         <DialogContent className="sm:max-w-md">
@@ -317,6 +348,7 @@ export default function DashboardPage() {
                       id={`dash-assignee-${user.uid}`}
                       checked={selectedTaskAssignees.includes(user.uid)}
                       onCheckedChange={(checked) => handleTaskAssigneeChangeForDashboard(user.uid, Boolean(checked))}
+                      disabled={isSubmittingProcess}
                     />
                     <Label htmlFor={`dash-assignee-${user.uid}`} className="font-normal text-sm flex-grow cursor-pointer">
                       {`${user.firstName} ${user.lastName}`}
@@ -332,12 +364,13 @@ export default function DashboardPage() {
                 setIsAssignTaskDialogOpen(false); 
                 setNewlyCreatedTurqualityTaskId(null); 
                 setSelectedTaskAssignees([]);
-                setIsSubmittingInvoice(false);
-            }} disabled={isSubmittingInvoice}>
+                setLastAddedInvoiceId(null);
+                setIsSubmittingProcess(false); // Reset if cancelled
+            }} disabled={isSubmittingProcess}>
                 İptal / Daha Sonra Ata
             </Button>
-            <Button onClick={handleAssignTaskAndCloseForDashboard} disabled={isSubmittingInvoice || isLoadingUsersForAssignment}>
-              {isSubmittingInvoice && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleAssignTaskAndCloseForDashboard} disabled={isSubmittingProcess || isLoadingUsersForAssignment}>
+              {isSubmittingProcess && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ata ve Kapat
             </Button>
           </DialogFooter>

@@ -2,9 +2,8 @@
 import { config } from 'dotenv';
 config();
 
-// Karşılama mesajı akışı kaldırıldığı için ilgili import da kaldırıldı.
-// import '@/ai/flows/ai-motivational-message.ts'; 
-import '@/ai/flows/ai-assisted-descriptions.ts'; // Bu akış kalabilir veya isteğe bağlı olarak kaldırılabilir.
-// import '@/ai/flows/weather-forecast-flow.ts'; // Şimdilik yorum satırında kalsın
+// Karşılama mesajı akışı kaldırıldı.
+import '@/ai/flows/ai-assisted-descriptions.ts'; 
+import '@/ai/flows/weather-forecast-flow.ts';
 
-console.log('[Genkit Dev - dev.ts] Genkit development server starting WITHOUT ai-motivational-message flow.');
+console.log('[Genkit Dev - dev.ts] Genkit development server starting with Weather and Description flows.');
