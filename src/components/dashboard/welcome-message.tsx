@@ -6,9 +6,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { getWeatherForecast, type WeatherInfoOutput } from '@/ai/flows/weather-forecast-flow';
-import { generateMotivationalMessage, type MotivationalMessageOutput } from '@/ai/flows/ai-motivational-message';
-import { getEvents, type CalendarEvent } from '@/services/calendar-service';
-import { getActiveTasks, getOverdueTasks, type Task } from '@/services/task-service';
+// generateMotivationalMessage artık SuperSimpleInput ve SuperSimpleOutput kullanacak
+import { generateMotivationalMessage, type SuperSimpleInput, type SuperSimpleOutput } from '@/ai/flows/ai-motivational-message';
+// getEvents ve getTasks artık bu sadeleştirilmiş versiyonda kullanılmıyor.
+// import { getEvents, type CalendarEvent } from '@/services/calendar-service';
+// import { getActiveTasks, getOverdueTasks, type Task } from '@/services/task-service';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -56,70 +58,41 @@ export function WelcomeMessage() {
     try {
         const result = await getWeatherForecast({ location });
         setWeatherData(result);
-        return result; // Return for immediate use by AI message
+        // Hava durumu bilgisini AI mesajı için artık doğrudan kullanmıyoruz (bu süper basit versiyonda)
     } catch (error: any) {
         console.error("Hava durumu verisi alınırken hata (bileşen):", error);
         const errorResult = { location, error: "Hava durumu bilgisi şu anda alınamıyor. (Kod: WC_ERR_FETCH)" };
         setWeatherData(errorResult);
-        return errorResult; // Return error for AI message
     } finally {
         setLoadingWeather(false);
     }
   }, [location]);
 
-  const fetchAndSetAiMessage = useCallback(async (currentWeatherInfo: WeatherInfoOutput | null) => {
+  const fetchAndSetAiMessage = useCallback(async () => {
     if (!user) return;
     setLoadingAiMessage(true);
     setAiMotivationalText(null);
 
-    let eventSummaries: string[] = [];
-    let activeTaskSummaries: string[] = [];
-    let overdueTaskSummaries: string[] = [];
-    let weatherSummaryForAI: string | undefined = undefined;
+    // Süper basit versiyon için sadece kullanıcı adını gönderiyoruz.
+    const simpleInput: SuperSimpleInput = {
+      userName: user.firstName,
+    };
 
-    if (currentWeatherInfo && currentWeatherInfo.currentWeather) {
-      weatherSummaryForAI = `${currentWeatherInfo.location}: ${currentWeatherInfo.currentWeather.temp}°C, ${currentWeatherInfo.currentWeather.description}`;
-    } else if (currentWeatherInfo && currentWeatherInfo.error) {
-      weatherSummaryForAI = "Hava durumu bilgisi alınamadı.";
-    }
-
+    console.log('[WelcomeMessage - Super Simple] Calling generateMotivationalMessage with input:', JSON.stringify(simpleInput));
 
     try {
-      // Fetch today's events (first 3)
-      const todayStart = startOfDay(new Date());
-      const todayEnd = endOfDay(new Date());
-      const eventsToday = await getEvents(todayStart, todayEnd);
-      eventSummaries = eventsToday.slice(0, 3).map(event => event.title);
-      
-      // Fetch active tasks (first 3)
-      const activeTasks = await getActiveTasks(3);
-      activeTaskSummaries = activeTasks.map(task => `${task.taskName} (${task.status || 'Durum Yok'})`);
-      
-      // Fetch overdue tasks (first 3)
-      const overdueTasks = await getOverdueTasks(3);
-      overdueTaskSummaries = overdueTasks.map(task => `${task.taskName} (${task.status || 'Durum Yok'})`);
-
-    } catch (dataError: any) {
-      console.warn("[WelcomeMessage] Error fetching events or tasks for AI message:", dataError.message);
-    }
-
-    try {
-      const aiResult = await generateMotivationalMessage({
-        userName: user.firstName,
-        currentWeatherSummary: weatherSummaryForAI,
-        todaysEvents: eventSummaries,
-        userTasksSummary: activeTaskSummaries,
-        overdueTasksSummary: overdueTaskSummaries,
-      });
+      const aiResult: SuperSimpleOutput = await generateMotivationalMessage(simpleInput);
 
       if (aiResult.message) {
         setAiMotivationalText(aiResult.message);
+        console.log('[WelcomeMessage - Super Simple] AI Message received:', aiResult.message);
       } else {
-        setAiMotivationalText(`Güne harika bir başlangıç yap, ${user.firstName}! (Varsayılan Mesaj - Çıktı Yok)`);
+        setAiMotivationalText(`Güne harika bir başlangıç yap, ${user.firstName}! (Varsayılan Mesaj - Çıktı Yok - Süper Basit)`);
+        console.warn('[WelcomeMessage - Super Simple] AI returned no message.');
       }
     } catch (aiError: any) {
-      console.error("[WelcomeMessage] Error generating AI motivational message:", aiError.message);
-      setAiMotivationalText(`Bugün senin günün, ${user.firstName}! (AI Akış Hatası - ${aiError.message.substring(0,50)}...)`);
+      console.error("[WelcomeMessage - Super Simple] Error generating AI motivational message:", aiError.message, aiError);
+      setAiMotivationalText(`Bugün senin günün, ${user.firstName}! (AI Akış Hatası - Süper Basit - ${aiError.message.substring(0,50)}...)`);
     } finally {
       setLoadingAiMessage(false);
     }
@@ -127,10 +100,8 @@ export function WelcomeMessage() {
 
   useEffect(() => {
     if (user) {
-      // Fetch weather first, then use it to fetch AI message
-      fetchAndSetWeatherData().then(weatherInfo => {
-        fetchAndSetAiMessage(weatherInfo);
-      });
+      fetchAndSetWeatherData(); // Hava durumunu yine de alalım, UI'da gösterilecek
+      fetchAndSetAiMessage();   // AI mesajını alalım (artık hava durumu bilgisini beklemiyor)
     }
   }, [user, fetchAndSetWeatherData, fetchAndSetAiMessage]);
 
@@ -151,7 +122,7 @@ export function WelcomeMessage() {
         {loadingAiMessage && (
           <div className="flex items-center text-sm text-muted-foreground py-3">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            <span>Sana özel bir mesaj hazırlanıyor...</span>
+            <span>Sana özel bir mesaj hazırlanıyor... (Süper Basit Mod)</span>
           </div>
         )}
         {!loadingAiMessage && aiMotivationalText && (
@@ -165,7 +136,7 @@ export function WelcomeMessage() {
          {!loadingAiMessage && !aiMotivationalText && (
            <div className="flex items-center text-sm text-muted-foreground py-3">
              <Info className="mr-2 h-4 w-4" />
-            <span>Sana özel mesaj yüklenemedi.</span>
+            <span>Sana özel mesaj yüklenemedi. (Süper Basit Mod)</span>
           </div>
         )}
         
@@ -199,7 +170,7 @@ export function WelcomeMessage() {
               <>
                 <h3 className="text-sm font-semibold text-muted-foreground mb-1 mt-3">Bugün Saatlik Tahmin</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                  {weatherData.todayHourlyForecast.slice(0,4).map((hour, index) => ( // Show max 4 hourly forecasts
+                  {weatherData.todayHourlyForecast.slice(0,4).map((hour, index) => ( 
                     <div key={index} className="p-2 bg-muted/20 rounded flex items-center justify-between">
                       <div>
                         <p className="font-medium">{hour.time}</p>
