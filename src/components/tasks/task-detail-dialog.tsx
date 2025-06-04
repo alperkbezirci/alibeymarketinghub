@@ -83,7 +83,7 @@ export function TaskDetailDialog({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <Dialog open={isOpen} onOpenChange={onOpenChange} >
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-headline text-2xl flex justify-between items-center">
@@ -91,7 +91,7 @@ export function TaskDetailDialog({
               {task.status && <Badge className={`text-sm px-3 py-1 ml-2 ${getStatusColor(task.status)}`}>{task.status}</Badge>}
             </DialogTitle>
             <DialogDescription className="text-base flex items-center pt-1">
-              <Hotel className="mr-2 h-4 w-4 text-muted-foreground" /> {task.hotel || 'Otel Belirtilmemiş'}
+              <Hotel className="mr-2 h-4 w-4 text-muted-foreground" id="task-description" /> {task.hotel || 'Otel Belirtilmemiş'}
             </DialogDescription>
           </DialogHeader>
 
