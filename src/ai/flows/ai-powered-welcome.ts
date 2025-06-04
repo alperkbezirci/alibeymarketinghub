@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview An AI-powered welcome message flow that incorporates location,
+ * @fileOverview An AI-powered welcome message flow that incorporates
  * weather (via a separate flow), today's calendar events, and user's project overview
  * to generate a personalized and motivational message.
  * This file is marked with 'use server' and should only export async functions.
@@ -10,14 +10,11 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { getWeatherForecast } from './weather-forecast-flow'; // Import the async function
-import { WeatherInfoOutputSchema, type WeatherInfoOutput } from '@/ai/schemas/weather-schemas'; // Import schema and type from the new location
+import { getWeatherForecast } from './weather-forecast-flow';
+import { WeatherInfoOutputSchema, type WeatherInfoOutput } from '@/ai/schemas/weather-schemas';
 
 const WelcomeMessageInputSchema = z.object({
   userName: z.string().describe('The name of the user.'),
-  date: z.string().describe('The current date.'),
-  time: z.string().describe('The current time.'),
-  location: z.string().describe('User\'s current location, e.g., Antalya, Türkiye.'),
   todaysEvents: z.array(z.string()).describe('A list of today\'s scheduled calendar event titles or summaries. Empty if no events.'),
   userProjectsSummary: z.array(z.string()).describe('A list of summaries for projects assigned to the user, e.g., ["Proje X (Devam Ediyor)", "Proje Y (Tamamlandı)"]. Empty if no projects.'),
 });
@@ -28,24 +25,20 @@ const WelcomeMessageOutputSchema = z.object({
 });
 export type WelcomeMessageOutput = z.infer<typeof WelcomeMessageOutputSchema>;
 
-// Define the prompt using the imported WeatherInfoOutputSchema
 const welcomeMessagePrompt = ai.definePrompt({
   name: 'enhancedWelcomeMessagePrompt',
   input: { schema: WelcomeMessageInputSchema.extend({ weatherData: WeatherInfoOutputSchema.optional() }) },
-  output: { schema: WelcomeMessageOutputSchema }, // Instructs Genkit to expect JSON matching this schema
-  prompt: `Sen bir Pazarlama Merkezi uygulamasında kullanıcıları karşılayan, son derece pozitif, esprili ve motive edici bir asistansın.
-Gönderdiğin yanıtın SADECE ve SADECE aşağıdaki JSON formatında olduğundan emin ol:
+  output: { schema: WelcomeMessageOutputSchema },
+  prompt: `Sen kullanıcıları karşılayan, son derece pozitif, esprili ve motive edici bir asistansın.
+Çok Önemli: Yanıtın KESİNLİKLE ve SADECE aşağıdaki JSON formatında olmalıdır. JSON bloğunun ÖNCESİNDE veya SONRASINDA kesinlikle başka hiçbir metin, açıklama veya karakter olmamalıdır.
 {
   "message": "üretilecek kişiselleştirilmiş mesaj buraya gelecek"
 }
-
+---
 Kullanıcı Adı: {{userName}}
-Tarih: {{date}}
-Saat: {{time}}
-Kullanıcının Konumu: {{location}}
 
 {{#if weatherData.currentWeather}}
-Şu anki Hava Durumu ({{location}}):
+Şu anki Hava Durumu ({{weatherData.location}}):
 Sıcaklık: {{weatherData.currentWeather.temp}}°C (Hissedilen: {{weatherData.currentWeather.feelsLike}}°C)
 Durum: {{weatherData.currentWeather.description}}
 Nem: {{weatherData.currentWeather.humidity}}%
@@ -55,7 +48,7 @@ Anlık hava durumu bilgisi alınamadı.
 {{/if}}
 
 {{#if weatherData.todayHourlyForecast.length}}
-Bugünün Saatlik Tahmini ({{location}}):
+Bugünün Saatlik Tahmini ({{weatherData.location}}):
 {{#each weatherData.todayHourlyForecast}}
 - {{time}}: {{temp}}°C, {{description}}, Yağış: {{pop}}%
 {{/each}}
@@ -64,7 +57,7 @@ Bugün için saatlik tahmin detayı bulunmuyor.
 {{/if}}
 
 {{#if weatherData.threeDaySummaryForecast.length}}
-Önümüzdeki 3 Günün Özeti ({{location}}):
+Önümüzdeki 3 Günün Özeti ({{weatherData.location}}):
 {{#each weatherData.threeDaySummaryForecast}}
 - {{date}} ({{dayName}}): En Düşük {{minTemp}}°C, En Yüksek {{maxTemp}}°C, {{description}}, Yağış İhtimali: {{precipitationChance}}%
 {{/each}}
@@ -91,10 +84,10 @@ Sana Atanmış Projelerin Durumu:
 {{/if}}
 
 Yönergeler:
-1. Kullanıcıyı ismiyle sıcak bir şekilde selamla.
+1. Kullanıcıyı ismiyle sıcak bir şekilde "Merhaba {{userName}}," şeklinde selamla.
 2. {{#if weatherData.currentWeather}}Şu anki hava durumunu ({{weatherData.currentWeather.description}}, {{weatherData.currentWeather.temp}}°C) mesajına doğal bir şekilde dahil et.{{/if}}
 3. {{#if weatherData.todayHourlyForecast.length}}**Bugünün saatlik tahminini dikkate alarak GÜNLÜK PRATİK TAVSİYELER ver.**
-    * Örneğin, eğer öğleden sonra yağış olasılığı yüksekse, "Bugün {{location}} şehrinde hava {{weatherData.currentWeather.description}} ve {{weatherData.currentWeather.temp}}°C civarında. Öğleden sonra yağmur uğrayabilir, şemsiyeni yanında bulundursan iyi olur!" gibi bir ifade kullan.
+    * Örneğin, eğer öğleden sonra yağış olasılığı yüksekse, "Bugün hava {{weatherData.currentWeather.description}} ve {{weatherData.currentWeather.temp}}°C civarında. Öğleden sonra yağmur uğrayabilir, şemsiyeni yanında bulundursan iyi olur!" gibi bir ifade kullan.
     * Eğer belirli saatlerde sıcaklık çok artıyorsa, "Saat ... civarı sıcaklık ...°C'ye kadar çıkabilir, dışarıdaysan bol su içmeyi ve güneşten korunmayı unutma!" gibi bir uyarı ekle.
     * Bu tavsiyeleri eğlenceli ve samimi bir dille aktar. Her zaman olmasa da, uygun olduğunda bu tür detaylara gir.{{/if}}
 4. Eğer varsa, bugünün takvim etkinliklerinden kısaca bahset.
@@ -107,51 +100,54 @@ Yönergeler:
 `,
 });
 
-// This is the main async function that will be exported.
 export async function generateWelcomeMessage(input: WelcomeMessageInput): Promise<WelcomeMessageOutput> {
+  console.log(`[AI Welcome Flow] ENTERING generateWelcomeMessage for user ${input.userName}`);
   let weatherData: WeatherInfoOutput | undefined;
+  const locationForWeather = "Antalya, Türkiye"; // Sabit konum
+
   try {
-    weatherData = await getWeatherForecast({ location: input.location });
+    console.log(`[AI Welcome Flow] Attempting to fetch weather for user ${input.userName} at location: ${locationForWeather}`);
+    weatherData = await getWeatherForecast({ location: locationForWeather });
     if (weatherData.error) {
-      console.warn(`[AI Welcome Flow] Weather data could not be fetched for ${input.location}: ${weatherData.error}. Proceeding with error info for AI.`);
-      // AI prompt is designed to handle missing/errored weatherData
+      console.warn(`[AI Welcome Flow] Weather data could not be fetched for ${locationForWeather}: ${weatherData.error}. Proceeding with error info for AI.`);
+    } else {
+      console.log(`[AI Welcome Flow] Weather data fetched successfully for ${locationForWeather}. Has currentWeather: ${!!weatherData.currentWeather}`);
     }
   } catch (error: any) {
-    console.error(`[AI Welcome Flow] Error fetching weather data for user ${input.userName}: ${error.message}. Proceeding without weather data.`);
-    // weatherData will remain undefined, AI prompt should handle this.
+    console.error(`[AI Welcome Flow] Error fetching weather data for user ${input.userName} (location: ${locationForWeather}): ${error.message}. Proceeding without weather data.`);
+    weatherData = {
+      error: "Hava durumu bilgileri alınamadı (akış içi hata).",
+      location: locationForWeather // Hata durumunda bile konumu ekleyelim
+    };
   }
 
   try {
-    // Log the input being sent to the prompt
-    console.log(`[AI Welcome Flow] Calling welcomeMessagePrompt for user ${input.userName}. Input to AI (excluding weather for brevity):`, { ...input, weatherDataIsPresent: !!weatherData, weatherError: weatherData?.error });
+    const promptInput = { ...input, weatherData };
+    console.log(`[AI Welcome Flow] Calling welcomeMessagePrompt for user ${input.userName}. Full input to prompt: ${JSON.stringify(promptInput, null, 2)}`);
 
-    const response = await welcomeMessagePrompt({...input, weatherData });
-    const modelOutput = response.output; // Genkit v1.x: output is already parsed or undefined if parsing failed
+    const response = await welcomeMessagePrompt(promptInput);
+    const modelOutput = response.output;
 
-    // Log the raw response from the AI
-    const rawContent = response.raw?.choices?.[0]?.message?.content;
+    const rawContent = response.raw?.choices?.[0]?.message?.content ?? 'Raw response could not be obtained or was empty.';
     console.log(`[AI Welcome Flow] Raw AI response for user ${input.userName}:`, rawContent);
     console.log(`[AI Welcome Flow] Parsed AI output (modelOutput) for user ${input.userName}:`, modelOutput);
 
-
     if (modelOutput && typeof modelOutput.message === 'string' && modelOutput.message.trim() !== '') {
+      console.log(`[AI Welcome Flow] Successfully generated AI message for ${input.userName}.`);
       return modelOutput;
     }
     
     console.warn(`[AI Welcome Flow] AI welcome message prompt returned null, empty, or malformed output for user ${input.userName}. Falling back to default message.`);
     console.warn(`[AI Welcome Flow] Details: modelOutput.message was "${modelOutput?.message}". Raw content was: "${rawContent}"`);
-    return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${input.date}, saat ${input.time}. Sistemimiz şu anda size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!` };
+    // Fallback (input.date ve input.time olmadan)
+    return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Sistemimiz (AI format sorunu) size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!` };
 
-  } catch (error: any) {
+  } catch (promptError: any) {
     console.error(
-      `[AI Welcome Flow] Critical error calling welcomeMessagePrompt for user ${input.userName}. Error: ${error.message}. Input (excluding weather for brevity): ${JSON.stringify({ ...input, weatherDataIsPresent: !!weatherData, weatherError: weatherData?.error })}. Falling back to default welcome message.`,
-      JSON.stringify(error, Object.getOwnPropertyNames(error))
+      `[AI Welcome Flow] Error DURING welcomeMessagePrompt call for user ${input.userName}. Error: ${promptError.message}. Input to AI (excluding weather for brevity): ${JSON.stringify({ ...input, weatherDataIsPresent: !!weatherData, weatherError: weatherData?.error })}. Falling back to default welcome message.`,
+      JSON.stringify(promptError, Object.getOwnPropertyNames(promptError))
     );
-    
-    let fallbackMessage = `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz!`;
-    if (input.date && input.time) {
-      fallbackMessage = `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${input.date}, saat ${input.time}. Sistemimiz şu anda size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!`;
-    }
-    return { message: fallbackMessage };
+    // Fallback (input.date ve input.time olmadan)
+    return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Sistemimiz (prompt hatası) size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!` };
   }
 }
