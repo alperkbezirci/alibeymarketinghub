@@ -6,25 +6,24 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Thermometer, Wind, Droplets, Sunrise, Sunset, AlertTriangle, CloudOff, Cloudy, Sun, Zap, CloudRain, Snowflake, RefreshCw, MapPin, Clock, CalendarDays } from 'lucide-react'; // Added CalendarDays
+import { Thermometer, Wind, Droplets, AlertTriangle, CloudOff, RefreshCw, MapPin, Clock, CalendarDays } from 'lucide-react';
 import { getWeatherForecast } from '@/ai/flows/weather-forecast-flow';
-import type { WeatherInfoOutput, HourlyDetail, DailyForecast } from '@/ai/schemas/weather-schemas';
+import type { WeatherInfoOutput } from '@/ai/schemas/weather-schemas';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface WeatherWidgetProps {
   initialLocation?: string;
 }
 
-const DEFAULT_LOCATION = "Antalya, Türkiye";
+const DEFAULT_LOCATION = "Side, Türkiye"; // Lokasyon güncellendi
 
 export function WeatherWidget({ initialLocation = DEFAULT_LOCATION }: WeatherWidgetProps) {
   const [weatherData, setWeatherData] = useState<WeatherInfoOutput | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [location] = useState(initialLocation); // Location is fixed for now
+  const [location] = useState(initialLocation);
   const { toast } = useToast();
 
   const fetchWeather = useCallback(async () => {
@@ -37,23 +36,21 @@ export function WeatherWidget({ initialLocation = DEFAULT_LOCATION }: WeatherWid
       
       if (data.error) {
         console.error(`[WeatherWidget] Error from weather flow: ${data.error}`);
+        let userErrorMessage = data.error;
         if (data.error.includes("API anahtarı eksik")) {
-            setError("Hava durumu servisi için API anahtarı yapılandırılmamış. Lütfen .env dosyasını kontrol edin.");
+            userErrorMessage = "Hava durumu servisi için API anahtarı yapılandırılmamış. Lütfen .env dosyasını kontrol edin.";
         } else if (data.error.toLowerCase().includes("not found") || data.error.includes("404")) {
-            setError(`Belirtilen konum (${location}) için hava durumu bilgisi bulunamadı.`);
+            userErrorMessage = `Belirtilen konum (${location}) için hava durumu bilgisi bulunamadı.`;
         } else if (data.error.toLowerCase().includes("invalid api key")) {
-             setError("Geçersiz OpenWeatherMap API anahtarı. Lütfen anahtarınızı kontrol edin.");
+             userErrorMessage = "Geçersiz OpenWeatherMap API anahtarı. Lütfen anahtarınızı kontrol edin.";
         }
-        else {
-            setError(data.error);
-        }
+        setError(userErrorMessage);
         setWeatherData(null);
       } else if (!data.currentWeather && !data.todayHourlyForecast && !data.threeDaySummaryForecast) {
         console.warn("[WeatherWidget] Weather flow returned no data and no error.");
         setError("Hava durumu verileri alınamadı veya belirtilen konum için veri bulunmuyor.");
         setWeatherData(null);
-      }
-      else {
+      } else {
         setWeatherData(data);
       }
     } catch (err: any) {
@@ -69,136 +66,47 @@ export function WeatherWidget({ initialLocation = DEFAULT_LOCATION }: WeatherWid
     fetchWeather();
   }, [fetchWeather]);
 
-  const renderCurrentWeather = () => {
-    if (!weatherData?.currentWeather) {
-      return <p className="text-sm text-muted-foreground text-center py-4">Güncel hava durumu bilgisi mevcut değil.</p>;
-    }
-    const { temp, description, icon, feelsLike, humidity, windSpeed } = weatherData.currentWeather;
-    return (
-      <Card className="bg-card/70 shadow-md">
-        <CardHeader>
-          <CardTitle className="text-xl font-headline flex items-center justify-between">
-            <div className="flex items-center">
-             <MapPin className="mr-2 h-5 w-5 text-primary" /> {weatherData.location || location}
-            </div>
-            {icon && (
-              <Image
-                src={`https://openweathermap.org/img/wn/${icon}@2x.png`}
-                alt={description || "Hava durumu ikonu"}
-                width={50}
-                height={50}
-                data-ai-hint="weather condition"
-              />
-            )}
-          </CardTitle>
-          <CardDescription className="capitalize">{description}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="text-5xl font-bold text-primary">{temp}°C</div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="flex items-center"><Thermometer className="mr-2 h-4 w-4 text-muted-foreground" /> Hissedilen: {feelsLike}°C</div>
-            <div className="flex items-center"><Droplets className="mr-2 h-4 w-4 text-muted-foreground" /> Nem: %{humidity}</div>
-            <div className="flex items-center"><Wind className="mr-2 h-4 w-4 text-muted-foreground" /> Rüzgar: {windSpeed} m/s</div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  const renderHourlyForecast = () => {
-    if (!weatherData?.todayHourlyForecast || weatherData.todayHourlyForecast.length === 0) {
-      return <p className="text-sm text-muted-foreground text-center py-4">Bugün için saatlik tahmin bulunmamaktadır.</p>;
-    }
-    return (
-      <Card className="bg-card/70 shadow-md">
-        <CardHeader>
-          <CardTitle className="text-lg font-headline flex items-center"><Clock className="mr-2 h-5 w-5 text-primary" /> Bugün Saatlik Tahmin</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex space-x-4 pb-4">
-              {weatherData.todayHourlyForecast.map((hourly, index) => (
-                <div key={index} className="flex flex-col items-center p-3 border rounded-lg min-w-[100px] bg-background/50">
-                  <p className="text-sm font-medium">{hourly.time}</p>
-                  {hourly.icon && (
-                    <Image
-                      src={`https://openweathermap.org/img/wn/${hourly.icon}.png`}
-                      alt={hourly.description}
-                      width={40}
-                      height={40}
-                      data-ai-hint="weather condition"
-                    />
-                  )}
-                  <p className="text-lg font-semibold">{hourly.temp}°</p>
-                  <p className="text-xs text-muted-foreground capitalize truncate w-full text-center" title={hourly.description}>{hourly.description}</p>
-                  <p className="text-xs text-blue-500">{hourly.pop}% <CloudRain className="inline h-3 w-3"/></p>
-                </div>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  const renderDailyForecast = () => {
-    if (!weatherData?.threeDaySummaryForecast || weatherData.threeDaySummaryForecast.length === 0) {
-      return <p className="text-sm text-muted-foreground text-center py-4">Gelecek günler için tahmin bulunmamaktadır.</p>;
-    }
-    return (
-      <Card className="bg-card/70 shadow-md">
-        <CardHeader>
-            <CardTitle className="text-lg font-headline flex items-center"><CalendarDays className="mr-2 h-5 w-5 text-primary" /> Gelecek 3 Gün</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {weatherData.threeDaySummaryForecast.map((daily, index) => (
-            <Card key={index} className="p-4 flex flex-col items-center text-center bg-background/50">
-              <p className="text-base font-semibold">{daily.date}</p>
-              <p className="text-xs text-muted-foreground mb-1">{daily.dayName.split(',')[0]}</p> {/* Show only day name */}
-              {daily.icon && (
-                <Image
-                  src={`https://openweathermap.org/img/wn/${daily.icon}@2x.png`}
-                  alt={daily.description}
-                  width={60}
-                  height={60}
-                  data-ai-hint="weather condition"
-                />
-              )}
-              <p className="text-xl font-bold">{daily.maxTemp}° <span className="text-muted-foreground">/ {daily.minTemp}°</span></p>
-              <p className="text-xs text-muted-foreground capitalize mt-1 h-8 overflow-hidden" title={daily.description}>{daily.description}</p>
-              <p className="text-xs text-blue-500 mt-1">{daily.precipitationChance}% <CloudRain className="inline h-3 w-3"/></p>
-            </Card>
-          ))}
-        </CardContent>
-      </Card>
-    );
-  };
-
-
   if (isLoading) {
     return (
       <Card className="shadow-lg">
-        <CardHeader>
-          <Skeleton className="h-8 w-2/5 mb-2" />
-          <Skeleton className="h-4 w-3/5" />
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="space-y-1">
+            <Skeleton className="h-6 w-48" /> {/* Title: Hava Durumu: Side, Türkiye */}
+            <Skeleton className="h-4 w-32" /> {/* Description: Güncel bilgiler... */}
+          </div>
+          <Skeleton className="h-9 w-9 rounded-full" /> {/* Refresh button */}
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-3">
-            <Skeleton className="h-12 w-1/2" />
-            <div className="grid grid-cols-2 gap-2">
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
+          {/* Current weather skeleton */}
+          <div className="flex items-center space-x-4">
+            <Skeleton className="h-16 w-16" /> {/* Icon */}
+            <div className="space-y-1">
+              <Skeleton className="h-10 w-24" /> {/* Temp */}
+              <Skeleton className="h-4 w-32" /> {/* Description */}
             </div>
           </div>
-          <Separator />
-          <div className="flex space-x-4">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 w-24 rounded-lg" />)}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-5 w-3/4" />
           </div>
+          
           <Separator />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-40 w-full rounded-lg" />)}
+          {/* Hourly forecast skeleton */}
+          <div>
+            <Skeleton className="h-5 w-1/3 mb-3" /> {/* Sub-title */}
+            <div className="flex space-x-4">
+              {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 w-20 rounded-lg" />)}
+            </div>
+          </div>
+          
+          <Separator />
+          {/* Daily forecast skeleton */}
+          <div>
+            <Skeleton className="h-5 w-1/3 mb-3" /> {/* Sub-title */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-36 w-full rounded-lg" />)}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -223,34 +131,136 @@ export function WeatherWidget({ initialLocation = DEFAULT_LOCATION }: WeatherWid
       </Card>
     );
   }
-
+  
   if (!weatherData || (!weatherData.currentWeather && !weatherData.todayHourlyForecast && !weatherData.threeDaySummaryForecast)) {
     return (
       <Card className="shadow-lg">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center">
             <CloudOff className="mr-2 h-5 w-5 text-muted-foreground" /> Hava Durumu
           </CardTitle>
-          <CardDescription>Veri bulunamadı veya yüklenemedi.</CardDescription>
+           <Button variant="ghost" size="icon" onClick={fetchWeather} aria-label="Hava durumunu yenile">
+             <RefreshCw className="h-4 w-4" />
+           </Button>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-4">
             "{location}" için hava durumu bilgisi bulunamadı veya servis geçici olarak kullanılamıyor.
           </p>
-          <Button variant="outline" onClick={fetchWeather} className="w-full">
-            <RefreshCw className="mr-2 h-4 w-4" /> Tekrar Dene
-          </Button>
         </CardContent>
       </Card>
     );
   }
-  
+
+  const { currentWeather, todayHourlyForecast, threeDaySummaryForecast } = weatherData;
 
   return (
-    <div className="space-y-6">
-      {renderCurrentWeather()}
-      {renderHourlyForecast()}
-      {renderDailyForecast()}
-    </div>
+    <Card className="shadow-lg">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div>
+          <CardTitle className="text-xl font-headline flex items-center">
+            <MapPin className="mr-2 h-5 w-5 text-primary" /> Hava Durumu: {weatherData.location || location}
+          </CardTitle>
+          <CardDescription>Güncel bilgiler, saatlik ve 3 günlük tahminler.</CardDescription>
+        </div>
+        <Button variant="ghost" size="icon" onClick={fetchWeather} aria-label="Hava durumunu yenile">
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-6 pt-4">
+        {/* Current Weather Section */}
+        {currentWeather && (
+          <div className="p-4 rounded-lg border bg-background/60">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start sm:space-x-4">
+              {currentWeather.icon && (
+                <Image
+                  src={`https://openweathermap.org/img/wn/${currentWeather.icon}@4x.png`}
+                  alt={currentWeather.description || "Hava durumu ikonu"}
+                  width={100}
+                  height={100}
+                  className="flex-shrink-0 -mt-2 -mb-2 sm:mt-0 sm:mb-0"
+                  data-ai-hint="weather condition"
+                />
+              )}
+              <div className="text-center sm:text-left">
+                <p className="text-6xl font-bold text-primary">{currentWeather.temp}°C</p>
+                <p className="text-lg capitalize text-muted-foreground -mt-1">{currentWeather.description}</p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+              <div className="flex items-center"><Thermometer className="mr-2 h-4 w-4 text-muted-foreground" /> Hissedilen: {currentWeather.feelsLike}°C</div>
+              <div className="flex items-center"><Droplets className="mr-2 h-4 w-4 text-muted-foreground" /> Nem: %{currentWeather.humidity}</div>
+              <div className="flex items-center col-span-2 sm:col-span-1"><Wind className="mr-2 h-4 w-4 text-muted-foreground" /> Rüzgar: {currentWeather.windSpeed} m/s</div>
+            </div>
+          </div>
+        )}
+
+        {/* Hourly Forecast Section */}
+        {todayHourlyForecast && todayHourlyForecast.length > 0 && (
+          <>
+            <Separator />
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center">
+                <Clock className="mr-2 h-5 w-5 text-primary" /> Bugün Saatlik Tahmin
+              </h3>
+              <ScrollArea className="w-full whitespace-nowrap">
+                <div className="flex space-x-4 pb-4">
+                  {todayHourlyForecast.map((hourly, index) => (
+                    <div key={index} className="flex flex-col items-center p-3 border rounded-lg min-w-[90px] bg-background/50 shadow-sm">
+                      <p className="text-sm font-medium">{hourly.time}</p>
+                      {hourly.icon && (
+                        <Image
+                          src={`https://openweathermap.org/img/wn/${hourly.icon}.png`}
+                          alt={hourly.description}
+                          width={40}
+                          height={40}
+                          data-ai-hint="weather condition"
+                        />
+                      )}
+                      <p className="text-base font-semibold">{hourly.temp}°</p>
+                      <p className="text-xs text-muted-foreground capitalize truncate w-full text-center" title={hourly.description}>{hourly.description}</p>
+                      <p className="text-xs text-blue-500">{hourly.pop}%</p>
+                    </div>
+                  ))}
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </div>
+          </>
+        )}
+
+        {/* Daily Forecast Section */}
+        {threeDaySummaryForecast && threeDaySummaryForecast.length > 0 && (
+          <>
+            <Separator />
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center">
+                <CalendarDays className="mr-2 h-5 w-5 text-primary" /> Gelecek 3 Gün
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {threeDaySummaryForecast.map((daily, index) => (
+                  <Card key={index} className="p-3 flex flex-col items-center text-center bg-background/50 shadow-sm">
+                    <p className="text-base font-semibold">{daily.date}</p>
+                    <p className="text-xs text-muted-foreground mb-1">{daily.dayName.split(',')[0]}</p>
+                    {daily.icon && (
+                      <Image
+                        src={`https://openweathermap.org/img/wn/${daily.icon}@2x.png`}
+                        alt={daily.description}
+                        width={50}
+                        height={50}
+                        data-ai-hint="weather condition"
+                      />
+                    )}
+                    <p className="text-lg font-bold">{daily.maxTemp}° <span className="text-sm text-muted-foreground">/ {daily.minTemp}°</span></p>
+                    <p className="text-xs text-muted-foreground capitalize mt-1 h-8 overflow-hidden" title={daily.description}>{daily.description}</p>
+                    <p className="text-xs text-blue-500 mt-1">{daily.precipitationChance}%</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
