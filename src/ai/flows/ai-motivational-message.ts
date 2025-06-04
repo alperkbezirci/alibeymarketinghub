@@ -21,10 +21,10 @@ const MotivationalMessageOutputSchema = z.object({
 export type MotivationalMessageOutput = z.infer<typeof MotivationalMessageOutputSchema>;
 
 const motivationalPrompt = ai.definePrompt({
-  name: 'generateMotivationalMessagePrompt', // Restore original or keep a distinct name
+  name: 'generateMotivationalMessagePrompt', // Restored original name
   input: { schema: MotivationalMessageInputSchema },
   output: { schema: MotivationalMessageOutputSchema },
-  prompt: `Sen kullanıcıları motive eden, son derece pozitif, esprili ve yapıcı bir asistansın.
+  prompt: `Sen kullanıcıları motive eden, son derece pozitif bir asistansın.
 Çok Önemli: Yanıtın KESİNLİKLE ve SADECE aşağıdaki JSON formatında olmalıdır. JSON bloğunun ÖNCESİNDE veya SONRASINDA kesinlikle başka hiçbir metin, açıklama veya karakter olmamalıdır.
 {
   "message": "üretilecek kişiselleştirilmiş mesaj buraya gelecek"
@@ -33,32 +33,30 @@ const motivationalPrompt = ai.definePrompt({
 Kullanıcı Adı: {{userName}}
 
 {{#if todaysEvents.length}}
-Bugünün Takvim Etkinlikleri:
+Bugünün Takvim Etkinlikleri ({{todaysEvents.length}} adet):
 {{#each todaysEvents}}
 - {{{this}}}
 {{/each}}
 {{else}}
-Bugün için planlanmış herhangi bir takvim etkinliği görünmüyor. Belki kendine biraz zaman ayırabilirsin veya yeni planlar yapabilirsin!
+Bugün için planlanmış takvim etkinliği yok.
 {{/if}}
 
 {{#if userTasksSummary.length}}
-Sana Atanmış Görevlerin Durumu:
+Görev Durumu ({{userTasksSummary.length}} adet):
 {{#each userTasksSummary}}
 - {{{this}}}
 {{/each}}
 {{else}}
-Şu anda sana atanmış aktif bir görev bulunmuyor. Harika bir fırsat, belki de yeni bir projeye başlamak için?
+Şu anda sana atanmış aktif bir görev bulunmuyor.
 {{/if}}
 
 Yönergeler:
-1.  Kullanıcıyı ismiyle sıcak bir şekilde selamla. Örneğin: "Merhaba {{userName}}, harika bir gün başlıyor!" veya "Hey {{userName}}, bugünün yıldızı sensin!" gibi.
-2.  Eğer varsa, bugünün takvim etkinliklerinden kısaca bahset. Onları hatırlatarak kullanıcıyı güne hazırlayabilirsin ("Unutma, bugün şu etkinliğin var..." gibi).
-3.  Eğer varsa, kullanıcıya atanmış görevlerin genel durumuna (özellikle devam eden veya tamamlanmış olanlara) değin. Başarılarını kutlayabilir ("Şu görevini tamamlamışsın, tebrikler!") veya devam eden işler için motivasyon ("Proje X'te harika gidiyorsun, devam et!") verebilirsin.
-4.  Tüm bu bilgileri kullanarak, kullanıcının o günkü durumuna uygun, kişiselleştirilmiş, motive edici, olumlu ve cesaretlendirici bir mesaj oluştur. Mesajın biraz esprili ve samimi olabilir.
-5.  Mesajının sonunda "İyi çalışmalar!", "Harika bir gün geçir!", "Bugünün tadını çıkar!" veya benzeri pozitif bir kapanış yap.
-6.  Eğer takvimde etkinlik yoksa veya atanmış proje/görev yoksa, bunu da olumlu bir şekilde ifade et. Kullanıcıya bu boş zamanı nasıl değerlendirebileceği konusunda nazikçe fikir verebilirsin. ("Bugün takvimin ve görev listen sakin görünüyor, bu enerjini yeni fikirlere veya dinlenmeye ayırmak için harika bir gün olabilir!").
-7.  Mesajın toplamda çok uzun olmasın, genellikle 2-4 cümle yeterlidir.
-8.  UNUTMA: Yanıtın SADECE ve SADECE belirtilen JSON formatında olmalıdır: { "message": "..." } Başka hiçbir metin, açıklama veya giriş cümlesi içermemelidir.
+1.  Kullanıcıyı ismiyle sıcak bir şekilde selamla. (Örn: "Merhaba {{userName}}!")
+2.  Eğer takvim etkinliği varsa, kısaca bahset. Yoksa, bunun için olumlu bir şey söyle.
+3.  Eğer görevleri varsa, kısaca bahset. Yoksa, bunun için olumlu bir şey söyle.
+4.  Tüm bu bilgileri kullanarak, kullanıcıya kişiselleştirilmiş, motive edici ve esprili bir mesaj oluştur (1-3 cümle).
+5.  Mesajının sonunda "İyi çalışmalar!", "Harika bir gün geçir!" veya benzeri pozitif bir kapanış yap.
+6.  UNUTMA: Yanıtın SADECE ve SADECE belirtilen JSON formatında olmalıdır.
 `,
 });
 
