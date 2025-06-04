@@ -11,7 +11,7 @@ import { AlertTriangle, Briefcase, ListChecks, CalendarDays, ChevronRight } from
 import { getProjectsByUserId, type Project } from '@/services/project-service';
 import { getTasksByUserId, type Task } from '@/services/task-service';
 import { getEvents, type CalendarEvent } from '@/services/calendar-service';
-import { format, addDays, isBefore, parseISO, startOfToday, endOfDay } from 'date-fns';
+import { format, addDays, isBefore, parseISO, startOfToday, endOfDay, isValid } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -61,18 +61,23 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
       const [projectsResponse, tasksResponse, eventsResponse] = await Promise.allSettled([
         getProjectsByUserId(user.uid),
         getTasksByUserId(user.uid),
-        getEvents(today, sevenDaysLater) 
+        getEvents(today, sevenDaysLater)
       ]);
 
       if (projectsResponse.status === 'fulfilled') {
         const userProjects = projectsResponse.value;
         const filteredOverdueProjects = userProjects
           .filter(p =>
-            p.endDate && isBefore(parseISO(p.endDate), today) &&
+            p.endDate && isValid(parseISO(p.endDate)) && isBefore(parseISO(p.endDate), today) &&
             p.status !== 'Tamamlandı' && p.status !== 'İptal Edildi'
           )
           .map(p => ({...p, isOverdue: true}))
-          .sort((a, b) => parseISO(a.endDate!).getTime() - parseISO(b.endDate!).getTime()); 
+          .sort((a, b) => {
+            if (a.endDate && b.endDate) {
+              return parseISO(a.endDate).getTime() - parseISO(b.endDate).getTime();
+            }
+            return 0;
+          });
         setOverdueProjects(filteredOverdueProjects);
       } else {
         console.error("Error fetching projects:", projectsResponse.reason);
@@ -85,30 +90,43 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
         const filteredPendingTasks = userTasks
           .filter(t => {
             if (t.status === 'Tamamlandı') return false;
-            if (!t.dueDate) return true; 
-            const dueDate = parseISO(t.dueDate);
-            return isBefore(dueDate, sevenDaysLater); 
+            if (!t.dueDate) return true;
+            const dueDateObj = parseISO(t.dueDate);
+            if (!isValid(dueDateObj)) return true; // Keep tasks with invalid due dates to be safe, or filter out
+            return isBefore(dueDateObj, sevenDaysLater);
           })
           .map(t => ({
             ...t,
-            isOverdue: t.dueDate ? isBefore(parseISO(t.dueDate), now) && t.status !== 'Tamamlandı' : false,
+            isOverdue: t.dueDate && isValid(parseISO(t.dueDate)) ? isBefore(parseISO(t.dueDate), now) && t.status !== 'Tamamlandı' : false,
           }))
           .sort((a, b) => {
             if (a.isOverdue && !b.isOverdue) return -1;
             if (!a.isOverdue && b.isOverdue) return 1;
-            if (a.dueDate && b.dueDate) return parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime();
-            if (a.dueDate) return -1; 
-            if (b.dueDate) return 1;
+            if (a.dueDate && b.dueDate && isValid(parseISO(a.dueDate)) && isValid(parseISO(b.dueDate))) {
+              return parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime();
+            }
+            if (a.dueDate && isValid(parseISO(a.dueDate))) return -1;
+            if (b.dueDate && isValid(parseISO(b.dueDate))) return 1;
             return 0;
           });
         setPendingTasks(filteredPendingTasks);
       } else {
         console.error("Error fetching tasks:", tasksResponse.reason);
-        setError(prev => prev ? prev + "\nGörevler yüklenemedi." : "Görevler yüklenemedi.");
+        const reasonMessage = tasksResponse.reason instanceof Error ? tasksResponse.reason.message : String(tasksResponse.reason);
+        setError(prev => prev ? prev + `\nGörevler yüklenemedi: ${reasonMessage}` : `Görevler yüklenemedi: ${reasonMessage}`);
       }
 
       if (eventsResponse.status === 'fulfilled') {
-        setUpcomingEvents(eventsResponse.value.sort((a,b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime()));
+        setUpcomingEvents(
+          eventsResponse.value.sort((a,b) => {
+            const dateA = a.startDate && isValid(parseISO(a.startDate)) ? parseISO(a.startDate).getTime() : 0;
+            const dateB = b.startDate && isValid(parseISO(b.startDate)) ? parseISO(b.startDate).getTime() : 0;
+            if (!dateA && !dateB) return 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return dateA - dateB;
+          })
+        );
       } else {
         console.error("Error fetching events:", eventsResponse.reason);
         setError(prev => prev ? prev + "\nEtkinlikler yüklenemedi." : "Etkinlikler yüklenemedi.");
@@ -149,7 +167,13 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
     </li>
   );
 
-  const renderTaskItem = (task: EnrichedTask) => (
+  const renderTaskItem = (task: EnrichedTask) => {
+    let formattedDueDate = 'N/A';
+    if (task.dueDate && isValid(parseISO(task.dueDate))) {
+      formattedDueDate = format(parseISO(task.dueDate), 'dd MMM yy', { locale: tr });
+    }
+
+    return (
     <li key={task.id} className="mb-2">
       <Card className="shadow-sm hover:shadow-lg transition-shadow duration-200 ease-in-out bg-card/80 dark:bg-card/60">
         <CardContent className="p-3">
@@ -161,7 +185,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
               {task.isOverdue && task.status !== 'Tamamlandı' && <Badge variant="destructive" className="text-xs ml-2 shrink-0">GECİKMİŞ</Badge>}
             </div>
             <p className="text-xs text-muted-foreground">
-              Bitiş: {task.dueDate ? format(parseISO(task.dueDate), 'dd MMM yy', { locale: tr }) : 'N/A'}
+              Bitiş: {formattedDueDate}
             </p>
             <div className="flex justify-between items-center mt-2">
               <Badge variant="outline" className="text-xs px-1.5 py-0.5">{task.priority || 'Normal'}</Badge>
@@ -173,7 +197,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
         </CardContent>
       </Card>
     </li>
-  );
+  )};
 
 
   if (isLoading) {
@@ -216,14 +240,20 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
               <Briefcase className="mr-2 h-5 w-5" /> Gecikmiş Projeleriniz (En Öncelikli)
             </h3>
             <ul className="space-y-1">
-              {overdueProjects.map(p => renderSimpleListItem(
-                p.id,
-                p.projectName,
-                `Bitiş Tarihi: ${p.endDate ? format(parseISO(p.endDate), 'dd MMM yyyy', { locale: tr }) : 'N/A'} | Durum: ${p.status}`,
-                `/projects/${p.id}`,
-                true,
-                p.status
-              ))}
+              {overdueProjects.map(p => {
+                let formattedEndDate = 'N/A';
+                if (p.endDate && isValid(parseISO(p.endDate))) {
+                  formattedEndDate = format(parseISO(p.endDate), 'dd MMM yyyy', { locale: tr });
+                }
+                return renderSimpleListItem(
+                  p.id,
+                  p.projectName,
+                  `Bitiş Tarihi: ${formattedEndDate} | Durum: ${p.status}`,
+                  `/projects/${p.id}`,
+                  true,
+                  p.status
+                );
+              })}
             </ul>
           </div>
         )}
@@ -233,15 +263,10 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
             <h3 className="text-lg font-semibold mb-2 flex items-center">
               <ListChecks className="mr-2 h-5 w-5 text-primary" /> Bekleyen ve Yaklaşan Görevleriniz
             </h3>
-            <ul className="space-y-0"> {/* Adjusted space-y to 0 as li has mb-2 */}
+            <ul className="space-y-0">
               {pendingTasks.map(t => renderTaskItem(t))}
             </ul>
           </div>
-        )}
-        
-        {/* Fallback message if no tasks or overdue projects */}
-        {pendingTasks.length === 0 && overdueProjects.length === 0 && !error && (
-             <p className="text-sm text-muted-foreground py-2 text-center">Yaklaşan veya gecikmiş göreviniz/projeniz bulunmuyor.</p>
         )}
 
         {upcomingEvents.length > 0 && (
@@ -250,19 +275,23 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
               <CalendarDays className="mr-2 h-5 w-5 text-primary" /> Yaklaşan Etkinlikler (Önümüzdeki 7 Gün)
             </h3>
             <ul className="space-y-1">
-              {upcomingEvents.map(e => renderSimpleListItem(
-                e.id,
-                e.title,
-                `Başlangıç: ${format(parseISO(e.startDate), 'dd MMM yyyy, HH:mm', { locale: tr })} ${e.eventType ? `| Tip: ${e.eventType}` : ''}`,
-                `/calendar` 
-              ))}
+              {upcomingEvents.map(e => {
+                let formattedStartDate = 'N/A';
+                if (e.startDate && isValid(parseISO(e.startDate))) {
+                  formattedStartDate = format(parseISO(e.startDate), 'dd MMM yyyy, HH:mm', { locale: tr });
+                }
+                return renderSimpleListItem(
+                  e.id,
+                  e.title,
+                  `Başlangıç: ${formattedStartDate} ${e.eventType ? `| Tip: ${e.eventType}` : ''}`,
+                  `/calendar`
+                );
+              })}
             </ul>
           </div>
         )}
-        {upcomingEvents.length === 0 && !error && (
-             <p className="text-sm text-muted-foreground py-2 text-center">Önümüzdeki 7 gün için planlanmış bir etkinlik bulunmamaktadır.</p>
-        )}
-         {overdueProjects.length === 0 && pendingTasks.length === 0 && upcomingEvents.length === 0 && !error && (
+        
+        {overdueProjects.length === 0 && pendingTasks.length === 0 && upcomingEvents.length === 0 && !error && (
             <p className="text-md text-muted-foreground text-center py-6">Önümüzdeki 7 gün için planlanmış herhangi bir proje, görev veya etkinlik bulunmamaktadır. Harika bir hafta sizi bekliyor olabilir!</p>
         )}
       </CardContent>
