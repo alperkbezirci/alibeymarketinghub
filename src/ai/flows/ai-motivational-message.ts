@@ -1,17 +1,17 @@
 
 'use server';
 /**
- * @fileOverview An AI flow to generate a motivational message based on
- * the user's tasks and calendar events.
+ * @fileOverview An AI flow to generate a motivational message.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+// Keep the original input schema for the function signature
 const MotivationalMessageInputSchema = z.object({
   userName: z.string().describe('The name of the user.'),
   todaysEvents: z.array(z.string()).optional().describe("A list of today's scheduled calendar event titles or summaries. Can be empty."),
-  userTasksSummary: z.array(z.string()).optional().describe('A list of summaries for tasks assigned to the user, e.g., ["Proje X (Devam Ediyor)", "Proje Y (Tamamlandı)"]. Can be empty.'),
+  userTasksSummary: z.array(z.string()).optional().describe('A list of summaries for tasks assigned to the user. Can be empty.'),
 });
 export type MotivationalMessageInput = z.infer<typeof MotivationalMessageInputSchema>;
 
@@ -20,71 +20,58 @@ const MotivationalMessageOutputSchema = z.object({
 });
 export type MotivationalMessageOutput = z.infer<typeof MotivationalMessageOutputSchema>;
 
-const motivationalPrompt = ai.definePrompt({
-  name: 'generateMotivationalMessagePrompt', // Restored original name
-  input: { schema: MotivationalMessageInputSchema },
+// Define a much simpler schema for the prompt itself for this test
+const MinimalPromptInputSchema = z.object({
+    userName: z.string(),
+});
+
+const minimalMotivationalPrompt = ai.definePrompt({
+  name: 'minimalMotivationalMessageGenPrompt', // New unique name
+  input: { schema: MinimalPromptInputSchema },
   output: { schema: MotivationalMessageOutputSchema },
-  prompt: `Sen kullanıcıları motive eden, son derece pozitif bir asistansın.
-Çok Önemli: Yanıtın KESİNLİKLE ve SADECE aşağıdaki JSON formatında olmalıdır. JSON bloğunun ÖNCESİNDE veya SONRASINDA kesinlikle başka hiçbir metin, açıklama veya karakter olmamalıdır.
-{
-  "message": "üretilecek kişiselleştirilmiş mesaj buraya gelecek"
-}
----
-Kullanıcı Adı: {{userName}}
-
-{{#if todaysEvents.length}}
-Bugünün Takvim Etkinlikleri ({{todaysEvents.length}} adet):
-{{#each todaysEvents}}
-- {{{this}}}
-{{/each}}
-{{else}}
-Bugün için planlanmış takvim etkinliği yok.
-{{/if}}
-
-{{#if userTasksSummary.length}}
-Görev Durumu ({{userTasksSummary.length}} adet):
-{{#each userTasksSummary}}
-- {{{this}}}
-{{/each}}
-{{else}}
-Şu anda sana atanmış aktif bir görev bulunmuyor.
-{{/if}}
-
-Yönergeler:
-1.  Kullanıcıyı ismiyle sıcak bir şekilde selamla. (Örn: "Merhaba {{userName}}!")
-2.  Eğer takvim etkinliği varsa, kısaca bahset. Yoksa, bunun için olumlu bir şey söyle.
-3.  Eğer görevleri varsa, kısaca bahset. Yoksa, bunun için olumlu bir şey söyle.
-4.  Tüm bu bilgileri kullanarak, kullanıcıya kişiselleştirilmiş, motive edici ve esprili bir mesaj oluştur (1-3 cümle).
-5.  Mesajının sonunda "İyi çalışmalar!", "Harika bir gün geçir!" veya benzeri pozitif bir kapanış yap.
-6.  UNUTMA: Yanıtın SADECE ve SADECE belirtilen JSON formatında olmalıdır.
-`,
+  prompt: `You are a very positive assistant. Create a short, uplifting message for {{userName}}.
+IMPORTANT: Your response MUST be ONLY a JSON object like this: {"message": "your uplifting message here"}. No other text.`,
 });
 
 export async function generateMotivationalMessage(input: MotivationalMessageInput): Promise<MotivationalMessageOutput> {
-  console.log(`[AI Motivational Flow] ENTERING generateMotivationalMessage for user ${input.userName}`);
-  console.log(`[AI Motivational Flow] Input to AI for user ${input.userName}: ${JSON.stringify(input, null, 2)}`);
+  console.log(`[AI Motivational Flow - ENTERING] User: ${input.userName}. Full input: ${JSON.stringify(input, null, 2)}`);
 
   try {
-    const response = await motivationalPrompt(input);
-    const modelOutput = response.output; // Genkit 1.x: output is already parsed or undefined if parsing failed
+    // Pass only the userName to the minimal prompt
+    const minimalInput = { userName: input.userName };
+    console.log(`[AI Motivational Flow - CALLING PROMPT] With minimal input: ${JSON.stringify(minimalInput, null, 2)}`);
 
-    const rawContent = response.raw?.choices?.[0]?.message?.content ?? 'Raw response could not be obtained or was empty.';
-    console.log(`[AI Motivational Flow] Raw AI response for user ${input.userName}:`, rawContent);
-    console.log(`[AI Motivational Flow] Parsed AI output (modelOutput) for user ${input.userName}:`, modelOutput);
+    const response = await minimalMotivationalPrompt(minimalInput);
+    const modelOutput = response.output;
+
+    // Safely access raw content
+    let rawContent = 'Raw response content not available or empty.';
+    if (response.raw && response.raw.choices && response.raw.choices.length > 0 && response.raw.choices[0].message) {
+        rawContent = String(response.raw.choices[0].message.content) || 'Raw content was empty string.';
+    } else if (response.raw) {
+        rawContent = `Raw object present but choices/message structure not as expected: ${JSON.stringify(response.raw, null, 2)}`;
+    }
+
+    console.log(`[AI Motivational Flow - RAW RESPONSE] User: ${input.userName}. Raw content: "${rawContent}"`);
+    console.log(`[AI Motivational Flow - PARSED OUTPUT] User: ${input.userName}. Parsed: ${JSON.stringify(modelOutput, null, 2)}`);
 
     if (modelOutput && typeof modelOutput.message === 'string' && modelOutput.message.trim() !== '') {
-      console.log(`[AI Motivational Flow] Successfully generated AI motivational message for ${input.userName}.`);
+      console.log(`[AI Motivational Flow - SUCCESS] Generated message for ${input.userName}.`);
       return modelOutput;
     }
     
-    console.warn(`[AI Motivational Flow] AI message prompt returned null, empty, or malformed output for user ${input.userName}. Falling back. Raw content was: "${rawContent}"`);
-    return { message: `Harika bir gün geçirmenizi dileriz, ${input.userName}! (Sistem varsayılan mesajı - AI Format Sorunu)` };
+    console.warn(`[AI Motivational Flow - MALFORMED/EMPTY OUTPUT] User: ${input.userName}. Fallback. Parsed output was: ${JSON.stringify(modelOutput, null, 2)}. Raw content was: "${rawContent}"`);
+    return { message: `Merhaba ${input.userName}, AI mesajı alınamadı (Yanıt Format Sorunu).` };
 
   } catch (promptError: any) {
     console.error(
-      `[AI Motivational Flow] CRITICAL Error DURING motivationalPrompt call for user ${input.userName}. Error Name: ${promptError.name}, Message: ${promptError.message}. Stack: ${promptError.stack}. Input: ${JSON.stringify(input)}. Falling back.`,
+      `[AI Motivational Flow - CRITICAL PROMPT ERROR] User: ${input.userName}.
+      Error Name: ${promptError.name}
+      Message: ${promptError.message}
+      Input to prompt (minimal): ${JSON.stringify({ userName: input.userName }, null, 2)}
+      Full Input to function: ${JSON.stringify(input, null, 2)}
+      Stack: ${promptError.stack}`
     );
-    return { message: `Merhaba ${input.userName}, motivasyon mesajı oluşturulurken bir sorunla karşılaşıldı (Kod: MOTIV_PROMPT_ERR_FULL). Lütfen daha sonra tekrar deneyin.` };
+    return { message: `Merhaba ${input.userName}, AI mesajı oluşturulurken kritik bir sunucu hatası oluştu (Kod: PROMPT_EXEC_FAIL). Lütfen API anahtarınızı ve model erişiminizi kontrol edin.` };
   }
 }
-
