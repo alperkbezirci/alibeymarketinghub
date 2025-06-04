@@ -37,65 +37,69 @@ const welcomeMessagePrompt = ai.definePrompt({
 ---
 Kullanıcı Adı: {{userName}}
 
-{{#if weatherData.currentWeather}}
+{{#unless weatherData.error}}
+  {{#if weatherData.currentWeather}}
 Şu anki Hava Durumu ({{weatherData.location}}):
 Sıcaklık: {{weatherData.currentWeather.temp}}°C (Hissedilen: {{weatherData.currentWeather.feelsLike}}°C)
 Durum: {{weatherData.currentWeather.description}}
 Nem: {{weatherData.currentWeather.humidity}}%
 Rüzgar: {{weatherData.currentWeather.windSpeed}} m/s
-{{else}}
-Anlık hava durumu bilgisi alınamadı.
-{{/if}}
+  {{else}}
+Anlık hava durumu detayları (currentWeather) alınamadı.
+  {{/if}}
 
-{{#if weatherData.todayHourlyForecast.length}}
+  {{#if weatherData.todayHourlyForecast.length}}
 Bugünün Saatlik Tahmini ({{weatherData.location}}):
-{{#each weatherData.todayHourlyForecast}}
+    {{#each weatherData.todayHourlyForecast}}
 - {{time}}: {{temp}}°C, {{description}}, Yağış: {{pop}}%
-{{/each}}
-{{else}}
+    {{/each}}
+  {{else}}
 Bugün için saatlik tahmin detayı bulunmuyor.
-{{/if}}
+  {{/if}}
 
-{{#if weatherData.threeDaySummaryForecast.length}}
+  {{#if weatherData.threeDaySummaryForecast.length}}
 Önümüzdeki 3 Günün Özeti ({{weatherData.location}}):
-{{#each weatherData.threeDaySummaryForecast}}
+    {{#each weatherData.threeDaySummaryForecast}}
 - {{date}} ({{dayName}}): En Düşük {{minTemp}}°C, En Yüksek {{maxTemp}}°C, {{description}}, Yağış İhtimali: {{precipitationChance}}%
-{{/each}}
-{{else}}
+    {{/each}}
+  {{else}}
 Gelecek günler için özet tahmin bilgisi alınamadı.
-{{/if}}
+  {{/if}}
+{{else}}
+Hava durumu bilgisi alınamadı. {{#if weatherData.location}}({{weatherData.location}} için {{weatherData.error}}){{else}}({{weatherData.error}}){{/if}}
+{{/unless}}
 
 {{#if todaysEvents.length}}
 Bugünün Takvim Etkinlikleri:
-{{#each todaysEvents}}
+  {{#each todaysEvents}}
 - {{{this}}}
-{{/each}}
+  {{/each}}
 {{else}}
 Bugün için planlanmış herhangi bir takvim etkinliği bulunmamaktadır.
 {{/if}}
 
 {{#if userProjectsSummary.length}}
 Sana Atanmış Projelerin Durumu:
-{{#each userProjectsSummary}}
+  {{#each userProjectsSummary}}
 - {{{this}}}
-{{/each}}
+  {{/each}}
 {{else}}
 Şu anda sana atanmış aktif bir proje bulunmuyor.
 {{/if}}
 
 Yönergeler:
 1. Kullanıcıyı ismiyle sıcak bir şekilde "Merhaba {{userName}}," şeklinde selamla.
-2. {{#if weatherData.currentWeather}}Şu anki hava durumunu ({{weatherData.currentWeather.description}}, {{weatherData.currentWeather.temp}}°C) mesajına doğal bir şekilde dahil et.{{/if}}
-3. {{#if weatherData.todayHourlyForecast.length}}**Bugünün saatlik tahminini dikkate alarak GÜNLÜK PRATİK TAVSİYELER ver.**
-    * Örneğin, eğer öğleden sonra yağış olasılığı yüksekse, "Bugün hava {{weatherData.currentWeather.description}} ve {{weatherData.currentWeather.temp}}°C civarında. Öğleden sonra yağmur uğrayabilir, şemsiyeni yanında bulundursan iyi olur!" gibi bir ifade kullan.
-    * Eğer belirli saatlerde sıcaklık çok artıyorsa, "Saat ... civarı sıcaklık ...°C'ye kadar çıkabilir, dışarıdaysan bol su içmeyi ve güneşten korunmayı unutma!" gibi bir uyarı ekle.
-    * Bu tavsiyeleri eğlenceli ve samimi bir dille aktar. Her zaman olmasa da, uygun olduğunda bu tür detaylara gir.{{/if}}
+2. {{#unless weatherData.error}}{{#if weatherData.currentWeather}}Şu anki hava durumunu ({{weatherData.currentWeather.description}}, {{weatherData.currentWeather.temp}}°C) mesajına doğal bir şekilde dahil et.{{/if}}{{/unless}}
+3. {{#unless weatherData.error}}{{#if weatherData.todayHourlyForecast.length}}**Bugünün saatlik tahminini dikkate alarak GÜNLÜK PRATİK TAVSİYELER ver.**
+    * Örneğin, eğer saatlik tahminlerde öğleden sonra yağış olasılığı yüksekse, "Öğleden sonra yağmur bekleniyor, şemsiyeni yanında bulundurmak iyi bir fikir olabilir!" gibi bir ifade kullan.
+    * Eğer belirli saatlerde sıcaklık çok artıyorsa, "Günün ilerleyen saatlerinde sıcaklık artabilir, dışarıdaysan bol su içmeyi ve güneşten korunmayı unutma!" gibi bir uyarı ekle.
+    * Bu tavsiyeleri eğlenceli ve samimi bir dille aktar. Her zaman olmasa da, uygun olduğunda bu tür detaylara gir.{{/if}}{{/unless}}
 4. Eğer varsa, bugünün takvim etkinliklerinden kısaca bahset.
 5. Eğer varsa, kullanıcıya atanmış projelerin genel durumuna değin.
 6. Tüm bu bilgileri kullanarak, kullanıcının o günkü durumuna uygun, kişiselleştirilmiş, motive edici ve cesaretlendirici bir mesaj oluştur.
 7. Mesajının sonunda "İyi çalışmalar!", "Harika bir gün geçir!" veya benzeri pozitif bir kapanış yap.
 8. Eğer takvimde etkinlik yoksa veya atanmış proje yoksa, bunu da olumlu bir şekilde ifade et. ("Bugün takvimde bir şey görünmüyor, belki kendine biraz zaman ayırabilirsin?" gibi)
-9. Eğer hava durumu verisi alınamazsa (weatherData boş veya error içeriyorsa), bunu nazikçe belirt ("Hava durumu bilgisine şu an ulaşılamıyor ama...") ve genel bir karşılama yap.
+9. Eğer hava durumu verisi alınamazsa (weatherData boş veya error içeriyorsa), bunu nazikçe belirt ("Hava durumu bilgisine şu an ulaşılamıyor ama...") ve genel bir karşılama yap. (Bu durum zaten üstteki {{#unless weatherData.error}} bloğu ile ele alınıyor.)
 10. UNUTMA: Yanıtın SADECE ve SADECE belirtilen JSON formatında olmalıdır: { "message": "..." } Başka hiçbir metin, açıklama veya giriş cümlesi içermemelidir.
 `,
 });
@@ -139,7 +143,6 @@ export async function generateWelcomeMessage(input: WelcomeMessageInput): Promis
     
     console.warn(`[AI Welcome Flow] AI welcome message prompt returned null, empty, or malformed output for user ${input.userName}. Falling back to default message.`);
     console.warn(`[AI Welcome Flow] Details: modelOutput.message was "${modelOutput?.message}". Raw content was: "${rawContent}"`);
-    // Fallback (input.date ve input.time olmadan)
     return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Sistemimiz (AI format sorunu) size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!` };
 
   } catch (promptError: any) {
@@ -147,7 +150,6 @@ export async function generateWelcomeMessage(input: WelcomeMessageInput): Promis
       `[AI Welcome Flow] Error DURING welcomeMessagePrompt call for user ${input.userName}. Error: ${promptError.message}. Input to AI (excluding weather for brevity): ${JSON.stringify({ ...input, weatherDataIsPresent: !!weatherData, weatherError: weatherData?.error })}. Falling back to default welcome message.`,
       JSON.stringify(promptError, Object.getOwnPropertyNames(promptError))
     );
-    // Fallback (input.date ve input.time olmadan)
     return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Sistemimiz (prompt hatası) size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!` };
   }
 }
