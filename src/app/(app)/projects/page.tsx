@@ -23,21 +23,23 @@ import { tr } from 'date-fns/locale';
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '@/contexts/auth-context'; // Auth context import
 
 export default function ProjectsPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false); // Detay dialogu için state
-  const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<Project | null>(null); // Seçilen proje state'i
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false); 
+  const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<Project | null>(null); 
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [usersList, setUsersList] = useState<AppUser[]>([]); // Kullanıcı listesi için state
+  const [usersList, setUsersList] = useState<AppUser[]>([]); 
 
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(true); // Kullanıcı yükleme state'i
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true); 
   
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { user: currentUser, isAdminOrMarketingManager } = useAuth(); // Get user and role
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,7 +56,7 @@ export default function ProjectsPage() {
       const [fetchedProjects, fetchedUsers] = await Promise.all([projectsPromise, usersPromise]);
       
       setProjects(fetchedProjects);
-      setUsersList(fetchedUsers);
+      setUsersList(fetchedUsers as AppUser[]); // Ensure type compatibility for usersList
     } catch (err: any) {
       setError(err.message || "Projeler veya kullanıcılar yüklenirken bir hata oluştu.");
       toast({ title: "Hata", description: err.message, variant: "destructive" });
@@ -112,7 +114,7 @@ export default function ProjectsPage() {
       await addProject(projectDataForService);
       toast({ title: "Başarılı", description: `${formData.projectName} adlı proje oluşturuldu.` });
       setIsFormDialogOpen(false);
-      fetchPageData(); // Refresh data
+      fetchPageData(); 
     } catch (err: any)      {
       toast({ title: "Hata", description: err.message || "Proje kaydedilirken bir hata oluştu.", variant: "destructive" });
     } finally {
@@ -248,18 +250,23 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {selectedProjectForDetail && (
+      {selectedProjectForDetail && currentUser && (
         <ProjectDetailDialog
           project={selectedProjectForDetail}
           users={usersList}
+          currentUser={currentUser}
+          isAdminOrMarketingManager={isAdminOrMarketingManager}
           isOpen={isDetailDialogOpen}
           onOpenChange={(open) => {
             setIsDetailDialogOpen(open);
             if (!open) setSelectedProjectForDetail(null);
           }}
+          onActivityUpdate={fetchPageData} // Refresh project list if an activity changes its status that might affect project display
         />
       )}
     </div>
   );
 }
+    
+
     
