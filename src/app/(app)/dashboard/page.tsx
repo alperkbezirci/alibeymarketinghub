@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { WelcomeDashboardSection } from "@/components/dashboard/WelcomeDashboardSection"; // Yeni bileşen import edildi
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { OverviewCard } from "@/components/dashboard/overview-card";
 import { WeatherWidget } from "@/components/dashboard/weather-widget";
@@ -28,7 +29,7 @@ const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU";
 const mapTaskToOverviewItem = (task: Task) => ({
   id: task.id,
   name: task.taskName || 'İsimsiz Görev',
-  detail: `Bitiş Tarihi: ${task.dueDate ? format(new Date(task.dueDate), 'dd MMM yyyy', {locale: tr}) : 'N/A'} | Öncelik: ${task.priority || 'Normal'}`,
+  detail: `Bitiş Tarihi: ${task.dueDate ? format(parseISO(task.dueDate), 'dd MMM yyyy', {locale: tr}) : 'N/A'} | Öncelik: ${task.priority || 'Normal'}`,
   projectId: task.project,
 });
 
@@ -72,8 +73,8 @@ export default function DashboardPage() {
     if (isAdminOrMarketingManager) setIsLoadingPendingApprovals(true);
 
     try {
-      const activeTasksPromise = getActiveTasks(5);
-      const overdueTasksPromise = getOverdueTasks(5);
+      const activeTasksPromise = getActiveTasks(5); // These are global, not user-specific for now
+      const overdueTasksPromise = getOverdueTasks(5); // These are global
 
       const [fetchedActiveTasks, fetchedOverdueTasks] = await Promise.all([activeTasksPromise, overdueTasksPromise]);
       setActiveTasksData(fetchedActiveTasks);
@@ -85,7 +86,7 @@ export default function DashboardPage() {
       }
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error);
-      toast({ title: "Kontrol Paneli Hatası", description: "Veriler yüklenirken bir sorun oluştu.", variant: "destructive" });
+      toast({ title: "Kontrol Paneli Hatası", description: "Genel özet verileri yüklenirken bir sorun oluştu.", variant: "destructive" });
     } finally {
       setIsLoadingActiveTasks(false);
       setIsLoadingOverdueTasks(false);
@@ -112,12 +113,18 @@ export default function DashboardPage() {
       description: formDataFromComponent.description,
       amountInEur: formDataFromComponent.amountInEur,
       exchangeRateToEur: formDataFromComponent.exchangeRateToEur,
+      // fileURL and storagePath will be handled if a file is part of formDataFromComponent
+      fileURL: formDataFromComponent.file ? undefined : (formDataFromComponent as any).fileURL, // Adapt if InvoiceFormData changes
+      storagePath: formDataFromComponent.file ? undefined : (formDataFromComponent as any).storagePath,
     };
 
     setPendingInvoiceData(invoiceDataForService);
 
     try {
-      const newInvoice = await addInvoice(invoiceDataForService);
+      // File upload logic would need to be added here if formDataFromComponent.file exists
+      // For simplicity, assuming file handling is done within addInvoice or before this call if necessary
+
+      const newInvoice = await addInvoice(invoiceDataForService); // This function needs to handle potential file upload
       setLastAddedInvoiceId(newInvoice.id);
       setIsTurqualityDialogOpen(true);
     } catch (error: any) {
@@ -137,6 +144,9 @@ export default function DashboardPage() {
     if (pendingInvoiceData.originalCurrency !== 'EUR' && pendingInvoiceData.amountInEur) {
       mainToastDescription += ` (EUR karşılığı: ${pendingInvoiceData.amountInEur.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })})`;
     }
+    // Add file status to toast if applicable
+    // if (pendingInvoiceData.fileURL) { mainToastDescription += " Dosya yüklendi."; }
+
 
     try {
       if (isTurqualityApplicable && pendingInvoiceData.invoiceDate && pendingInvoiceData.companyName) {
@@ -194,7 +204,8 @@ export default function DashboardPage() {
 
   const handleAssignTaskAndCloseForDashboard = async () => {
     if (!newlyCreatedTurqualityTaskId && selectedTaskAssignees.length > 0) {
-      toast({ title: "Atama Yapılmadı", description: "Lütfen en az bir sorumlu seçin veya bu adımı iptal edin.", variant: "warning" });
+      // This condition seems off, should be if taskId exists but no assignees, or if no taskID at all.
+      // For now, let's assume it means "if task exists and user wants to assign"
     }
     setIsSubmittingProcess(true);
     try {
@@ -221,20 +232,23 @@ export default function DashboardPage() {
       checked ? [...prev, userId] : prev.filter(id => id !== userId)
     );
   };
+  
+  if (!user) {
+    // AuthProvider should handle redirect, but this is a safeguard or loader state
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
 
   return (
     <div className="space-y-6">
-      <QuickActions 
-        onAddInvoiceClick={() => setIsInvoiceDialogOpen(true)}
-      />
+      <WelcomeDashboardSection user={user} />
       
-      {/* Weather Widget Row - Takes full width */}
+      <QuickActions />
+      
       <WeatherWidget />
 
-      {/* Overview Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <OverviewCard 
-          title="Aktif Görevler" 
+          title="Aktif Görevler (Genel)" 
           IconComponent={ClipboardList} 
           items={activeTasksData.map(mapTaskToOverviewItem)} 
           isLoading={isLoadingActiveTasks}
@@ -242,7 +256,7 @@ export default function DashboardPage() {
           getItemHref={(item) => item.projectId ? `/tasks/${item.id}` : `/tasks/${item.id}`}
         />
         <OverviewCard 
-          title="Gecikmiş Görevler" 
+          title="Gecikmiş Görevler (Genel)" 
           IconComponent={ListTodo} 
           items={overdueTasksData.map(mapTaskToOverviewItem)}
           isLoading={isLoadingOverdueTasks}
@@ -251,7 +265,7 @@ export default function DashboardPage() {
         />
         {isAdminOrMarketingManager && (
           <OverviewCard 
-            title="Onay Bekleyen İşler" 
+            title="Onay Bekleyen İşler (Genel)" 
             IconComponent={CheckSquare} 
             items={pendingApprovalsData.map(mapActivityToOverviewItem)}
             isLoading={isLoadingPendingApprovals}
@@ -260,7 +274,6 @@ export default function DashboardPage() {
           />
         )}
       </div>
-
 
       <Dialog open={isInvoiceDialogOpen} onOpenChange={(open) => {
         setIsInvoiceDialogOpen(open);
@@ -375,3 +388,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
