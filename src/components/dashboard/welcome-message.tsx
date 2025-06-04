@@ -24,7 +24,7 @@ const getWeatherIcon = (iconCode?: string, size: number = 24) => {
 };
 
 export function WelcomeMessage() {
-  const { user, getDisplayName } = useAuth();
+  const { user } = useAuth();
   
   const [weatherData, setWeatherData] = useState<WeatherInfoOutput | null>(null);
   const [loadingWeather, setLoadingWeather] = useState<boolean>(true);
@@ -40,9 +40,9 @@ export function WelcomeMessage() {
       setCurrentTime(now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
       setCurrentDateShort(format(now, 'd MMMM yyyy', {locale: tr}));
     };
-    updateDateTime(); // İlk yüklemede çalıştır
-    const timerId = setInterval(updateDateTime, 60000); // Her dakika güncelle
-    return () => clearInterval(timerId); // Component unmount olduğunda interval'ı temizle
+    updateDateTime(); 
+    const timerId = setInterval(updateDateTime, 60000); 
+    return () => clearInterval(timerId); 
   }, []);
 
   const fetchWeatherDetails = useCallback(async () => {
@@ -52,7 +52,6 @@ export function WelcomeMessage() {
         setWeatherData(result);
     } catch (error: any) {
         console.error("Hava durumu verisi alınırken hata (bileşen):", error);
-        // Provide a more specific error code or message for the component's catch block
         setWeatherData({ location, error: "Hava durumu bilgisi şu anda alınamıyor. (Kod: WC_ERR_FETCH)" });
     } finally {
         setLoadingWeather(false);
@@ -67,22 +66,18 @@ export function WelcomeMessage() {
 
   if (!user) return null;
 
-  const displayName = getDisplayName();
-  // Basit hoş geldin mesajı
-  const welcomeText = `Merhaba ${displayName}, Pazarlama Merkezi'ne hoş geldiniz!`; 
-
   return (
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle className="font-headline text-2xl flex flex-col sm:flex-row sm:justify-between sm:items-center">
-          <span><strong className="font-bold">Pazarlama</strong>Merkezi</span>
+          <span>Merhaba {user?.firstName || 'Değerli Kullanıcımız'},</span>
           <div className="text-sm font-normal text-muted-foreground mt-1 sm:mt-0 flex items-center">
             <MapPin size={16} className="mr-1.5" /> {location} <span className="mx-1.5">•</span> {currentDateShort}, {currentTime}
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-lg whitespace-pre-line leading-relaxed">{welcomeText}</p>
+        {/* AI Karşılama mesajı kaldırıldı. Sadece hava durumu gösterimi kaldı. */}
         
         {loadingWeather && !weatherData && (
            <div className="mt-6 space-y-3">
@@ -131,8 +126,11 @@ export function WelcomeMessage() {
           </div>
         )}
         {!loadingWeather && weatherData?.error && (
-            // Fallback mesajı (Kod: WC_CATCH) yerine doğrudan hata mesajını gösterelim.
             <p className="text-sm text-destructive mt-4 text-center">{weatherData.error} (Kod: WC_DISPLAY_ERR)</p>
+        )}
+         {/* Kullanıcı için genel bir mesaj veya boşluk bırakılabilir */}
+        {!loadingWeather && !weatherData?.currentWeather && !weatherData?.error && (
+          <p className="text-sm text-muted-foreground mt-4 text-center">Güne dair hava durumu bilgisi yüklenemedi.</p>
         )}
       </CardContent>
     </Card>
