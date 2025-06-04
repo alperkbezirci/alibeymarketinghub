@@ -1,17 +1,16 @@
-
 // src/app/(app)/dashboard/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { WelcomeMessage } from "@/components/dashboard/welcome-message";
+// WelcomeMessage importu kaldırıldı
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { OverviewCard } from "@/components/dashboard/overview-card";
 import { useAuth } from "@/contexts/auth-context";
-import { ClipboardList, ListTodo, CheckSquare, Loader2, AlertTriangle, PlusCircle } from "lucide-react"; // Removed unused CheckCircle, Users
+import { ClipboardList, ListTodo, CheckSquare, Loader2, AlertTriangle, PlusCircle } from "lucide-react";
 import { getActiveTasks, getOverdueTasks, addTask, updateTaskAssignees, type Task, type TaskInputData } from '@/services/task-service';
 import { getPendingApprovalActivities, type ProjectActivity } from '@/services/project-activity-service';
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // Removed DialogTrigger, DialogClose
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { InvoiceForm } from "@/components/budget/invoice-form";
 import { addInvoice, type InvoiceInputData, linkTaskToInvoice } from '@/services/invoice-service';
@@ -209,7 +208,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <WelcomeMessage />
+      {/* WelcomeMessage bileşeni kaldırıldı */}
       <QuickActions 
         onAddInvoiceClick={() => setIsInvoiceDialogOpen(true)}
       />
