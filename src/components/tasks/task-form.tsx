@@ -20,22 +20,25 @@ import { getProjects, type Project } from '@/services/project-service';
 
 interface TaskFormProps {
   onSave: (formData: TaskInputData) => Promise<void>;
-  initialData?: Partial<Task>; // Task interface now has string dates
+  initialData?: Partial<Task>; 
   onClose: () => void;
   isSaving?: boolean;
 }
 
-const NO_PROJECT_VALUE = "__none__"; // Special value for "no project"
+const NO_PROJECT_VALUE = "__none__"; 
+const LOADING_PROJECTS_PLACEHOLDER_VALUE = "__loading_projects_placeholder__";
+const PROJECTS_ERROR_PLACEHOLDER_VALUE = "__projects_error_placeholder__";
+const NO_PROJECTS_PLACEHOLDER_VALUE = "__no_projects_found_placeholder__";
+
 
 export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormProps) {
   const [taskName, setTaskName] = useState(initialData?.taskName || "");
-  // Initialize selectedProject to NO_PROJECT_VALUE if no initial project or if initial project is empty (should not happen for ID)
   const [selectedProject, setSelectedProject] = useState(initialData?.project || NO_PROJECT_VALUE);
   const [hotel, setHotel] = useState(initialData?.hotel || (HOTEL_NAMES.length > 0 ? HOTEL_NAMES[0] : ""));
   const [status, setStatus] = useState(initialData?.status || TASK_STATUSES[0]);
-  const [priority, setPriority] = useState(initialData?.priority || TASK_PRIORITIES[1]); // Default to Medium
+  const [priority, setPriority] = useState(initialData?.priority || TASK_PRIORITIES[1]); 
   const [dueDate, setDueDate] = useState<Date | undefined>(initialData?.dueDate ? new Date(initialData.dueDate) : undefined);
-  const [assignedTo, setAssignedTo] = useState(initialData?.assignedTo || ""); // This should be string[] in Task, handle conversion if it's string
+  const [assignedTo, setAssignedTo] = useState(initialData?.assignedTo || ""); 
   const [description, setDescription] = useState(initialData?.description || "");
 
   const [projectsList, setProjectsList] = useState<Project[]>([]);
@@ -71,13 +74,11 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
 
     const formData: TaskInputData = {
       taskName,
-      project: selectedProject === NO_PROJECT_VALUE ? undefined : selectedProject, // Convert __none__ to undefined for service
+      project: selectedProject === NO_PROJECT_VALUE ? undefined : selectedProject,
       hotel,
       status,
       priority,
       dueDate, 
-      // Ensure assignedTo is handled as string[] if your service expects that
-      // For now, assuming assignedTo state matches TaskInputData.assignedTo type (e.g. string[] or string)
       assignedTo: typeof assignedTo === 'string' && assignedTo.trim() !== '' ? assignedTo.split(',').map(s => s.trim()) : (Array.isArray(assignedTo) ? assignedTo : []),
       description,
     };
@@ -100,14 +101,14 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
             </SelectTrigger>
             <SelectContent>
               {isLoadingProjects ? (
-                <SelectItem value="loading_projects_placeholder" disabled>Yükleniyor...</SelectItem>
+                <SelectItem value={LOADING_PROJECTS_PLACEHOLDER_VALUE} disabled>Yükleniyor...</SelectItem>
               ) : projectsError ? (
-                <SelectItem value="projects_error_placeholder" disabled>{projectsError}</SelectItem>
+                <SelectItem value={PROJECTS_ERROR_PLACEHOLDER_VALUE} disabled>{projectsError}</SelectItem>
               ) : (
                 <>
                   <SelectItem value={NO_PROJECT_VALUE}>Proje seçmeyin (Genel)</SelectItem>
-                  {projectsList.map(p => <SelectItem key={p.id} value={p.id}>{p.projectName}</SelectItem>)}
-                  {projectsList.length === 0 && !projectsError && <SelectItem value="no_projects_placeholder" disabled>Proje bulunamadı.</SelectItem>}
+                  {projectsList.filter(p => p.id && p.id.trim() !== "").map(p => <SelectItem key={p.id} value={p.id}>{p.projectName}</SelectItem>)}
+                  {projectsList.length === 0 && !projectsError && <SelectItem value={NO_PROJECTS_PLACEHOLDER_VALUE} disabled>Proje bulunamadı.</SelectItem>}
                 </>
               )}
             </SelectContent>
@@ -165,7 +166,7 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
         <Input 
           id="assignedTo" 
           value={Array.isArray(assignedTo) ? assignedTo.join(', ') : assignedTo} 
-          onChange={(e) => setAssignedTo(e.target.value)} // Keep as string input, convert on submit
+          onChange={(e) => setAssignedTo(e.target.value)} 
           placeholder="Kullanıcı ID'leri veya isimleri"
           disabled={isSaving}
         />
@@ -186,3 +187,4 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
     </form>
   );
 }
+    

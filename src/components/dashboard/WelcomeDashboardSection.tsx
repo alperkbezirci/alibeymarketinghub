@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useAuth, type User as AuthUser } from '@/contexts/auth-context';
+import type { User as AuthUser } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -92,7 +92,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
         const filteredPendingTasks = userTasks
           .filter(t => {
             if (t.status === 'Tamamlandı') return false;
-            if (!t.dueDate) return true;
+            if (!t.dueDate) return true; 
             const dueDateObj = parseISO(t.dueDate);
             if (!isValid(dueDateObj)) return true; 
             return isBefore(dueDateObj, sevenDaysLater);
@@ -107,7 +107,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
             if (a.dueDate && b.dueDate && isValid(parseISO(a.dueDate)) && isValid(parseISO(b.dueDate))) {
               return parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime();
             }
-            if (a.dueDate && isValid(parseISO(a.dueDate))) return -1;
+            if (a.dueDate && isValid(parseISO(a.dueDate))) return -1; 
             if (b.dueDate && isValid(parseISO(b.dueDate))) return 1;
             return 0;
           });
@@ -125,7 +125,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
             const dateBString = b.startDate;
             
             if (!dateAString && !dateBString) return 0;
-            if (!dateAString) return 1; // Sort undefined/invalid dates to the end
+            if (!dateAString) return 1;
             if (!dateBString) return -1;
 
             const dateA = parseISO(dateAString);
@@ -166,13 +166,14 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
   ) => (
     <li key={id} className="border-b last:border-b-0 py-2.5 hover:bg-muted/30 px-1 -mx-1 rounded-md transition-colors">
       <Link href={href} className="flex items-center justify-between group">
-        <div>
-          <div className={cn("font-medium group-hover:text-primary flex items-center", isOverdue && "text-destructive")}>
+        {/* This is the main container for the title and detail, changed to div */}
+        <div> 
+          <div className={cn("font-medium group-hover:text-primary flex items-center", isOverdue && status !== 'Tamamlandı' && "text-destructive")}>
             {title || "İsimsiz"}
-            {isOverdue && <Badge variant="destructive" className="ml-2 text-xs">GECİKMİŞ</Badge>}
-            {status && !isOverdue && <Badge variant="secondary" className={cn("ml-2 text-xs", getStatusColor(status))}>{status}</Badge>}
+            {isOverdue && status !== 'Tamamlandı' && <Badge variant="destructive" className="ml-2 text-xs">GECİKMİŞ</Badge>}
+            {status && !(isOverdue && status !== 'Tamamlandı') && <Badge variant="secondary" className={cn("ml-2 text-xs", getStatusColor(status, isOverdue))}>{status}</Badge>}
           </div>
-          <div className="text-xs text-muted-foreground">{detail}</div>
+          {detail && <div className="text-xs text-muted-foreground">{detail}</div>}
         </div>
         <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
       </Link>
@@ -262,7 +263,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
                   p.projectName,
                   `Bitiş Tarihi: ${formattedEndDate} | Durum: ${p.status}`,
                   `/projects/${p.id}`,
-                  true,
+                  true, 
                   p.status
                 );
               })}
@@ -292,13 +293,13 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
                 if (e.startDate && isValid(parseISO(e.startDate))) {
                   formattedStartDate = format(parseISO(e.startDate), 'dd MMM yyyy, HH:mm', { locale: tr });
                 } else if (e.startDate) {
-                    formattedStartDate = "Geçersiz Tarih"; // Handle invalid but present date string
+                    formattedStartDate = "Geçersiz Tarih";
                 }
                 return renderSimpleListItem(
                   e.id,
                   e.title,
                   `Başlangıç: ${formattedStartDate} ${e.eventType ? `| Tip: ${e.eventType}` : ''}`,
-                  `/calendar`
+                  `/calendar` 
                 );
               })}
             </ul>
@@ -312,4 +313,4 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
     </Card>
   );
 }
-
+    
