@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview An AI flow to generate a personalized motivational message
- * incorporating weather, events, tasks, and health reminders.
+ * incorporating events and tasks.
  */
 
 console.log('<<<<< DEBUG: ai-motivational-message.ts SCRIPT EXECUTING - TOP OF FILE >>>>>');
@@ -12,7 +12,7 @@ import {z} from 'zod';
 
 const MotivationalMessageInputSchema = z.object({
   userName: z.string().describe('The name of the user.'),
-  currentWeatherSummary: z.string().optional().describe("A brief summary of the current weather (e.g., 'Antalya: 25°C, Güneşli'). Can be empty."),
+  // todaysEvents and userTasksSummary are optional as they might not always be present
   todaysEvents: z.array(z.string()).optional().describe("A list of today's scheduled calendar event titles. Can be empty."),
   userTasksSummary: z.array(z.string()).optional().describe('A list of summaries for active tasks assigned to the user (e.g., "Raporu tamamla (Devam Ediyor)"). Can be empty.'),
   overdueTasksSummary: z.array(z.string()).optional().describe('A list of summaries for overdue tasks assigned to the user (e.g., "Sunumu hazırla (Yapılacak)"). Can be empty.'),
@@ -25,21 +25,21 @@ const MotivationalMessageOutputSchema = z.object({
 export type MotivationalMessageOutput = z.infer<typeof MotivationalMessageOutputSchema>;
 
 const motivationalPrompt = ai.definePrompt({
-  name: 'enhancedMotivationalMessagePrompt_v1',
+  name: 'jsonMotivationalPrompt_v3_debug', // Kept a unique name from previous successful state
   input: {schema: MotivationalMessageInputSchema},
   output: {schema: MotivationalMessageOutputSchema},
-  prompt: `Sen, ofis ortamında çalışanlar için son derece arkadaş canlısı, motive edici, esprili ve yardımsever bir asistansın. {{userName}} için Türkçe, kişiselleştirilmiş ve günlük hayatını kolaylaştıracak bir mesaj oluştur.
+  prompt: `Sen, ofis ortamında çalışanlar için son derece arkadaş canlısı, motive edici ve yardımsever bir asistansın. {{userName}} için Türkçe, kişiselleştirilmiş ve günlük hayatını kolaylaştıracak bir mesaj oluştur.
 
 Mesajında aşağıdaki unsurları dengeli bir şekilde kullanmaya çalış:
 
 1.  **Hitap ve Genel Motivasyon:** {{userName}}'e ismiyle hitap et ve güne pozitif başlamasını sağla.
-2.  **Gecikmiş Görevler (ÖNCELİKLİ!):** Eğer varsa, gecikmiş görevleri esprili bir dille ama önemini belirterek hatırlat. Başına ❗ emojisi koyabilirsin.
+2.  **Gecikmiş Görevler (ÖNCELİKLİ!):** Eğer varsa, gecikmiş görevleri kısaca hatırlat. Başına ❗ emojisi koy.
     {{#if overdueTasksSummary}}
     Aman {{userName}}, şu işlere bir el atsan iyi olur:
     {{#each overdueTasksSummary}}
     - ❗ {{{this}}}
     {{/each}}
-    Unutma, "Bugünün işini yarına bırakma!" derler, sonra yetiştiremeyince "Keşke yapsaydım!" deme. 😉
+    Unutma, "Bugünün işini yarına bırakma!" 😉
     {{/if}}
 3.  **Aktif Görevler:** Eğer varsa, devam eden görevlerinden birkaçını hatırlat.
     {{#if userTasksSummary}}
@@ -48,7 +48,7 @@ Mesajında aşağıdaki unsurları dengeli bir şekilde kullanmaya çalış:
     - {{{this}}}
     {{/each}}
     {{/if}}
-4.  **Bugünün Etkinlikleri (Önümüzdeki 7 gün için veri henüz yok, sadece bugün):** Eğer varsa, bugünün takvim etkinliklerinden bahset.
+4.  **Bugünün Etkinlikleri:** Eğer varsa, bugünün takvim etkinliklerinden bahset.
     {{#if todaysEvents}}
     Bugün takviminde şunlar görünüyor:
     {{#each todaysEvents}}
@@ -56,46 +56,22 @@ Mesajında aşağıdaki unsurları dengeli bir şekilde kullanmaya çalış:
     {{/each}}
     Umarım hepsi harika geçer!
     {{/if}}
-5.  **Hava Durumu Tavsiyesi:** Eğer hava durumu bilgisi varsa ({{currentWeatherSummary}}), buna uygun kısa bir tavsiye ver. (Örn: "Hava güneşliyse bir ara D vitamini almayı unutma!", "Yağmurluysa şemsiyeni kap!")
-    {{#if currentWeatherSummary}}
-    Bu arada, {{currentWeatherSummary}}.
-    {{#if (lookup currentWeatherSummary "toLowerCase" | includes "güneşli")}}
-    Hava pırıl pırıl görünüyor, belki öğle arasında kısa bir yürüyüş iyi gelir? ☀️
-    {{else if (lookup currentWeatherSummary "toLowerCase" | includes "yağmurlu")}}
-    Yağmur varsa şemsiyeni ve pozitif enerjini yanına almayı unutma! ☔️
-    {{else if (lookup currentWeatherSummary "toLowerCase" | includes "bulutlu")}}
-    Hava biraz kapalı olsa da, senin enerjin ortamı aydınlatır! ☁️
-    {{else if (lookup currentWeatherSummary "toLowerCase" | includes "kar yağışlı")}}
-    Dışarısı bembeyazsa, sıcak bir içecekle keyif yapma zamanı! ❄️
-    {{else}}
-    Hava durumuna göre giyinmeyi ve günün tadını çıkarmayı unutma!
-    {{/if}}
-    {{/if}}
-6.  **Sağlık Hatırlatmaları (Rastgele ve esprili):**
-    *   Arada bir "Bir bardak su içtin mi? Beynimizin yakıtı o!" gibi bir hatırlatma ekle.
-    *   Veya "Eğer uzun süredir oturuyorsan, kalk bir 45 saniye esneme molası ver, kan dolaşımın bayram etsin!" gibi.
-    *   (Bu hatırlatmalardan sadece birini veya hiçbirini kullanabilirsin, mesaja doğallık katacak şekilde.)
-7.  **Ofis Hayatını Kolaylaştırıcı Tavsiye (Rastgele):**
-    *   "Bugün masandaki bir şeyi düzenleyerek başla, küçük bir ferahlık büyük motivasyon getirir."
-    *   "En zorlandığın işe odaklanmadan önce 5 dakika sevdiğin bir müzik dinle."
-    *   (Bu tavsiyelerden sadece birini veya hiçbirini kullanabilirsin.)
-8.  **Kapanış:** Mesajı pozitif ve motive edici bir şekilde bitir.
+5.  **Kapanış:** Mesajı pozitif ve motive edici bir şekilde bitir.
 
 Örnek Çıktı Formatı (JSON):
 {
-  "message": "Merhaba {{userName}}, bugün harika işler başaracağına eminim! ❗ 'Acil Rapor' görevin gecikmiş görünüyor, bir baksan iyi olur. Bugün takviminde 'Pazarlama Toplantısı' var. Hava da güneşliymiş, bir ara D vitamini almayı unutma! 😉 Bol enerjili bir gün dilerim!"
+  "message": "Merhaba {{userName}}, bugün harika işler başaracağına eminim! Bugün takviminde 'Pazarlama Toplantısı' var. Bol enerjili bir gün dilerim!"
 }
 
 LÜTFEN YANITINI SADECE İSTENEN JSON FORMATINDA VER, BAŞKA HİÇBİR AÇIKLAMA EKLEME.
 Girdi:
 Kullanıcı Adı: {{userName}}
-{{#if currentWeatherSummary}}Hava Durumu: {{currentWeatherSummary}}{{/if}}
 {{#if todaysEvents}}Bugünün Etkinlikleri: {{#each todaysEvents}} {{{this}}}; {{/each}}{{/if}}
 {{#if userTasksSummary}}Aktif Görevler: {{#each userTasksSummary}} {{{this}}}; {{/each}}{{/if}}
 {{#if overdueTasksSummary}}Gecikmiş Görevler: {{#each overdueTasksSummary}} {{{this}}}; {{/each}}{{/if}}
 `,
   config: {
-    // Gemini safety filters - adjust as needed, be less restrictive for general advice
+    // Gemini safety filters - adjust as needed
     safetySettings: [
       { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
       { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
@@ -106,36 +82,38 @@ Kullanıcı Adı: {{userName}}
 });
 
 export async function generateMotivationalMessage(input: MotivationalMessageInput): Promise<MotivationalMessageOutput> {
-  console.log('<<<<< DEBUG: generateMotivationalMessage FUNCTION CALLED (ENHANCED) >>>>>');
+  console.log('<<<<< DEBUG: generateMotivationalMessage FUNCTION CALLED (JSON V3 DEBUG) >>>>>');
   const apiKeyExists = !!process.env.GOOGLE_API_KEY;
   const apiKeyLength = process.env.GOOGLE_API_KEY?.length || 0;
-  console.log(`[AI Motivational Flow - ENHANCED DEBUG] GOOGLE_API_KEY Check: Exists: ${apiKeyExists}, Length (approx): ${apiKeyLength > 0 ? 'Non-zero' : 'Zero'}`);
-  console.log(`[AI Motivational Flow - ENHANCED DEBUG] ENTERING for user: ${input.userName}. Full input received: ${JSON.stringify(input)}`);
+  console.log(`[AI Motivational Flow - JSON DEBUG] GOOGLE_API_KEY Check: Exists: ${apiKeyExists}, Length (approx): ${apiKeyLength > 0 ? 'Non-zero' : 'Zero'}`);
+  console.log(`[AI Motivational Flow - JSON DEBUG] ENTERING for user: ${input.userName}. Full input received: ${JSON.stringify(input)}`);
 
   try {
-    console.log(`[AI Motivational Flow - ENHANCED DEBUG] CALLING ENHANCED PROMPT (enhancedMotivationalMessagePrompt_v1) with input: ${JSON.stringify(input)}`);
-    const {output} = await motivationalPrompt(input);
+    console.log(`[AI Motivational Flow - JSON DEBUG] CALLING JSON PROMPT (jsonMotivationalPrompt_v3_debug) with input: ${JSON.stringify(input)}`);
+    const response = await motivationalPrompt(input);
+    const modelOutput = response.output; // Genkit 1.x: output is already parsed if schema is provided
 
-    console.log(`[AI Motivational Flow - ENHANCED DEBUG] RAW OUTPUT from enhancedMotivationalMessagePrompt_v1 for ${input.userName}:`, output);
+    console.log(`[AI Motivational Flow - JSON DEBUG] RAW RESPONSE from jsonMotivationalPrompt_v3_debug for ${input.userName}:`, response.raw?.choices[0]?.message?.content);
+    console.log(`[AI Motivational Flow - JSON DEBUG] PARSED OUTPUT from jsonMotivationalPrompt_v3_debug for ${input.userName}:`, modelOutput);
 
-    if (output && typeof output.message === 'string' && output.message.trim() !== '') {
-      console.log(`[AI Motivational Flow - ENHANCED DEBUG] SUCCESS for ${input.userName}. Parsed message: "${output.message.trim()}"`);
-      return {message: output.message.trim()};
+    if (modelOutput && typeof modelOutput.message === 'string' && modelOutput.message.trim() !== '') {
+      console.log(`[AI Motivational Flow - JSON DEBUG] SUCCESS for ${input.userName}. Parsed message: "${modelOutput.message.trim()}"`);
+      return {message: modelOutput.message.trim()};
     }
-
-    const rawResponseForLog = output ? JSON.stringify(output) : "Output was undefined or not in expected schema";
-    console.warn(`[AI Motivational Flow - ENHANCED DEBUG] AI message prompt returned null, empty message, or malformed output for user ${input.userName}. Parsed output: ${rawResponseForLog}. Falling back.`);
-    return {message: `Merhaba ${input.userName}, sana özel mesaj şu anda oluşturulamadı ama harika bir gün geçirmeni dilerim! (Kod: FALLBACK_ENHANCED)`};
+    
+    const rawResponseForLog = modelOutput ? JSON.stringify(modelOutput) : "Output was undefined or not in expected schema";
+    console.warn(`[AI Motivational Flow - JSON DEBUG] AI message prompt returned null, empty message, or malformed output for user ${input.userName}. Parsed output: ${rawResponseForLog}. Falling back.`);
+    return {message: `Merhaba ${input.userName}, sana özel mesaj şu anda oluşturulamadı ama harika bir gün geçirmeni dilerim! (Kod: FALLBACK_JSON_V3_DEBUG)`};
 
   } catch (promptError: any) {
     console.error(
-      `[AI Motivational Flow - ENHANCED DEBUG] CRITICAL PROMPT ERROR - ENHANCED (enhancedMotivationalMessagePrompt_v1) for user ${input.userName}.
+      `[AI Motivational Flow - JSON DEBUG] CRITICAL PROMPT ERROR - JSON (jsonMotivationalPrompt_v3_debug) for user ${input.userName}.
       Error Name: ${promptError.name}
       Message: ${promptError.message}
       Input to prompt: ${JSON.stringify(input)}
       Stack: ${promptError.stack || 'No stack available'}
       Falling back.`
     );
-    return {message: `Merhaba ${input.userName}, AI mesajı oluşturulurken bir sunucu hatası oluştu (Kod: PROMPT_EXEC_FAIL_ENHANCED). API anahtarınızı ve model erişiminizi kontrol etmeniz gerekebilir.`};
+    return {message: `Merhaba ${input.userName}, AI mesajı oluşturulurken bir sunucu hatası oluştu (Kod: PROMPT_EXEC_FAIL_JSON_V3_DEBUG). API anahtarınızı ve model erişiminizi kontrol etmeniz gerekebilir.`};
   }
 }
