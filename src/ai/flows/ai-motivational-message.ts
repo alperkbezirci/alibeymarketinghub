@@ -87,3 +87,4 @@ export async function generateMotivationalMessage(input: MotivationalMessageInpu
     return { message: `Merhaba ${input.userName}, motivasyon mesajı oluşturulurken bir sorunla karşılaşıldı (Kod: MOTIV_PROMPT_ERR_FULL). Lütfen daha sonra tekrar deneyin.` };
   }
 }
+
