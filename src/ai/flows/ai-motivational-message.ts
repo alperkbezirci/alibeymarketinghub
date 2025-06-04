@@ -50,7 +50,7 @@ export async function generateMotivationalMessage(input: SuperSimpleInput): Prom
   console.log('[AI Super Simple Flow] ENTERING generateMotivationalMessage for user:', input.userName);
   const apiKeyExists = !!process.env.GOOGLE_API_KEY;
   const apiKeyLength = process.env.GOOGLE_API_KEY?.length || 0;
-  console.log(`[AI Super Simple Flow] GOOGLE_API_KEY Check: Exists: ${apiKeyExists}, Length (approx): ${apiKeyLength > 0 ? 'Non-zero' : 'Zero'}`);
+  console.log(`[AI Super Simple Flow] GOOGLE_API_KEY Check: Exists: ${apiKeyExists}, Length (approx): ${apiKeyLength > 0 ? apiKeyLength : 'Zero'}`);
   console.log(`[AI Super Simple Flow] Input received: ${JSON.stringify(input)}`);
 
   try {
@@ -77,6 +77,8 @@ export async function generateMotivationalMessage(input: SuperSimpleInput): Prom
       Message: ${promptError.message}
       Input to prompt: ${JSON.stringify(input)}
       Stack: ${promptError.stack || 'No stack available'}
+      Cause (underlying error from API if available): ${JSON.stringify(promptError.cause || 'N/A')} 
+      Full Error Object: ${JSON.stringify(promptError, Object.getOwnPropertyNames(promptError))}
       Falling back.`
     );
     return {message: `Merhaba ${input.userName}, AI mesajı oluşturulurken bir sunucu hatası oluştu (Kod: PROMPT_EXEC_FAIL_SUPER_SIMPLE). API anahtarınızı ve model erişiminizi kontrol etmeniz gerekebilir.`};
