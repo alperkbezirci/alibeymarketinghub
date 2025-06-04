@@ -32,8 +32,13 @@ export type WelcomeMessageOutput = z.infer<typeof WelcomeMessageOutputSchema>;
 const welcomeMessagePrompt = ai.definePrompt({
   name: 'enhancedWelcomeMessagePrompt',
   input: { schema: WelcomeMessageInputSchema.extend({ weatherData: WeatherInfoOutputSchema.optional() }) },
-  output: { schema: WelcomeMessageOutputSchema },
+  output: { schema: WelcomeMessageOutputSchema }, // Instructs Genkit to expect JSON matching this schema
   prompt: `Sen bir Pazarlama Merkezi uygulamasında kullanıcıları karşılayan, son derece pozitif, esprili ve motive edici bir asistansın.
+Gönderdiğin yanıtın SADECE ve SADECE aşağıdaki JSON formatında olduğundan emin ol:
+{
+  "message": "üretilecek kişiselleştirilmiş mesaj buraya gelecek"
+}
+
 Kullanıcı Adı: {{userName}}
 Tarih: {{date}}
 Saat: {{time}}
@@ -89,8 +94,8 @@ Yönergeler:
 1. Kullanıcıyı ismiyle sıcak bir şekilde selamla.
 2. {{#if weatherData.currentWeather}}Şu anki hava durumunu ({{weatherData.currentWeather.description}}, {{weatherData.currentWeather.temp}}°C) mesajına doğal bir şekilde dahil et.{{/if}}
 3. {{#if weatherData.todayHourlyForecast.length}}**Bugünün saatlik tahminini dikkate alarak GÜNLÜK PRATİK TAVSİYELER ver.**
-    * Örneğin, eğer öğleden sonra yağış olasılığı yüksekse (örn: %{{#findFirst weatherData.todayHourlyForecast where='pop' op='>' value=50}}{{pop}}{{/findFirst}}), "Bugün {{location}} şehrinde hava {{weatherData.currentWeather.description}} ve {{weatherData.currentWeather.temp}}°C civarında. Öğleden sonra {{#findFirst weatherData.todayHourlyForecast where='pop' op='>' value=50}}{{time}}{{/findFirst}} gibi yağmur %{{#findFirst weatherData.todayHourlyForecast where='pop' op='>' value=50}}{{pop}}{{/findFirst}} ihtimalle uğrayabilir, şemsiyeni yanında bulundursan iyi olur!" gibi bir ifade kullan.
-    * Eğer belirli saatlerde (örn: {{#findFirst weatherData.todayHourlyForecast where='temp' op='>' value=30}}{{time}}{{/findFirst}}) sıcaklık çok artıyorsa (örn: {{#findFirst weatherData.todayHourlyForecast where='temp' op='>' value=30}}{{temp}}{{/findFirst}} > 30), "Saat {{#findFirst weatherData.todayHourlyForecast where='temp' op='>' value=30}}{{time}}{{/findFirst}} civarı sıcaklık {{#findFirst weatherData.todayHourlyForecast where='temp' op='>' value=30}}{{temp}}{{/findFirst}}°C'ye kadar çıkabilir, dışarıdaysan bol su içmeyi ve güneşten korunmayı unutma!" gibi bir uyarı ekle.
+    * Örneğin, eğer öğleden sonra yağış olasılığı yüksekse, "Bugün {{location}} şehrinde hava {{weatherData.currentWeather.description}} ve {{weatherData.currentWeather.temp}}°C civarında. Öğleden sonra yağmur uğrayabilir, şemsiyeni yanında bulundursan iyi olur!" gibi bir ifade kullan.
+    * Eğer belirli saatlerde sıcaklık çok artıyorsa, "Saat ... civarı sıcaklık ...°C'ye kadar çıkabilir, dışarıdaysan bol su içmeyi ve güneşten korunmayı unutma!" gibi bir uyarı ekle.
     * Bu tavsiyeleri eğlenceli ve samimi bir dille aktar. Her zaman olmasa da, uygun olduğunda bu tür detaylara gir.{{/if}}
 4. Eğer varsa, bugünün takvim etkinliklerinden kısaca bahset.
 5. Eğer varsa, kullanıcıya atanmış projelerin genel durumuna değin.
@@ -98,6 +103,7 @@ Yönergeler:
 7. Mesajının sonunda "İyi çalışmalar!", "Harika bir gün geçir!" veya benzeri pozitif bir kapanış yap.
 8. Eğer takvimde etkinlik yoksa veya atanmış proje yoksa, bunu da olumlu bir şekilde ifade et. ("Bugün takvimde bir şey görünmüyor, belki kendine biraz zaman ayırabilirsin?" gibi)
 9. Eğer hava durumu verisi alınamazsa (weatherData boş veya error içeriyorsa), bunu nazikçe belirt ("Hava durumu bilgisine şu an ulaşılamıyor ama...") ve genel bir karşılama yap.
+10. UNUTMA: Yanıtın SADECE ve SADECE belirtilen JSON formatında olmalıdır: { "message": "..." } Başka hiçbir metin, açıklama veya giriş cümlesi içermemelidir.
 `,
 });
 
@@ -107,25 +113,38 @@ export async function generateWelcomeMessage(input: WelcomeMessageInput): Promis
   try {
     weatherData = await getWeatherForecast({ location: input.location });
     if (weatherData.error) {
-      console.warn(`Weather data could not be fetched for ${input.location}: ${weatherData.error}`);
-      // Proceed without weather data, AI prompt will handle missing data.
+      console.warn(`[AI Welcome Flow] Weather data could not be fetched for ${input.location}: ${weatherData.error}. Proceeding with error info for AI.`);
+      // AI prompt is designed to handle missing/errored weatherData
     }
   } catch (error: any) {
-    console.error(`Error fetching weather data for welcome message for user ${input.userName}: ${error.message}`);
-    // Proceed without weather data
+    console.error(`[AI Welcome Flow] Error fetching weather data for user ${input.userName}: ${error.message}. Proceeding without weather data.`);
+    // weatherData will remain undefined, AI prompt should handle this.
   }
 
   try {
-    const {output} = await welcomeMessagePrompt({...input, weatherData });
+    // Log the input being sent to the prompt
+    console.log(`[AI Welcome Flow] Calling welcomeMessagePrompt for user ${input.userName}. Input to AI (excluding weather for brevity):`, { ...input, weatherDataIsPresent: !!weatherData, weatherError: weatherData?.error });
 
-    if (!output || !output.message) {
-      console.warn(`AI welcome message prompt returned null or empty output for user ${input.userName}. Input:`, {...input, weatherData});
-      return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${input.date}, saat ${input.time}. Harika bir gün geçirmenizi dileriz!` };
+    const response = await welcomeMessagePrompt({...input, weatherData });
+    const modelOutput = response.output; // Genkit v1.x: output is already parsed or undefined if parsing failed
+
+    // Log the raw response from the AI
+    const rawContent = response.raw?.choices?.[0]?.message?.content;
+    console.log(`[AI Welcome Flow] Raw AI response for user ${input.userName}:`, rawContent);
+    console.log(`[AI Welcome Flow] Parsed AI output (modelOutput) for user ${input.userName}:`, modelOutput);
+
+
+    if (modelOutput && typeof modelOutput.message === 'string' && modelOutput.message.trim() !== '') {
+      return modelOutput;
     }
-    return output;
+    
+    console.warn(`[AI Welcome Flow] AI welcome message prompt returned null, empty, or malformed output for user ${input.userName}. Falling back to default message.`);
+    console.warn(`[AI Welcome Flow] Details: modelOutput.message was "${modelOutput?.message}". Raw content was: "${rawContent}"`);
+    return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${input.date}, saat ${input.time}. Sistemimiz şu anda size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!` };
+
   } catch (error: any) {
     console.error(
-      `Error calling welcomeMessagePrompt for user ${input.userName}. Error: ${error.message}. Input: ${JSON.stringify({...input, weatherData})}. Falling back to default welcome message.`,
+      `[AI Welcome Flow] Critical error calling welcomeMessagePrompt for user ${input.userName}. Error: ${error.message}. Input (excluding weather for brevity): ${JSON.stringify({ ...input, weatherDataIsPresent: !!weatherData, weatherError: weatherData?.error })}. Falling back to default welcome message.`,
       JSON.stringify(error, Object.getOwnPropertyNames(error))
     );
     
