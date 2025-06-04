@@ -11,8 +11,6 @@ import { getWeatherForecast } from '@/ai/flows/weather-forecast-flow';
 import type { WeatherInfoOutput, DailyForecastSchema as DailyForecastType, HourlyDetailSchema as HourlyDetailType } from '@/ai/schemas/weather-schemas';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-// import { format } from 'date-fns'; // format is used inside render functions, ensure it's available or remove if not used
-// import { tr } from 'date-fns/locale'; // tr locale for date-fns
 
 const DEFAULT_LOCATION = "Side, Türkiye";
 
@@ -54,29 +52,27 @@ export function WeatherWidget() {
   }, [fetchWeather]);
 
   const renderCurrentWeather = () => {
-    if (!weatherData?.currentWeather) return (
-      <div className="p-4 text-center text-muted-foreground">Güncel hava durumu verisi yok.</div>
-    );
+    if (!weatherData?.currentWeather) return null; // Return null if no current weather to avoid empty space
     const { temp, description, icon, feelsLike, humidity, windSpeed } = weatherData.currentWeather;
     return (
-      <div className="p-4 rounded-lg bg-card/50 mb-4">
-        <div className="flex flex-col sm:flex-row items-center sm:justify-between">
-          <div className="flex items-center mb-3 sm:mb-0">
-            <Image src={`https://openweathermap.org/img/wn/${icon}@2x.png`} alt={description || "Hava durumu"} width={64} height={64} data-ai-hint="weather condition" />
-            <div className="ml-4">
+      <div className="mb-3 rounded-lg">
+        <div className="flex flex-col sm:flex-row items-center sm:justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+          <div className="flex items-center">
+            <Image src={`https://openweathermap.org/img/wn/${icon}@2x.png`} alt={description || "Hava durumu"} width={60} height={60} data-ai-hint="weather condition" className="flex-shrink-0"/>
+            <div className="ml-3">
               <p className="text-4xl font-bold text-primary">{temp}°C</p>
               <p className="text-sm text-muted-foreground capitalize">{description}</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-1 gap-x-6 gap-y-2 text-sm">
-            <div className="flex items-center">
-              <Thermometer className="mr-2 h-4 w-4 text-muted-foreground" /> Hissedilen: {feelsLike}°C
+          <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-xs sm:text-sm text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center">
+              <Thermometer className="mr-0 sm:mr-1 h-4 w-4 text-muted-foreground mb-1 sm:mb-0" /> Hiss.: {feelsLike}°C
             </div>
-            <div className="flex items-center">
-              <Droplets className="mr-2 h-4 w-4 text-muted-foreground" /> Nem: {humidity}%
+            <div className="flex flex-col sm:flex-row items-center">
+              <Droplets className="mr-0 sm:mr-1 h-4 w-4 text-muted-foreground mb-1 sm:mb-0" /> Nem: {humidity}%
             </div>
-            <div className="flex items-center">
-              <Wind className="mr-2 h-4 w-4 text-muted-foreground" /> Rüzgar: {windSpeed} m/s
+            <div className="flex flex-col sm:flex-row items-center">
+              <Wind className="mr-0 sm:mr-1 h-4 w-4 text-muted-foreground mb-1 sm:mb-0" /> Rüzgar: {windSpeed}m/s
             </div>
           </div>
         </div>
@@ -85,19 +81,17 @@ export function WeatherWidget() {
   };
 
   const renderHourlyForecast = () => {
-    if (!weatherData?.todayHourlyForecast || weatherData.todayHourlyForecast.length === 0) return (
-       <p className="text-sm text-muted-foreground text-center py-4">Bugün için saatlik tahmin bulunmuyor.</p>
-    );
+    if (!weatherData?.todayHourlyForecast || weatherData.todayHourlyForecast.length === 0) return null;
     return (
-      <div className="mb-4">
-        <h3 className="text-md font-semibold mb-3 flex items-center"><Clock className="mr-2 h-4 w-4 text-primary" /> Saatlik Tahmin (Bugün)</h3>
-        <div className="flex overflow-x-auto space-x-3 pb-3 -mb-3 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+      <div className="w-full">
+        <h3 className="text-base font-semibold mb-2 flex items-center"><Clock className="mr-2 h-4 w-4 text-primary" /> Saatlik Tahmin</h3>
+        <div className="flex overflow-x-auto space-x-2 pb-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
           {weatherData.todayHourlyForecast.map((hourly: HourlyDetailType, index: number) => (
-            <div key={index} className="flex-none w-28 p-3 border rounded-lg text-center bg-muted/30 hover:shadow-md transition-shadow">
-              <p className="text-sm font-medium">{hourly.time}</p>
-              <Image src={`https://openweathermap.org/img/wn/${hourly.icon}@2x.png`} alt={hourly.description || "saatlik hava"} width={48} height={48} className="mx-auto my-1" data-ai-hint="weather condition"/>
-              <p className="text-lg font-bold">{hourly.temp}°</p>
-              {hourly.pop > 0 && <p className="text-xs text-blue-600">Yağış: {hourly.pop}%</p>}
+            <div key={index} className="flex-none w-24 p-2 border rounded-lg text-center bg-muted/40 hover:shadow-sm transition-shadow">
+              <p className="text-xs font-medium">{hourly.time}</p>
+              <Image src={`https://openweathermap.org/img/wn/${hourly.icon}.png`} alt={hourly.description || "saatlik hava"} width={40} height={40} className="mx-auto" data-ai-hint="weather condition"/>
+              <p className="text-md font-bold">{hourly.temp}°</p>
+              {hourly.pop > 5 && <p className="text-xs text-blue-500">%{hourly.pop}</p>}
             </div>
           ))}
         </div>
@@ -106,21 +100,19 @@ export function WeatherWidget() {
   };
 
   const renderDailyForecast = () => {
-    if (!weatherData?.threeDaySummaryForecast || weatherData.threeDaySummaryForecast.length === 0) return (
-        <p className="text-sm text-muted-foreground text-center py-4">Gelecek günler için tahmin bulunmuyor.</p>
-    );
+    if (!weatherData?.threeDaySummaryForecast || weatherData.threeDaySummaryForecast.length === 0) return null;
     return (
-      <div>
-        <h3 className="text-md font-semibold mb-3 flex items-center"><CalendarDays className="mr-2 h-4 w-4 text-primary" /> Gelecek 3 Gün</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="w-full">
+        <h3 className="text-base font-semibold mb-2 flex items-center"><CalendarDays className="mr-2 h-4 w-4 text-primary" /> 3 Günlük Tahmin</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {weatherData.threeDaySummaryForecast.map((daily: DailyForecastType, index: number) => (
-            <div key={index} className="p-4 border rounded-lg bg-muted/30 hover:shadow-md transition-shadow text-center">
-              <p className="text-base font-semibold">{daily.date}</p>
-              <p className="text-xs text-muted-foreground mb-1">{daily.dayName}</p>
-              <Image src={`https://openweathermap.org/img/wn/${daily.icon}@2x.png`} alt={daily.description || "günlük hava"} width={56} height={56} className="mx-auto my-1.5" data-ai-hint="weather condition"/>
-              <p className="text-xl font-bold">{daily.maxTemp}° <span className="text-sm text-muted-foreground">/ {daily.minTemp}°</span></p>
-              <p className="text-xs text-muted-foreground capitalize truncate mt-1" title={daily.description}>{daily.description}</p>
-              {daily.precipitationChance > 10 && <p className="text-xs text-blue-600 mt-1">Yağış: {daily.precipitationChance}%</p>}
+            <div key={index} className="p-3 border rounded-lg bg-muted/40 hover:shadow-sm transition-shadow text-center">
+              <p className="text-sm font-semibold">{daily.date}</p>
+              <p className="text-xs text-muted-foreground mb-0.5 truncate" title={daily.dayName}>{daily.dayName.split(',')[0]}</p>
+              <Image src={`https://openweathermap.org/img/wn/${daily.icon}.png`} alt={daily.description || "günlük hava"} width={48} height={48} className="mx-auto" data-ai-hint="weather condition"/>
+              <p className="text-lg font-bold">{daily.maxTemp}°<span className="text-xs text-muted-foreground">/{daily.minTemp}°</span></p>
+              <p className="text-xs text-muted-foreground capitalize truncate" title={daily.description}>{daily.description}</p>
+              {daily.precipitationChance > 10 && <p className="text-xs text-blue-500 mt-0.5">Yağış: %{daily.precipitationChance}</p>}
             </div>
           ))}
         </div>
@@ -132,45 +124,43 @@ export function WeatherWidget() {
   if (isLoading) {
     return (
       <Card className="shadow-lg w-full">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <div className="flex items-center">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-4">
+           <div className="flex items-center">
             <MapPin className="mr-2 h-5 w-5 text-primary" />
-            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-5 w-28" />
           </div>
-          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-8 w-8 rounded-md" />
         </CardHeader>
-        <CardContent className="pt-2 space-y-4">
-          {/* Skeleton for Current Weather */}
-          <div className="p-4 rounded-lg bg-card/50 mb-4">
-            <div className="flex flex-col sm:flex-row items-center sm:justify-between">
-              <div className="flex items-center mb-3 sm:mb-0">
-                <Skeleton className="h-16 w-16 rounded-md" />
-                <div className="ml-4 space-y-2">
-                  <Skeleton className="h-10 w-24" />
-                  <Skeleton className="h-4 w-32" />
+        <CardContent className="pt-2 pb-3 px-4 space-y-3">
+          <div className="mb-2">
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between space-y-2 sm:space-y-0">
+              <div className="flex items-center">
+                <Skeleton className="h-14 w-14 rounded-md" />
+                <div className="ml-3 space-y-1">
+                  <Skeleton className="h-9 w-20" />
+                  <Skeleton className="h-4 w-28" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-1 gap-x-6 gap-y-2 text-sm">
-                <Skeleton className="h-5 w-28" />
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-5 w-28" />
+              <div className="grid grid-cols-3 gap-x-2 text-xs">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-20" />
               </div>
             </div>
           </div>
-          <Separator className="my-4"/>
-          {/* Skeleton for Hourly Forecast */}
-          <div>
-            <Skeleton className="h-6 w-40 mb-3" />
-            <div className="flex space-x-3 pb-3">
-              {[1,2,3,4].map(i => <Skeleton key={i} className="flex-none w-28 h-36 rounded-lg"/>)}
+          <Separator/>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Skeleton className="h-5 w-32 mb-2" />
+              <div className="flex space-x-2">
+                {[1,2,3].map(i => <Skeleton key={i} className="flex-none w-24 h-28 rounded-lg"/>)}
+              </div>
             </div>
-          </div>
-           <Separator className="my-4"/>
-          {/* Skeleton for Daily Forecast */}
-          <div>
-            <Skeleton className="h-6 w-36 mb-3" />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-             {[1,2,3].map(i => <Skeleton key={i} className="h-48 rounded-lg"/>)}
+            <div>
+              <Skeleton className="h-5 w-28 mb-2" />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {[1,2,3].map(i => <Skeleton key={i} className="h-28 rounded-lg"/>)}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -181,62 +171,64 @@ export function WeatherWidget() {
   if (error) {
     return (
       <Card className="shadow-lg w-full border-destructive">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-xl font-headline flex items-center text-destructive">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-4">
+          <CardTitle className="text-lg font-headline flex items-center text-destructive">
             <AlertTriangle className="mr-2 h-5 w-5" /> Hava Durumu Hatası
           </CardTitle>
            <Button variant="ghost" size="icon" onClick={fetchWeather} aria-label="Tekrar dene">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </CardHeader>
-        <CardContent className="pt-2">
-          <p className="text-sm text-destructive-foreground bg-destructive/90 p-4 rounded-md">{error}</p>
+        <CardContent className="pt-2 pb-3 px-4">
+          <p className="text-sm text-destructive-foreground bg-destructive/90 p-3 rounded-md">{error}</p>
         </CardContent>
       </Card>
     );
   }
 
-  if (!weatherData || (!weatherData.currentWeather && !weatherData.todayHourlyForecast && !weatherData.threeDaySummaryForecast)) {
+  if (!weatherData || (!weatherData.currentWeather && (!weatherData.todayHourlyForecast || weatherData.todayHourlyForecast.length === 0) && (!weatherData.threeDaySummaryForecast || weatherData.threeDaySummaryForecast.length === 0))) {
      return (
       <Card className="shadow-lg w-full">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-xl font-headline flex items-center">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-4">
+          <CardTitle className="text-lg font-headline flex items-center">
             <MapPin className="mr-2 h-5 w-5 text-primary" /> {location.split(',')[0] || "Hava Durumu"}
           </CardTitle>
            <Button variant="ghost" size="icon" onClick={fetchWeather} aria-label="Tekrar dene">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </CardHeader>
-        <CardContent className="pt-2">
-          <p className="text-sm text-muted-foreground text-center py-12">"{location.split(',')[0]}" için hava durumu verisi bulunamadı.</p>
+        <CardContent className="pt-2 pb-3 px-4">
+          <p className="text-sm text-muted-foreground text-center py-10">"{location.split(',')[0]}" için hava durumu verisi bulunamadı.</p>
         </CardContent>
       </Card>
     );
   }
+  
+  const hourlyForecastComponent = renderHourlyForecast();
+  const dailyForecastComponent = renderDailyForecast();
 
   return (
     <Card className="shadow-lg w-full">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-xl font-headline flex items-center">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-4">
+        <CardTitle className="text-lg font-headline flex items-center">
           <MapPin className="mr-2 h-5 w-5 text-primary" /> {weatherData.location?.split(',')[0] || location.split(',')[0] || "Hava Durumu"}
         </CardTitle>
-        <Button variant="ghost" size="icon" onClick={fetchWeather} aria-label="Hava durumunu yenile">
-          <RefreshCw className="h-4 w-4" />
+        <Button variant="ghost" size="icon" onClick={fetchWeather} aria-label="Hava durumunu yenile" disabled={isLoading}>
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
         </Button>
       </CardHeader>
-      <CardContent className="pt-2 space-y-5">
-        {weatherData.currentWeather && renderCurrentWeather()}
+      <CardContent className="pt-2 pb-3 px-4 space-y-4">
+        {renderCurrentWeather()}
         
-        {(weatherData.currentWeather && (weatherData.todayHourlyForecast || weatherData.threeDaySummaryForecast)) && <Separator />}
+        {(weatherData.currentWeather && (hourlyForecastComponent || dailyForecastComponent)) && <Separator />}
         
-        {weatherData.todayHourlyForecast && weatherData.todayHourlyForecast.length > 0 && renderHourlyForecast()}
-        
-        {((weatherData.currentWeather || weatherData.todayHourlyForecast) && weatherData.threeDaySummaryForecast) && <Separator />}
-        
-        {weatherData.threeDaySummaryForecast && weatherData.threeDaySummaryForecast.length > 0 && renderDailyForecast()}
+        {(hourlyForecastComponent || dailyForecastComponent) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {hourlyForecastComponent}
+            {dailyForecastComponent}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 }
-
-    
