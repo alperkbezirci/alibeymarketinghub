@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { InvoiceForm } from "@/components/budget/invoice-form";
 import { addInvoice, type InvoiceInputDataForService, linkTaskToInvoice } from '@/services/invoice-service';
 import { getAllUsers, type User as AppUser } from "@/services/user-service";
-import { format, addDays } from "date-fns";
+import { format, addDays, parseISO } from "date-fns"; // parseISO eklendi
 import { tr } from "date-fns/locale";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -244,9 +244,10 @@ export default function DashboardPage() {
       
       <QuickActions />
       
-      <WeatherWidget />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-3">
+            <WeatherWidget />
+        </div>
         <OverviewCard 
           title="Aktif Görevler (Genel)" 
           IconComponent={ClipboardList} 
@@ -388,5 +389,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     
