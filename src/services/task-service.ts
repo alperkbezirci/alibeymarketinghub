@@ -31,12 +31,12 @@ export interface Task {
   description?: string;
   createdAt?: string; 
   updatedAt?: string; 
-  turqualityTaskId?: string; // Added from invoice-service for potential cross-check, though task service might not directly use it.
+  turqualityTaskId?: string; 
 }
 
 export interface TaskInputData {
   taskName: string;
-  project?: string;
+  project?: string; // This will be undefined if no project is selected from form
   hotel: string;
   status: string;
   priority: string;
@@ -72,7 +72,13 @@ export async function getTasks(): Promise<Task[]> {
     return taskList;
   } catch (error: any) {
     console.error("[SERVICE_ERROR] Original error in getTasks:", error); 
-    throw new Error("Görevler alınırken bir hata oluştu. Detaylar için sunucu konsolunu kontrol edin.");
+    let userMessage = "Görevler alınırken bir hata oluştu.";
+    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+        userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir: " + error.message;
+    } else {
+        userMessage += ` Detaylar için sunucu konsolunu kontrol edin: ${error.message}`;
+    }
+    throw new Error(userMessage);
   }
 }
 
@@ -137,9 +143,9 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
     if (error.code === "failed-precondition" || (error.message && error.message.toLowerCase().includes("index required"))) {
         detailedMessage += "Bu hata, Firestore'da bu sorgu için gerekli bir veritabanı indeksinin eksik olmasından kaynaklanmaktadır. ";
         detailedMessage += "Lütfen SUNUCU KONSOLU loglarında veya tarayıcınızın GELİŞTİRİCİ KONSOLU'nda '[SERVICE_ERROR]' ile başlayan orijinal Firestore hata mesajını bulun. ";
-        detailedMessage += "Bu orijinal mesaj, eksik indeksi Firebase konsolunda oluşturmanız için bir BAĞLANTI içerecektir. İndeksi oluşturduktan sonra birkaç dakika beklemeniz gerekebilir.";
+        detailedMessage += `Bu orijinal mesaj, eksik indeksi Firebase konsolunda oluşturmanız için bir BAĞLANTI içerecektir (${error.message}). İndeksi oluşturduktan sonra birkaç dakika beklemeniz gerekebilir.`;
     } else {
-        detailedMessage += "Lütfen daha fazla bilgi için SUNUCU KONSOLU loglarındaki veya tarayıcınızın GELİŞTİRİCİ KONSOLU'ndaki '[SERVICE_ERROR]' ile başlayan orijinal hata mesajını kontrol edin.";
+        detailedMessage += `Lütfen daha fazla bilgi için SUNUCU KONSOLU loglarındaki veya tarayıcınızın GELİŞTİRİCİ KONSOLU'ndaki '[SERVICE_ERROR]' ile başlayan orijinal hata mesajını kontrol edin (${error.message}).`;
     }
     throw new Error(detailedMessage);
   }
@@ -147,9 +153,12 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
 
 export async function addTask(taskData: TaskInputData): Promise<Task> {
   try {
+    // If taskData.project is undefined (meaning "__none__" was selected in form), save as empty string.
+    const projectValueForFirestore = taskData.project === undefined ? '' : taskData.project;
+
     const dataToSave: { [key: string]: any } = { 
       taskName: taskData.taskName,
-      project: taskData.project || '', 
+      project: projectValueForFirestore, 
       hotel: taskData.hotel,
       status: taskData.status,
       priority: taskData.priority,
@@ -171,7 +180,7 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
     return { 
       id: docRef.id, 
       taskName: taskData.taskName,
-      project: taskData.project || '',
+      project: projectValueForFirestore, // Reflect what was saved
       hotel: taskData.hotel,
       status: taskData.status,
       priority: taskData.priority,
@@ -184,7 +193,7 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
     };
   } catch (error: any) {
     console.error(`[SERVICE_ERROR] Original error in addTask:`, error); 
-    throw new Error("Görev eklenirken bir hata oluştu. Detaylar için konsolu kontrol edin.");
+    throw new Error(`Görev eklenirken bir hata oluştu. Detaylar için konsolu kontrol edin: ${error.message}`);
   }
 }
 
@@ -211,11 +220,20 @@ export async function updateTask(taskId: string, updates: Partial<Omit<TaskInput
   if (updates.dueDate) {
     dataToUpdate.dueDate = Timestamp.fromDate(updates.dueDate);
   }
+  
+  // Handle project update: if undefined, means no project (empty string)
+  if (updates.project === undefined) {
+      dataToUpdate.project = '';
+  } else {
+      dataToUpdate.project = updates.project;
+  }
+
   if (updates.assignedTo && !Array.isArray(updates.assignedTo)) {
     dataToUpdate.assignedTo = [updates.assignedTo];
   } else if (updates.assignedTo) {
     dataToUpdate.assignedTo = updates.assignedTo;
   }
+
 
   await updateDoc(taskDoc, dataToUpdate);
 }
@@ -248,9 +266,9 @@ export async function getTaskCountByStatus(): Promise<{ status: string; count: n
     });
 
     return Object.entries(statusCounts).map(([status, count]) => ({ status, count }));
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching task count by status: ", error);
-    throw new Error("Görev sayıları durumlarına göre alınırken bir hata oluştu.");
+    throw new Error(`Görev sayıları durumlarına göre alınırken bir hata oluştu: ${error.message}`);
   }
 }
 
@@ -281,7 +299,6 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
            }
            monthlyData[dueMonth].completed += 1;
         } else if (data.status === 'Tamamlandı' && createdAt instanceof Timestamp) {
-           // Fallback if dueDate is not available but task is completed, count in createdMonth
            if (!monthlyData[createdMonth]) {
              monthlyData[createdMonth] = { completed: 0, created: 0 };
            }
@@ -297,9 +314,9 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
         created: counts.created 
       })).sort((a,b) => a.month.localeCompare(b.month));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching task completion trend: ", error);
-    throw new Error("Görev tamamlama trendi alınırken bir hata oluştu.");
+    throw new Error(`Görev tamamlama trendi alınırken bir hata oluştu: ${error.message}`);
   }
 }
 
@@ -307,7 +324,6 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
 export async function getTasksByUserId(userId: string): Promise<Task[]> {
   try {
     const tasksCollection = collection(db, TASKS_COLLECTION);
-    // Query for tasks where the 'assignedTo' array contains the userId
     const q = query(tasksCollection, where('assignedTo', 'array-contains', userId), orderBy('dueDate', 'asc'));
     const taskSnapshot = await getDocs(q);
     const taskList: Task[] = [];
@@ -331,10 +347,12 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
     });
     return taskList;
   } catch (error: any) {
-    console.error(`Error fetching tasks for user ${userId}: `, error); 
+    console.error(`[SERVICE_ERROR] Original Firestore error in getTasksByUserId for user ID ${userId}:`, error); 
     let userMessage = `Kullanıcıya (${userId}) ait görevler alınırken bir hata oluştu.`;
      if (error.code === 'failed-precondition' && error.message?.includes('index')) {
-        userMessage += " Lütfen Firestore için 'tasks' koleksiyonunda 'assignedTo' (array-contains) ve 'dueDate' (asc) alanlarını içeren bir bileşik index oluşturduğunuzdan emin olun. Hata mesajında index oluşturma linki olabilir.";
+        userMessage += ` Lütfen Firestore için 'tasks' koleksiyonunda 'assignedTo' (array-contains) ve 'dueDate' (asc) alanlarını içeren bir bileşik index oluşturduğunuzdan emin olun. Hata mesajında index oluşturma linki olabilir: ${error.message}`;
+    } else {
+      userMessage += ` Detaylar: ${error.message}`;
     }
     throw new Error(userMessage);
   }
@@ -358,7 +376,7 @@ export async function getTaskStatsByUserId(userId: string): Promise<{ month: str
 
         if (task.status === 'Tamamlandı') {
           monthlyStats[monthYear].completed += 1;
-        } else if (dueDate < now && task.status !== 'Tamamlandı') { // Ensure not already completed
+        } else if (dueDate < now && task.status !== 'Tamamlandı') { 
           monthlyStats[monthYear].overdue += 1;
         }
       }
@@ -409,7 +427,9 @@ export async function getActiveTasks(limitCount: number = 5): Promise<Task[]> {
     console.error("Error fetching active tasks: ", error); 
     let userMessage = "Aktif görevler alınırken bir hata oluştu.";
     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
-        userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
+        userMessage += ` Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir: ${error.message}`;
+    } else {
+      userMessage += ` Detaylar: ${error.message}`;
     }
     throw new Error(userMessage);
   }
@@ -452,7 +472,9 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
     console.error("Error fetching overdue tasks: ", error); 
     let userMessage = "Gecikmiş görevler alınırken bir hata oluştu.";
     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
-        userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir.";
+        userMessage += ` Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir: ${error.message}`;
+    } else {
+      userMessage += ` Detaylar: ${error.message}`;
     }
     throw new Error(userMessage);
   }
