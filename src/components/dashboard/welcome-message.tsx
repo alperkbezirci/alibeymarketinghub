@@ -5,10 +5,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { getWeatherForecast, type WeatherInfoOutput } from '@/ai/flows/weather-forecast-flow';
+import { generateMotivationalMessage, type MotivationalMessageOutput } from '@/ai/flows/ai-motivational-message'; // Yeni AI akışı
+import { getEvents, type CalendarEvent } from '@/services/calendar-service';
+import { getActiveTasks, type Task } from '@/services/task-service'; // Görevleri çekmek için
 import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { MapPin, Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, Cloudy, Thermometer, Droplets, Wind } from 'lucide-react';
+import { MapPin, Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, Cloudy, Thermometer, Droplets, Wind, Sparkles, Loader2 } from 'lucide-react';
 
 const getWeatherIcon = (iconCode?: string, size: number = 24) => {
   if (!iconCode) return <Cloudy size={size} className="text-muted-foreground" />;
@@ -28,6 +31,8 @@ export function WelcomeMessage() {
   
   const [weatherData, setWeatherData] = useState<WeatherInfoOutput | null>(null);
   const [loadingWeather, setLoadingWeather] = useState<boolean>(true);
+  const [aiMotivationalText, setAiMotivationalText] = useState<string | null>(null);
+  const [loadingAiMessage, setLoadingAiMessage] = useState<boolean>(true);
 
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDateShort, setCurrentDateShort] = useState<string>('');
@@ -58,11 +63,56 @@ export function WelcomeMessage() {
     }
   }, [location]);
 
+  const fetchAiMessageData = useCallback(async () => {
+    if (!user) return;
+    setLoadingAiMessage(true);
+    setAiMotivationalText(null);
+
+    let eventSummaries: string[] = [];
+    let taskSummaries: string[] = [];
+
+    try {
+      // Fetch today's events
+      const todayStart = startOfDay(new Date());
+      const todayEnd = endOfDay(new Date());
+      const eventsToday = await getEvents(todayStart, todayEnd);
+      eventSummaries = eventsToday.slice(0, 3).map(event => event.title); // İlk 3 etkinliğin başlığı
+      
+      // Fetch active tasks (first 3 for summary)
+      const activeTasks = await getActiveTasks(3);
+      taskSummaries = activeTasks.map(task => `${task.taskName} (${task.status})`);
+
+    } catch (dataError: any) {
+      console.warn("[WelcomeMessage] Error fetching events or tasks for AI message:", dataError.message);
+      // AI akışını yine de çağır, boş veya eksik veriyle nasıl başa çıktığını görelim
+    }
+
+    try {
+      const aiResult = await generateMotivationalMessage({
+        userName: user.firstName,
+        todaysEvents: eventSummaries,
+        userTasksSummary: taskSummaries,
+      });
+      if (aiResult.message) {
+        setAiMotivationalText(aiResult.message);
+      } else {
+        setAiMotivationalText(`Güne harika bir başlangıç yap, ${user.firstName}! (Varsayılan Mesaj)`);
+      }
+    } catch (aiError: any) {
+      console.error("[WelcomeMessage] Error generating AI motivational message:", aiError.message);
+      setAiMotivationalText(`Bugün senin günün, ${user.firstName}! (AI Akış Hatası)`);
+    } finally {
+      setLoadingAiMessage(false);
+    }
+  }, [user]);
+
+
   useEffect(() => {
     if (user) {
       fetchWeatherDetails();
+      fetchAiMessageData();
     }
-  }, [user, fetchWeatherDetails]);
+  }, [user, fetchWeatherDetails, fetchAiMessageData]);
 
   if (!user) return null;
 
@@ -70,17 +120,30 @@ export function WelcomeMessage() {
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle className="font-headline text-2xl flex flex-col sm:flex-row sm:justify-between sm:items-center">
-          <span>Merhaba {user?.firstName || 'Değerli Kullanıcımız'},</span>
+          <span>Merhaba {user.firstName},</span>
           <div className="text-sm font-normal text-muted-foreground mt-1 sm:mt-0 flex items-center">
             <MapPin size={16} className="mr-1.5" /> {location} <span className="mx-1.5">•</span> {currentDateShort}, {currentTime}
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {/* AI Karşılama mesajı kaldırıldı. Sadece hava durumu gösterimi kaldı. */}
+        {loadingAiMessage && (
+          <div className="flex items-center text-sm text-muted-foreground py-3">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <span>Sana özel bir mesaj hazırlanıyor...</span>
+          </div>
+        )}
+        {!loadingAiMessage && aiMotivationalText && (
+          <div className="py-3 mb-4 border-b border-dashed">
+            <p className="text-base italic text-foreground/90 flex items-start">
+              <Sparkles className="mr-2 h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <span>{aiMotivationalText}</span>
+            </p>
+          </div>
+        )}
         
         {loadingWeather && !weatherData && (
-           <div className="mt-6 space-y-3">
+           <div className="mt-2 space-y-3">
                 <Skeleton className="h-8 w-1/3" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Skeleton className="h-24 w-full rounded-lg" />
@@ -91,7 +154,7 @@ export function WelcomeMessage() {
         )}
 
         {!loadingWeather && weatherData && !weatherData.error && weatherData.currentWeather && (
-          <div className="mt-6 pt-4 border-t">
+          <div className="mt-2 pt-0">
             <div className="flex items-center mb-3">
               {getWeatherIcon(weatherData.currentWeather.icon, 32)}
               <div className="ml-3">
@@ -128,7 +191,6 @@ export function WelcomeMessage() {
         {!loadingWeather && weatherData?.error && (
             <p className="text-sm text-destructive mt-4 text-center">{weatherData.error} (Kod: WC_DISPLAY_ERR)</p>
         )}
-         {/* Kullanıcı için genel bir mesaj veya boşluk bırakılabilir */}
         {!loadingWeather && !weatherData?.currentWeather && !weatherData?.error && (
           <p className="text-sm text-muted-foreground mt-4 text-center">Güne dair hava durumu bilgisi yüklenemedi.</p>
         )}
