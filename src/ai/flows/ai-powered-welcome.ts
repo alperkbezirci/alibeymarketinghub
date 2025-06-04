@@ -147,9 +147,10 @@ export async function generateWelcomeMessage(input: WelcomeMessageInput): Promis
 
   } catch (promptError: any) {
     console.error(
-      `[AI Welcome Flow] Error DURING welcomeMessagePrompt call for user ${input.userName}. Error: ${promptError.message}. Input to AI (excluding weather for brevity): ${JSON.stringify({ ...input, weatherDataIsPresent: !!weatherData, weatherError: weatherData?.error })}. Falling back to default welcome message.`,
-      JSON.stringify(promptError, Object.getOwnPropertyNames(promptError))
+      `[AI Welcome Flow] Error DURING welcomeMessagePrompt call for user ${input.userName}. Error message: ${promptError.message}. Error stack: ${promptError.stack}. Input to AI (excluding weather for brevity): ${JSON.stringify({ ...input, weatherDataIsPresent: !!weatherData, weatherError: weatherData?.error })}.`
     );
+    // Log the full error object if simple properties are not enough
+    // console.error("[AI Welcome Flow] Full promptError object:", promptError);
     return { message: `Merhaba ${input.userName}, Pazarlama Merkezi'ne hoş geldiniz! Sistemimiz (prompt hatası) size özel bir mesaj üretemiyor, ancak harika bir gün geçirmenizi dileriz!` };
   }
 }

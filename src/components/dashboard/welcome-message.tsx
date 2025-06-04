@@ -10,7 +10,7 @@ import { getWeatherForecast, type WeatherInfoOutput } from '@/ai/flows/weather-f
 import { Skeleton } from '@/components/ui/skeleton';
 import { getEvents, type CalendarEvent } from '@/services/calendar-service';
 import { getProjectsByUserId, type Project } from '@/services/project-service';
-import { format, startOfDay, endOfDay, parseISO } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { MapPin, Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, Cloudy, Thermometer, Droplets, Wind, CalendarClock, Briefcase } from 'lucide-react';
 
@@ -26,7 +26,6 @@ const getWeatherIcon = (iconCode?: string, size: number = 24) => {
   if (iconCode.startsWith("10")) return <CloudRain size={size} className="text-blue-600" />; // rain
   if (iconCode.startsWith("11")) return <CloudLightning size={size} className="text-purple-500" />; // thunderstorm
   if (iconCode.startsWith("13")) return <CloudSnow size={size} className="text-blue-300" />; // snow
-  // 50d (mist) and other specific icons can be mapped if needed
   return <Cloudy size={size} className="text-muted-foreground" />; // default
 };
 
@@ -40,7 +39,7 @@ export function WelcomeMessage() {
   const [loadingWeather, setLoadingWeather] = useState<boolean>(true);
 
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [currentDateFull, setCurrentDateFull] = useState<string>(''); // For AI
+  const [currentDateFull, setCurrentDateFull] = useState<string>(''); // For potential use in UI if AI fails grandly
   const [currentDateShort, setCurrentDateShort] = useState<string>(''); // For display
 
   const [todaysEvents, setTodaysEvents] = useState<string[]>([]);
@@ -50,10 +49,15 @@ export function WelcomeMessage() {
   const location = "Antalya, Türkiye"; // Hardcoded for now
 
   useEffect(() => {
-    const now = new Date();
-    setCurrentTime(now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
-    setCurrentDateFull(now.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
-    setCurrentDateShort(format(now, 'd MMMM yyyy', {locale: tr}));
+    const updateDateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
+      setCurrentDateFull(now.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+      setCurrentDateShort(format(now, 'd MMMM yyyy', {locale: tr}));
+    };
+    updateDateTime();
+    const timerId = setInterval(updateDateTime, 60000); // Update time every minute
+    return () => clearInterval(timerId);
   }, []);
 
   const fetchContextualDataForAI = useCallback(async () => {
@@ -103,35 +107,33 @@ export function WelcomeMessage() {
   }, [user, fetchContextualDataForAI, fetchWeatherDetails]);
 
   useEffect(() => {
-    async function fetchAiWelcomeMessage() {
-      if (user && currentTime && currentDateFull && !loadingContextualData) { // Weather data for AI is fetched inside the flow
+    async function fetchAiWelcomeMessageInternal() {
+      if (user && !loadingContextualData) { 
         setLoadingAiMessage(true);
         try {
           const result = await generateWelcomeMessage({
             userName: getDisplayName(),
-            date: currentDateFull,
-            time: currentTime,
-            location: location,
             todaysEvents: todaysEvents,
             userProjectsSummary: userProjectsSummary,
           });
           setAiWelcomeText(result.message);
-        } catch (error) {
-          console.error("Yapay zeka karşılama mesajı oluşturulurken hata (bileşen):", error);
-          setAiWelcomeText(`Merhaba ${getDisplayName()}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${currentDateFull}, saat ${currentTime}. Harika bir gün geçirmenizi dileriz!`);
+        } catch (error: any) { 
+          console.error("[WelcomeMessage Component] Error calling generateWelcomeMessage:", error.message, error.stack, error);
+          // This is the ultimate fallback if generateWelcomeMessage itself throws an unhandled error
+          setAiWelcomeText(`Merhaba ${getDisplayName()}, Pazarlama Merkezi'ne hoş geldiniz! Bugün ${currentDateFull}, saat ${currentTime}. Üzgünüz, size özel bir mesaj şu anda oluşturulamıyor, ancak harika bir gün dileriz! (Kod: WC_CATCH)`);
         } finally {
           setLoadingAiMessage(false);
         }
       }
     }
 
-    if (user && !loadingContextualData) { // Trigger AI message fetch once contextual data is ready
-       fetchAiWelcomeMessage();
+    if (user && !loadingContextualData) { 
+       fetchAiWelcomeMessageInternal();
     } else if (!user) {
       setLoadingAiMessage(false); 
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentTime, currentDateFull, getDisplayName, loadingContextualData, todaysEvents, userProjectsSummary, location]);
+  }, [user, getDisplayName, loadingContextualData, todaysEvents, userProjectsSummary]); // Removed currentDateFull, currentTime from deps as AI flow no longer uses them
 
   if (!user) return null;
 
@@ -231,3 +233,4 @@ export function WelcomeMessage() {
     </Card>
   );
 }
+
