@@ -5,4 +5,3 @@ config();
 import '@/ai/flows/ai-assisted-descriptions.ts';
 // ai-powered-welcome.ts import was removed in a previous step, ensuring it stays removed.
 import '@/ai/flows/weather-forecast-flow.ts';
-

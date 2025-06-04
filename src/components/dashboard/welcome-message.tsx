@@ -52,7 +52,8 @@ export function WelcomeMessage() {
         setWeatherData(result);
     } catch (error: any) {
         console.error("Hava durumu verisi alınırken hata (bileşen):", error);
-        setWeatherData({ location, error: "Hava durumu bilgisi şu anda alınamıyor." });
+        // Provide a more specific error code or message for the component's catch block
+        setWeatherData({ location, error: "Hava durumu bilgisi şu anda alınamıyor. (Kod: WC_ERR_FETCH)" });
     } finally {
         setLoadingWeather(false);
     }
@@ -67,7 +68,8 @@ export function WelcomeMessage() {
   if (!user) return null;
 
   const displayName = getDisplayName();
-  const welcomeText = `Merhaba ${displayName}, Pazarlama Merkezi'ne hoş geldiniz!`;
+  // Basit hoş geldin mesajı
+  const welcomeText = `Merhaba ${displayName}, Pazarlama Merkezi'ne hoş geldiniz!`; 
 
   return (
     <Card className="shadow-lg">
@@ -129,7 +131,8 @@ export function WelcomeMessage() {
           </div>
         )}
         {!loadingWeather && weatherData?.error && (
-            <p className="text-sm text-destructive mt-4 text-center">{weatherData.error} (Kod: WC_ERR)</p>
+            // Fallback mesajı (Kod: WC_CATCH) yerine doğrudan hata mesajını gösterelim.
+            <p className="text-sm text-destructive mt-4 text-center">{weatherData.error} (Kod: WC_DISPLAY_ERR)</p>
         )}
       </CardContent>
     </Card>
