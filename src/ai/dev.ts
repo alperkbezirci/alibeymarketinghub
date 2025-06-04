@@ -3,6 +3,6 @@ import { config } from 'dotenv';
 config();
 
 import '@/ai/flows/ai-assisted-descriptions.ts';
-// import '@/ai/flows/ai-powered-welcome.ts'; // Kaldırıldı
+// ai-powered-welcome.ts import was removed in a previous step, ensuring it stays removed.
 import '@/ai/flows/weather-forecast-flow.ts';
 

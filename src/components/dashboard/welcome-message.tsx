@@ -2,9 +2,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
-import { getWeatherForecast, type WeatherInfoOutput } from '@/ai/flows/weather-forecast-flow'; // Keep for weather display
+import { getWeatherForecast, type WeatherInfoOutput } from '@/ai/flows/weather-forecast-flow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -32,7 +32,7 @@ export function WelcomeMessage() {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDateShort, setCurrentDateShort] = useState<string>('');
 
-  const location = "Antalya, Türkiye"; // Hardcoded
+  const location = "Antalya, Türkiye"; // Sabit konum
 
   useEffect(() => {
     const updateDateTime = () => {
@@ -40,9 +40,9 @@ export function WelcomeMessage() {
       setCurrentTime(now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }));
       setCurrentDateShort(format(now, 'd MMMM yyyy', {locale: tr}));
     };
-    updateDateTime();
-    const timerId = setInterval(updateDateTime, 60000);
-    return () => clearInterval(timerId);
+    updateDateTime(); // İlk yüklemede çalıştır
+    const timerId = setInterval(updateDateTime, 60000); // Her dakika güncelle
+    return () => clearInterval(timerId); // Component unmount olduğunda interval'ı temizle
   }, []);
 
   const fetchWeatherDetails = useCallback(async () => {
@@ -50,9 +50,9 @@ export function WelcomeMessage() {
     try {
         const result = await getWeatherForecast({ location });
         setWeatherData(result);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Hava durumu verisi alınırken hata (bileşen):", error);
-        setWeatherData({ location, error: "Hava durumu bilgisi şu anda alınamıyor." } as WeatherInfoOutput);
+        setWeatherData({ location, error: "Hava durumu bilgisi şu anda alınamıyor." });
     } finally {
         setLoadingWeather(false);
     }
@@ -66,7 +66,8 @@ export function WelcomeMessage() {
 
   if (!user) return null;
 
-  const welcomeText = `Merhaba ${getDisplayName()}, Pazarlama Merkezi'ne hoş geldiniz!`;
+  const displayName = getDisplayName();
+  const welcomeText = `Merhaba ${displayName}, Pazarlama Merkezi'ne hoş geldiniz!`;
 
   return (
     <Card className="shadow-lg">
@@ -128,10 +129,9 @@ export function WelcomeMessage() {
           </div>
         )}
         {!loadingWeather && weatherData?.error && (
-            <p className="text-sm text-destructive mt-4 text-center">{weatherData.error}</p>
+            <p className="text-sm text-destructive mt-4 text-center">{weatherData.error} (Kod: WC_ERR)</p>
         )}
       </CardContent>
-      {/* CardFooter kaldırıldı çünkü artık AI ile ilgili takvim/proje özeti gösterilmiyor */}
     </Card>
   );
 }

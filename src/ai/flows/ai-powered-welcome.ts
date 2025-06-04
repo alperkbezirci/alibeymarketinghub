@@ -1,6 +1,3 @@
-import { config } from 'dotenv';
-config();
-
-import '@/ai/flows/ai-assisted-descriptions.ts';
-// import '@/ai/flows/ai-powered-welcome.ts'; // Kaldırıldı
-import '@/ai/flows/weather-forecast-flow.ts';
+// This file is no longer used and can be safely deleted.
+// The AI-powered welcome message feature has been removed.
+// Keeping this file empty or deleting it will prevent any accidental imports or usage.
