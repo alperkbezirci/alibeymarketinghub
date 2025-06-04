@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Thermometer, Wind, Droplets, Sunrise, Sunset, AlertTriangle, CloudOff, Cloudy, Sun, Zap, CloudRain, Snowflake, RefreshCw, MapPin, Clock } from 'lucide-react';
+import { Thermometer, Wind, Droplets, Sunrise, Sunset, AlertTriangle, CloudOff, Cloudy, Sun, Zap, CloudRain, Snowflake, RefreshCw, MapPin, Clock, CalendarDays } from 'lucide-react'; // Added CalendarDays
 import { getWeatherForecast } from '@/ai/flows/weather-forecast-flow';
 import type { WeatherInfoOutput, HourlyDetail, DailyForecast } from '@/ai/schemas/weather-schemas';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
