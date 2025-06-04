@@ -7,7 +7,7 @@ import { useAuth, type User as AuthUser } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Briefcase, ListChecks, CalendarDays, ExternalLink, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Briefcase, ListChecks, CalendarDays, ChevronRight } from 'lucide-react';
 import { getProjectsByUserId, type Project } from '@/services/project-service';
 import { getTasksByUserId, type Task } from '@/services/task-service';
 import { getEvents, type CalendarEvent } from '@/services/calendar-service';
@@ -29,18 +29,18 @@ interface EnrichedProject extends Project {
 }
 
 const getStatusColor = (status?: string, isOverdue?: boolean) => {
-    if (isOverdue) return 'bg-red-500 hover:bg-red-600 text-white';
-    if (!status) return 'bg-gray-500 hover:bg-gray-600';
+    if (isOverdue && status !== 'Tamamlandı') return 'bg-red-500 hover:bg-red-600 text-white';
+    if (!status) return 'bg-gray-500 hover:bg-gray-600 text-secondary-foreground';
     switch (status) {
-      case 'Tamamlandı': return 'bg-green-500 hover:bg-green-600';
-      case 'Devam Ediyor': return 'bg-blue-500 hover:bg-blue-600';
+      case 'Tamamlandı': return 'bg-green-500 hover:bg-green-600 text-white';
+      case 'Devam Ediyor': return 'bg-blue-500 hover:bg-blue-600 text-white';
       case 'Planlama': return 'bg-yellow-500 hover:bg-yellow-600 text-black';
-      case 'Beklemede': return 'bg-orange-500 hover:bg-orange-600';
-      case 'İptal Edildi': return 'bg-red-500 hover:bg-red-600';
+      case 'Beklemede': return 'bg-orange-500 hover:bg-orange-600 text-white';
+      case 'İptal Edildi': return 'bg-red-500 hover:bg-red-600 text-white';
       case 'Yapılacak': return 'bg-yellow-500 hover:bg-yellow-600 text-black';
-      case 'Gözden Geçiriliyor': return 'bg-purple-500 hover:bg-purple-600';
-      case 'Engellendi': return 'bg-red-600 hover:bg-red-700';
-      default: return 'bg-gray-500 hover:bg-gray-600';
+      case 'Gözden Geçiriliyor': return 'bg-purple-500 hover:bg-purple-600 text-white';
+      case 'Engellendi': return 'bg-red-600 hover:bg-red-700 text-white';
+      default: return 'bg-gray-500 hover:bg-gray-600 text-secondary-foreground';
     }
 };
 
@@ -61,7 +61,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
       const [projectsResponse, tasksResponse, eventsResponse] = await Promise.allSettled([
         getProjectsByUserId(user.uid),
         getTasksByUserId(user.uid),
-        getEvents(today, sevenDaysLater) // Fetch events for the next 7 days
+        getEvents(today, sevenDaysLater) 
       ]);
 
       if (projectsResponse.status === 'fulfilled') {
@@ -72,7 +72,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
             p.status !== 'Tamamlandı' && p.status !== 'İptal Edildi'
           )
           .map(p => ({...p, isOverdue: true}))
-          .sort((a, b) => parseISO(a.endDate!).getTime() - parseISO(b.endDate!).getTime()); // Sort by oldest overdue
+          .sort((a, b) => parseISO(a.endDate!).getTime() - parseISO(b.endDate!).getTime()); 
         setOverdueProjects(filteredOverdueProjects);
       } else {
         console.error("Error fetching projects:", projectsResponse.reason);
@@ -85,9 +85,9 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
         const filteredPendingTasks = userTasks
           .filter(t => {
             if (t.status === 'Tamamlandı') return false;
-            if (!t.dueDate) return true; // Include tasks without due dates as pending
+            if (!t.dueDate) return true; 
             const dueDate = parseISO(t.dueDate);
-            return isBefore(dueDate, sevenDaysLater); // Overdue or due in next 7 days
+            return isBefore(dueDate, sevenDaysLater); 
           })
           .map(t => ({
             ...t,
@@ -97,7 +97,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
             if (a.isOverdue && !b.isOverdue) return -1;
             if (!a.isOverdue && b.isOverdue) return 1;
             if (a.dueDate && b.dueDate) return parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime();
-            if (a.dueDate) return -1; // Tasks with due dates first
+            if (a.dueDate) return -1; 
             if (b.dueDate) return 1;
             return 0;
           });
@@ -126,7 +126,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
     fetchData();
   }, [fetchData]);
 
-  const renderListItem = (
+  const renderSimpleListItem = (
     id: string,
     title: string | undefined,
     detail: string,
@@ -149,6 +149,33 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
     </li>
   );
 
+  const renderTaskItem = (task: EnrichedTask) => (
+    <li key={task.id} className="mb-2">
+      <Card className="shadow-sm hover:shadow-lg transition-shadow duration-200 ease-in-out bg-card/80 dark:bg-card/60">
+        <CardContent className="p-3">
+          <Link href={`/tasks/${task.id}`} className="group block">
+            <div className="flex justify-between items-center mb-1">
+              <p className={cn("font-semibold text-sm group-hover:text-primary truncate", task.isOverdue && task.status !== 'Tamamlandı' && "text-destructive")}>
+                {task.taskName || "İsimsiz Görev"}
+              </p>
+              {task.isOverdue && task.status !== 'Tamamlandı' && <Badge variant="destructive" className="text-xs ml-2 shrink-0">GECİKMİŞ</Badge>}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Bitiş: {task.dueDate ? format(parseISO(task.dueDate), 'dd MMM yy', { locale: tr }) : 'N/A'}
+            </p>
+            <div className="flex justify-between items-center mt-2">
+              <Badge variant="outline" className="text-xs px-1.5 py-0.5">{task.priority || 'Normal'}</Badge>
+              <Badge className={cn("text-xs px-1.5 py-0.5", getStatusColor(task.status, task.isOverdue && task.status !== 'Tamamlandı'))}>
+                {task.status || 'Bilinmiyor'}
+              </Badge>
+            </div>
+          </Link>
+        </CardContent>
+      </Card>
+    </li>
+  );
+
+
   if (isLoading) {
     return (
       <Card className="shadow-lg w-full">
@@ -160,8 +187,8 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
           {[1, 2, 3].map(i => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-5 w-1/3" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full rounded-md" />
+              <Skeleton className="h-10 w-full rounded-md" />
             </div>
           ))}
         </CardContent>
@@ -189,7 +216,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
               <Briefcase className="mr-2 h-5 w-5" /> Gecikmiş Projeleriniz (En Öncelikli)
             </h3>
             <ul className="space-y-1">
-              {overdueProjects.map(p => renderListItem(
+              {overdueProjects.map(p => renderSimpleListItem(
                 p.id,
                 p.projectName,
                 `Bitiş Tarihi: ${p.endDate ? format(parseISO(p.endDate), 'dd MMM yyyy', { locale: tr }) : 'N/A'} | Durum: ${p.status}`,
@@ -206,19 +233,14 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
             <h3 className="text-lg font-semibold mb-2 flex items-center">
               <ListChecks className="mr-2 h-5 w-5 text-primary" /> Bekleyen ve Yaklaşan Görevleriniz
             </h3>
-            <ul className="space-y-1">
-              {pendingTasks.map(t => renderListItem(
-                t.id,
-                t.taskName,
-                `Bitiş Tarihi: ${t.dueDate ? format(parseISO(t.dueDate), 'dd MMM yyyy', { locale: tr }) : 'N/A'} | Öncelik: ${t.priority}`,
-                `/tasks/${t.id}`,
-                t.isOverdue,
-                t.status
-              ))}
+            <ul className="space-y-0"> {/* Adjusted space-y to 0 as li has mb-2 */}
+              {pendingTasks.map(t => renderTaskItem(t))}
             </ul>
           </div>
         )}
-        {pendingTasks.length === 0 && !overdueProjects.length && !error && (
+        
+        {/* Fallback message if no tasks or overdue projects */}
+        {pendingTasks.length === 0 && overdueProjects.length === 0 && !error && (
              <p className="text-sm text-muted-foreground py-2 text-center">Yaklaşan veya gecikmiş göreviniz/projeniz bulunmuyor.</p>
         )}
 
@@ -228,17 +250,17 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
               <CalendarDays className="mr-2 h-5 w-5 text-primary" /> Yaklaşan Etkinlikler (Önümüzdeki 7 Gün)
             </h3>
             <ul className="space-y-1">
-              {upcomingEvents.map(e => renderListItem(
+              {upcomingEvents.map(e => renderSimpleListItem(
                 e.id,
                 e.title,
                 `Başlangıç: ${format(parseISO(e.startDate), 'dd MMM yyyy, HH:mm', { locale: tr })} ${e.eventType ? `| Tip: ${e.eventType}` : ''}`,
-                `/calendar` // Event detail page doesn't exist, link to general calendar
+                `/calendar` 
               ))}
             </ul>
           </div>
         )}
         {upcomingEvents.length === 0 && !error && (
-             <p className="text-sm text-muted-foreground py-2 text-center">Önümüzdeki 7 gün için planlanmış bir etkinlik bulunmuyor.</p>
+             <p className="text-sm text-muted-foreground py-2 text-center">Önümüzdeki 7 gün için planlanmış bir etkinlik bulunmamaktadır.</p>
         )}
          {overdueProjects.length === 0 && pendingTasks.length === 0 && upcomingEvents.length === 0 && !error && (
             <p className="text-md text-muted-foreground text-center py-6">Önümüzdeki 7 gün için planlanmış herhangi bir proje, görev veya etkinlik bulunmamaktadır. Harika bir hafta sizi bekliyor olabilir!</p>
@@ -247,5 +269,3 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
     </Card>
   );
 }
-
-    
