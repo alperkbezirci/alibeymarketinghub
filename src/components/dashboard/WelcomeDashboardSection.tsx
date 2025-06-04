@@ -1,3 +1,4 @@
+
 // src/components/dashboard/WelcomeDashboardSection.tsx
 "use client";
 
@@ -73,7 +74,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
           )
           .map(p => ({...p, isOverdue: true}))
           .sort((a, b) => {
-            if (a.endDate && b.endDate) {
+            if (a.endDate && b.endDate && isValid(parseISO(a.endDate)) && isValid(parseISO(b.endDate))) {
               return parseISO(a.endDate).getTime() - parseISO(b.endDate).getTime();
             }
             return 0;
@@ -81,7 +82,8 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
         setOverdueProjects(filteredOverdueProjects);
       } else {
         console.error("Error fetching projects:", projectsResponse.reason);
-        setError(prev => prev ? prev + "\nProjeler yüklenemedi." : "Projeler yüklenemedi.");
+        const reasonMessage = projectsResponse.reason instanceof Error ? projectsResponse.reason.message : String(projectsResponse.reason);
+        setError(prev => prev ? prev + `\nProjeler yüklenemedi: ${reasonMessage}` : `Projeler yüklenemedi: ${reasonMessage}`);
       }
 
       if (tasksResponse.status === 'fulfilled') {
@@ -92,7 +94,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
             if (t.status === 'Tamamlandı') return false;
             if (!t.dueDate) return true;
             const dueDateObj = parseISO(t.dueDate);
-            if (!isValid(dueDateObj)) return true; // Keep tasks with invalid due dates to be safe, or filter out
+            if (!isValid(dueDateObj)) return true; 
             return isBefore(dueDateObj, sevenDaysLater);
           })
           .map(t => ({
@@ -119,17 +121,27 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
       if (eventsResponse.status === 'fulfilled') {
         setUpcomingEvents(
           eventsResponse.value.sort((a,b) => {
-            const dateA = a.startDate && isValid(parseISO(a.startDate)) ? parseISO(a.startDate).getTime() : 0;
-            const dateB = b.startDate && isValid(parseISO(b.startDate)) ? parseISO(b.startDate).getTime() : 0;
-            if (!dateA && !dateB) return 0;
-            if (!dateA) return 1;
-            if (!dateB) return -1;
-            return dateA - dateB;
+            const dateAString = a.startDate;
+            const dateBString = b.startDate;
+            
+            if (!dateAString && !dateBString) return 0;
+            if (!dateAString) return 1; // Sort undefined/invalid dates to the end
+            if (!dateBString) return -1;
+
+            const dateA = parseISO(dateAString);
+            const dateB = parseISO(dateBString);
+
+            if (!isValid(dateA) && !isValid(dateB)) return 0;
+            if (!isValid(dateA)) return 1;
+            if (!isValid(dateB)) return -1;
+            
+            return dateA.getTime() - dateB.getTime();
           })
         );
       } else {
         console.error("Error fetching events:", eventsResponse.reason);
-        setError(prev => prev ? prev + "\nEtkinlikler yüklenemedi." : "Etkinlikler yüklenemedi.");
+        const reasonMessage = eventsResponse.reason instanceof Error ? eventsResponse.reason.message : String(eventsResponse.reason);
+        setError(prev => prev ? prev + `\nEtkinlikler yüklenemedi: ${reasonMessage}` : `Etkinlikler yüklenemedi: ${reasonMessage}`);
       }
 
     } catch (e: any) {
@@ -155,12 +167,12 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
     <li key={id} className="border-b last:border-b-0 py-2.5 hover:bg-muted/30 px-1 -mx-1 rounded-md transition-colors">
       <Link href={href} className="flex items-center justify-between group">
         <div>
-          <p className={cn("font-medium group-hover:text-primary", isOverdue && "text-destructive")}>
+          <div className={cn("font-medium group-hover:text-primary flex items-center", isOverdue && "text-destructive")}>
             {title || "İsimsiz"}
             {isOverdue && <Badge variant="destructive" className="ml-2 text-xs">GECİKMİŞ</Badge>}
             {status && !isOverdue && <Badge variant="secondary" className={cn("ml-2 text-xs", getStatusColor(status))}>{status}</Badge>}
-          </p>
-          <p className="text-xs text-muted-foreground">{detail}</p>
+          </div>
+          <div className="text-xs text-muted-foreground">{detail}</div>
         </div>
         <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
       </Link>
@@ -178,10 +190,10 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
       <Card className="shadow-sm hover:shadow-lg transition-shadow duration-200 ease-in-out bg-card/80 dark:bg-card/60">
         <CardContent className="p-3">
           <Link href={`/tasks/${task.id}`} className="group block">
-            <div className="flex justify-between items-center mb-1">
-              <p className={cn("font-semibold text-sm group-hover:text-primary truncate", task.isOverdue && task.status !== 'Tamamlandı' && "text-destructive")}>
+            <div className="flex justify-between items-start mb-1">
+              <div className={cn("font-semibold text-sm group-hover:text-primary truncate", task.isOverdue && task.status !== 'Tamamlandı' && "text-destructive")}>
                 {task.taskName || "İsimsiz Görev"}
-              </p>
+              </div>
               {task.isOverdue && task.status !== 'Tamamlandı' && <Badge variant="destructive" className="text-xs ml-2 shrink-0">GECİKMİŞ</Badge>}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -279,6 +291,8 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
                 let formattedStartDate = 'N/A';
                 if (e.startDate && isValid(parseISO(e.startDate))) {
                   formattedStartDate = format(parseISO(e.startDate), 'dd MMM yyyy, HH:mm', { locale: tr });
+                } else if (e.startDate) {
+                    formattedStartDate = "Geçersiz Tarih"; // Handle invalid but present date string
                 }
                 return renderSimpleListItem(
                   e.id,
@@ -298,3 +312,4 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
     </Card>
   );
 }
+
