@@ -3,12 +3,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+// Link importu kaldırıldı.
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, AlertTriangle } from "lucide-react";
+import { PlusCircle, Loader2, AlertTriangle, Eye } from "lucide-react"; // Eye ikonu eklendi
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { ProjectForm } from "@/components/projects/project-form";
+import { ProjectDetailDialog } from "@/components/projects/project-detail-dialog"; // Yeni dialog import edildi
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { HOTEL_NAMES, PROJECT_STATUSES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { getProjects, addProject, type Project, type ProjectFormData, type ProjectInputDataForService } from "@/services/project-service";
+import { getAllUsers, type User as AppUser } from "@/services/user-service"; // User import edildi
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,9 +25,16 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "fire
 import { v4 as uuidv4 } from 'uuid';
 
 export default function ProjectsPage() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false); // Detay dialogu için state
+  const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<Project | null>(null); // Seçilen proje state'i
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [usersList, setUsersList] = useState<AppUser[]>([]); // Kullanıcı listesi için state
+
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true); // Kullanıcı yükleme state'i
+  
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -34,31 +43,38 @@ export default function ProjectsPage() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  const fetchProjects = useCallback(async () => {
-    setIsLoading(true);
+  const fetchPageData = useCallback(async () => {
+    setIsLoadingProjects(true);
+    setIsLoadingUsers(true);
     setError(null);
     try {
-      const fetchedProjects = await getProjects();
+      const projectsPromise = getProjects();
+      const usersPromise = getAllUsers();
+      
+      const [fetchedProjects, fetchedUsers] = await Promise.all([projectsPromise, usersPromise]);
+      
       setProjects(fetchedProjects);
+      setUsersList(fetchedUsers);
     } catch (err: any) {
-      setError(err.message || "Projeler yüklenirken bir hata oluştu.");
+      setError(err.message || "Projeler veya kullanıcılar yüklenirken bir hata oluştu.");
       toast({ title: "Hata", description: err.message, variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      setIsLoadingProjects(false);
+      setIsLoadingUsers(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    fetchPageData();
+  }, [fetchPageData]);
 
   useEffect(() => {
     const action = searchParams.get('action');
     if (action === 'new') {
-      setIsDialogOpen(true);
+      setIsFormDialogOpen(true);
       router.replace(pathname, { scroll: false });
     }
-  }, [searchParams, router, pathname, setIsDialogOpen]);
+  }, [searchParams, router, pathname, setIsFormDialogOpen]);
 
   const handleSaveProject = async (formData: ProjectFormData) => {
     setIsSaving(true);
@@ -69,7 +85,6 @@ export default function ProjectsPage() {
       if (formData.projectFile) {
         const file = formData.projectFile;
         const uniqueFileName = `${uuidv4()}-${file.name}`;
-        // Store in a general projects folder or projects/{projectId}/ - projectId not available yet
         const filePath = `project-files/${uniqueFileName}`; 
         
         const clientSideStorage = getStorage();
@@ -96,13 +111,18 @@ export default function ProjectsPage() {
       
       await addProject(projectDataForService);
       toast({ title: "Başarılı", description: `${formData.projectName} adlı proje oluşturuldu.` });
-      setIsDialogOpen(false);
-      fetchProjects();
+      setIsFormDialogOpen(false);
+      fetchPageData(); // Refresh data
     } catch (err: any)      {
       toast({ title: "Hata", description: err.message || "Proje kaydedilirken bir hata oluştu.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleOpenDetailDialog = (project: Project) => {
+    setSelectedProjectForDetail(project);
+    setIsDetailDialogOpen(true);
   };
 
   const formatDateDisplay = (dateInput: string | undefined | null, dateFormat: string = 'dd/MM/yyyy') => {
@@ -115,12 +135,13 @@ export default function ProjectsPage() {
     }
   };
 
+  const isLoading = isLoadingProjects || isLoadingUsers;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
         <h1 className="text-3xl font-headline font-bold">Projeler</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
           <DialogTrigger asChild>
             <Button disabled={isSaving}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -136,7 +157,7 @@ export default function ProjectsPage() {
             </DialogHeader>
             <ProjectForm
               onSave={handleSaveProject}
-              onClose={() => setIsDialogOpen(false)}
+              onClose={() => setIsFormDialogOpen(false)}
               isSaving={isSaving}
             />
           </DialogContent>
@@ -191,7 +212,7 @@ export default function ProjectsPage() {
         <div className="text-center py-8 text-destructive">
           <AlertTriangle className="mx-auto h-12 w-12 mb-2" />
           <p>{error}</p>
-          <Button onClick={fetchProjects} variant="outline" className="mt-4">Tekrar Dene</Button>
+          <Button onClick={fetchPageData} variant="outline" className="mt-4">Tekrar Dene</Button>
         </div>
       )}
 
@@ -218,15 +239,25 @@ export default function ProjectsPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button asChild variant="outline" size="sm" className="w-full">
-                  <Link href={`/projects/${project.id}`}>
-                    Detayları Gör
-                  </Link>
-                </Button>
+                <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenDetailDialog(project)}>
+                   <Eye className="mr-2 h-4 w-4" /> Detayları Gör
+                 </Button>
               </CardFooter>
             </Card>
           ))}
         </div>
+      )}
+
+      {selectedProjectForDetail && (
+        <ProjectDetailDialog
+          project={selectedProjectForDetail}
+          users={usersList}
+          isOpen={isDetailDialogOpen}
+          onOpenChange={(open) => {
+            setIsDetailDialogOpen(open);
+            if (!open) setSelectedProjectForDetail(null);
+          }}
+        />
       )}
     </div>
   );
