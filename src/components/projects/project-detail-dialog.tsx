@@ -58,12 +58,11 @@ export function ProjectDetailDialog({
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
 
-  const [addActivityState, handleAddActivitySubmit] = useActionState(handleAddProjectActivityAction, undefined);
+  const [addActivityState, handleActivityFormSubmit_ActionHook] = useActionState(handleAddProjectActivityAction, undefined);
   const activityFormRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedActivityFileName, setSelectedActivityFileName] = useState<string | null>(null);
-  const [idTokenForActivityForm, setIdTokenForActivityForm] = useState<string>('');
-
+  
   const [activityToApprove, setActivityToApprove] = useState<ProjectActivity | null>(null);
   const [approvalMessage, setApprovalMessage] = useState("");
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
@@ -92,22 +91,13 @@ export function ProjectDetailDialog({
   useEffect(() => {
     if (isOpen && project?.id) {
       fetchActivitiesForProject();
-      if (auth.currentUser) {
-        auth.currentUser.getIdToken(true).then(token => {
-          setIdTokenForActivityForm(token);
-        }).catch(err => {
-          console.error("Error getting ID token for activity form in dialog:", err);
-          toast({ title: "Kimlik Doğrulama Hatası", description: "Form gönderimi için kullanıcı kimliği alınamadı.", variant: "destructive" });
-        });
-      }
     } else {
-      // Reset states when dialog closes or project is not available
       setProjectActivities([]);
       setSelectedActivityFileName(null);
       if (activityFormRef.current) activityFormRef.current.reset();
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }, [isOpen, project?.id, fetchActivitiesForProject, toast]);
+  }, [isOpen, project?.id, fetchActivitiesForProject]);
 
   useEffect(() => {
     if (addActivityState?.message) {
@@ -118,54 +108,85 @@ export function ProjectDetailDialog({
         setSelectedActivityFileName(null);
         fetchActivitiesForProject();
         if (onActivityUpdate) onActivityUpdate();
-        if (auth.currentUser) {
-          auth.currentUser.getIdToken(true).then(token => setIdTokenForActivityForm(token));
-        }
       } else {
         toast({ title: "Hata", description: addActivityState.message, variant: "destructive" });
       }
     }
   }, [addActivityState, toast, fetchActivitiesForProject, onActivityUpdate]);
 
-  const handleSendForApproval = async () => {
-    if (!activityToApprove || !project?.id) return;
-    setIsSubmittingApproval(true);
-    const currentIdToken = await auth.currentUser?.getIdToken();
-    const result = await handleUpdateActivityStatusAction(activityToApprove.id, project.id, 'pending_approval', approvalMessage, currentIdToken);
-    if (result.success) {
-        toast({ title: "Başarılı", description: result.message });
-        fetchActivitiesForProject();
-        if (onActivityUpdate) onActivityUpdate();
-        setActivityToApprove(null);
-        setApprovalMessage("");
-    } else {
-        toast({ title: "Hata", description: result.message, variant: "destructive" });
+
+  const handleInternalActivityFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!currentUser || !auth.currentUser) {
+      toast({ title: "Hata", description: "Kullanıcı oturumu bulunamadı. Lütfen tekrar giriş yapın.", variant: "destructive" });
+      return;
     }
-    setIsSubmittingApproval(false);
+    if (!activityFormRef.current) return;
+
+    try {
+      const token = await auth.currentUser.getIdToken(true);
+      const formData = new FormData(activityFormRef.current);
+      formData.set('idToken', token); // Ensure fresh token is on FormData
+
+      // Call the action hook's dispatch function
+      handleActivityFormSubmit_ActionHook(formData);
+
+    } catch (error: any) {
+      console.error("Error getting ID token or submitting activity form:", error);
+      toast({ title: "Form Gönderim Hatası", description: `Bir hata oluştu: ${error.message || "Token alınamadı."}`, variant: "destructive" });
+    }
+  };
+
+
+  const handleSendForApproval = async () => {
+    if (!activityToApprove || !project?.id || !auth.currentUser) return;
+    setIsSubmittingApproval(true);
+    try {
+        const currentIdToken = await auth.currentUser.getIdToken(true);
+        const result = await handleUpdateActivityStatusAction(activityToApprove.id, project.id, 'pending_approval', approvalMessage, currentIdToken);
+        if (result.success) {
+            toast({ title: "Başarılı", description: result.message });
+            fetchActivitiesForProject();
+            if (onActivityUpdate) onActivityUpdate();
+            setActivityToApprove(null);
+            setApprovalMessage("");
+        } else {
+            toast({ title: "Hata", description: result.message, variant: "destructive" });
+        }
+    } catch (tokenError: any) {
+        toast({ title: "Kimlik Doğrulama Hatası", description: `Token alınırken hata: ${tokenError.message}`, variant: "destructive" });
+    } finally {
+        setIsSubmittingApproval(false);
+    }
   };
 
   const handleManagerDecision = async () => {
-    if (!activityForDecision || !decisionType || !project?.id) return;
+    if (!activityForDecision || !decisionType || !project?.id || !auth.currentUser) return;
     setIsSubmittingDecision(true);
-    const currentIdToken = await auth.currentUser?.getIdToken();
-    let result;
-    if (decisionType === 'approve') {
-      result = await handleApproveActivityAction(activityForDecision.id, project.id, managerFeedbackInput, currentIdToken);
-    } else {
-      result = await handleRejectActivityAction(activityForDecision.id, project.id, managerFeedbackInput, currentIdToken);
-    }
+    try {
+        const currentIdToken = await auth.currentUser.getIdToken(true);
+        let result;
+        if (decisionType === 'approve') {
+          result = await handleApproveActivityAction(activityForDecision.id, project.id, managerFeedbackInput, currentIdToken);
+        } else {
+          result = await handleRejectActivityAction(activityForDecision.id, project.id, managerFeedbackInput, currentIdToken);
+        }
 
-    if (result.success) {
-      toast({ title: "Başarılı", description: result.message });
-      fetchActivitiesForProject();
-      if (onActivityUpdate) onActivityUpdate();
-      setActivityForDecision(null);
-      setDecisionType(null);
-      setManagerFeedbackInput("");
-    } else {
-      toast({ title: "Hata", description: result.message, variant: "destructive" });
+        if (result.success) {
+          toast({ title: "Başarılı", description: result.message });
+          fetchActivitiesForProject();
+          if (onActivityUpdate) onActivityUpdate();
+          setActivityForDecision(null);
+          setDecisionType(null);
+          setManagerFeedbackInput("");
+        } else {
+          toast({ title: "Hata", description: result.message, variant: "destructive" });
+        }
+    } catch (tokenError: any) {
+        toast({ title: "Kimlik Doğrulama Hatası", description: `Token alınırken hata: ${tokenError.message}`, variant: "destructive" });
+    } finally {
+        setIsSubmittingDecision(false);
     }
-    setIsSubmittingDecision(false);
   };
 
   if (!project) return null;
@@ -278,18 +299,22 @@ export function ProjectDetailDialog({
             {/* Project Activities Section */}
             <div className="md:col-span-2 space-y-4">
               <h3 className="font-headline text-xl flex items-center mb-2 border-b pb-2"><MessageSquare className="mr-2 h-5 w-5 text-primary" />Proje Akışı & Yorumlar</h3>
-              <form action={handleAddActivitySubmit} ref={activityFormRef} className="space-y-3 p-3 border rounded-lg bg-muted/20 mb-4">
+              <form
+                onSubmit={handleInternalActivityFormSubmit}
+                ref={activityFormRef}
+                className="space-y-3 p-3 border rounded-lg bg-muted/20 mb-4"
+              >
                 <input type="hidden" name="projectId" value={project.id} />
-                <input type="hidden" name="idToken" value={idTokenForActivityForm} />
+                {/* idToken will be added dynamically in handleInternalActivityFormSubmit */}
                 <div>
-                  <Label htmlFor="activityContentDialog" className="sr-only">Yorumunuz</Label>
-                  <Textarea id="activityContentDialog" name="content" placeholder="Proje hakkında bir güncelleme, yorum veya soru yazın..." rows={3} className="bg-background"/>
+                  <Label htmlFor={`activityContentDialog-${project.id}`} className="sr-only">Yorumunuz</Label>
+                  <Textarea id={`activityContentDialog-${project.id}`} name="content" placeholder="Proje hakkında bir güncelleme, yorum veya soru yazın..." rows={3} className="bg-background"/>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-end gap-2">
                     <div className="flex-grow space-y-1">
-                        <Label htmlFor="activityFileDialog" className="text-xs font-medium">Dosya Ekle (Opsiyonel)</Label>
-                        <Input id="activityFileDialog" name="file" type="file" ref={fileInputRef} className="hidden" onChange={(e) => setSelectedActivityFileName(e.target.files?.[0]?.name || null)}/>
-                        <Label htmlFor="activityFileDialog" className={cn(buttonVariants({ variant: "outline" }), "cursor-pointer w-full sm:w-auto justify-center flex items-center")}>
+                        <Label htmlFor={`activityFileDialog-${project.id}`} className="text-xs font-medium">Dosya Ekle (Opsiyonel)</Label>
+                        <Input id={`activityFileDialog-${project.id}`} name="file" type="file" ref={fileInputRef} className="hidden" onChange={(e) => setSelectedActivityFileName(e.target.files?.[0]?.name || null)}/>
+                        <Label htmlFor={`activityFileDialog-${project.id}`} className={cn(buttonVariants({ variant: "outline" }), "cursor-pointer w-full sm:w-auto justify-center flex items-center")}>
                             <UploadCloud className="mr-2 h-4 w-4" />Dosya Seç
                         </Label>
                         {selectedActivityFileName ? <p className="text-xs text-muted-foreground mt-1">Seçilen: {selectedActivityFileName}</p> : <p className="text-xs text-muted-foreground mt-1">Dosya seçilmedi.</p>}
@@ -310,7 +335,7 @@ export function ProjectDetailDialog({
                       const ActivityIcon = activityStatusInfo.icon;
                       const isCurrentUserAuthor = activity.userId === currentUser?.uid;
                       return (
-                        <li key={activity.id} className="flex space-x-3 p-3 border rounded-lg shadow-sm bg-card hover:shadow-md transition-shadow">
+                        <li key={activity.id} className="flex space-x-3 p-3.5 border rounded-lg shadow-sm bg-card hover:shadow-md transition-shadow">
                           <Avatar className="h-10 w-10 border mt-0.5"><AvatarImage src={activity.userPhotoURL || `https://placehold.co/40x40.png`} alt={activity.userName} data-ai-hint="user avatar" /><AvatarFallback>{activity.userName?.substring(0,1).toUpperCase()||'K'}</AvatarFallback></Avatar>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-0.5">
@@ -330,7 +355,7 @@ export function ProjectDetailDialog({
                               {activity.status === 'draft' && isCurrentUserAuthor && (
                                 <Dialog open={activityToApprove?.id === activity.id} onOpenChange={(open) => { if(open) { setActivityToApprove(activity); setApprovalMessage(activity.messageForManager || ""); } else { setActivityToApprove(null); setApprovalMessage(""); }}}>
                                   <DialogTrigger asChild><Button variant="outline" size="xs" className="text-xs h-7 px-2 py-1 text-primary hover:bg-primary/5 border-primary/50"><ThumbsUp className="mr-1 h-3.5 w-3.5" /> Onaya Gönder</Button></DialogTrigger>
-                                  <DialogContent><DialogHeader><DialogTitle className="font-headline text-xl">İçeriği Onaya Gönder</DialogTitle><DialogDescription>Aşağıdaki güncellemeyi onaya göndermek üzeresiniz.<blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">{activity.content ? `"${activity.content.substring(0,100)}${activity.content.length > 100 ? "..." : ""}"` : `Dosya: "${activity.fileName}"`}</blockquote></DialogDescription></DialogHeader><div className="py-2"><Label htmlFor="approvalMessageDlg" className="text-sm font-medium">Yönetici için Mesaj (Opsiyonel)</Label><Textarea id="approvalMessageDlg" placeholder="Onaylayan kişiye not..." value={approvalMessage} onChange={(e) => setApprovalMessage(e.target.value)} rows={3} className="mt-1"/></div><DialogFooter><DialogClose asChild><Button variant="ghost" disabled={isSubmittingApproval}>İptal</Button></DialogClose><Button onClick={handleSendForApproval} disabled={isSubmittingApproval}>{isSubmittingApproval && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Gönder</Button></DialogFooter></DialogContent>
+                                  <DialogContent><DialogHeader><DialogTitle className="font-headline text-xl">İçeriği Onaya Gönder</DialogTitle><DialogDescription asChild><div>Aşağıdaki güncellemeyi onaya göndermek üzeresiniz.<blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">{activity.content ? `"${activity.content.substring(0,100)}${activity.content.length > 100 ? "..." : ""}"` : `Dosya: "${activity.fileName}"`}</blockquote></div></DialogDescription></DialogHeader><div className="py-2"><Label htmlFor="approvalMessageDlg" className="text-sm font-medium">Yönetici için Mesaj (Opsiyonel)</Label><Textarea id="approvalMessageDlg" placeholder="Onaylayan kişiye not..." value={approvalMessage} onChange={(e) => setApprovalMessage(e.target.value)} rows={3} className="mt-1"/></div><DialogFooter><DialogClose asChild><Button variant="ghost" disabled={isSubmittingApproval}>İptal</Button></DialogClose><Button onClick={handleSendForApproval} disabled={isSubmittingApproval}>{isSubmittingApproval && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Gönder</Button></DialogFooter></DialogContent>
                                 </Dialog>
                               )}
                               {activity.status === 'pending_approval' && isAdminOrMarketingManager && (
@@ -366,12 +391,15 @@ export function ProjectDetailDialog({
       <Dialog open={!!activityForDecision && !!decisionType} onOpenChange={(open) => { if (!open) { setActivityForDecision(null); setDecisionType(null); setManagerFeedbackInput(""); }}}>
         <DialogContent>
           <DialogHeader><DialogTitle className="font-headline text-xl">Aktiviteyi {decisionType === 'approve' ? 'Onayla' : 'Reddet'}</DialogTitle>
-            <DialogDescription>Aşağıdaki aktivite için kararınızı ve geri bildiriminizi girin.
-              <blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">
-                Kullanıcı: {activityForDecision?.userName} <br />
-                İçerik: {activityForDecision?.content ? `"${activityForDecision.content.substring(0,100)}${activityForDecision.content.length > 100 ? "..." : ""}"` : `Dosya: "${activityForDecision?.fileName}"`}
-                {activityForDecision?.messageForManager && <><br/>Kullanıcı Notu: {activityForDecision.messageForManager}</>}
-              </blockquote>
+            <DialogDescription asChild>
+                <div>
+                    Aşağıdaki aktivite için kararınızı ve geri bildiriminizi girin.
+                    <blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">
+                        Kullanıcı: {activityForDecision?.userName} <br />
+                        İçerik: {activityForDecision?.content ? `"${activityForDecision.content.substring(0,100)}${activityForDecision.content.length > 100 ? "..." : ""}"` : `Dosya: "${activityForDecision?.fileName}"`}
+                        {activityForDecision?.messageForManager && <><br/>Kullanıcı Notu: {activityForDecision.messageForManager}</>}
+                    </blockquote>
+                </div>
             </DialogDescription>
           </DialogHeader>
           <div className="py-2"><Label htmlFor="managerFeedbackDlg" className="text-sm font-medium">Geri Bildirim (Opsiyonel)</Label><Textarea id="managerFeedbackDlg" placeholder="Onay veya red için not..." value={managerFeedbackInput} onChange={(e) => setManagerFeedbackInput(e.target.value)} rows={3} className="mt-1"/></div>
