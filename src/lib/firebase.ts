@@ -5,6 +5,9 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
+// TODO: Production için bu hassas bilgileri Firebase konsolundan alıp
+// NEXT_PUBLIC_FIREBASE_API_KEY gibi ortam değişkenlerine taşıyın.
+// .env.local dosyasında veya hosting platformunuzun ayarlarında tanımlayın.
 const firebaseConfig = {
   apiKey: "AIzaSyCQSBJ_Et7Le_kCl_LoscVyM7sc6R86jzQ",
   authDomain: "alibey-marketing-hub.firebaseapp.com",

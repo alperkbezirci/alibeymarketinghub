@@ -2,7 +2,7 @@
 import { config } from 'dotenv';
 config();
 
-// Karşılama mesajı akışı kaldırıldı.
+// Karşılama mesajı akışı ve AI motivasyon mesajı akışı kaldırıldı.
 import '@/ai/flows/ai-assisted-descriptions.ts'; 
 import '@/ai/flows/weather-forecast-flow.ts';
 
