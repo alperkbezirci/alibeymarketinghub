@@ -1,7 +1,8 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'standalone', // For serverless environments like Firebase App Hosting
   typescript: {
     ignoreBuildErrors: false, // Üretim için 'false' olmalı
   },

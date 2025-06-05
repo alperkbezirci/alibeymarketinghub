@@ -1,7 +1,46 @@
+
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
+# Optional: Specify the Node.js version.
+# runtime: nodejs20
+
+# Entrypoint for your application. This is the command that starts your Next.js server.
+# When using 'output: standalone', Next.js creates a minimal server.js file in .next/standalone.
+entrypoint: node server.js
+
+# runConfig specifies how your application scales and other runtime settings.
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
-  maxInstances: 1
+  # Consider starting with a lower value like 2 or 3 for testing.
+  maxInstances: 2
+  # Optional: minInstances, concurrency, cpu, memoryMiB
+
+# Optional: Environment variables available to your build and runtime.
+# env:
+#   - variable: MY_API_KEY
+#     value: "your_api_key_here_or_use_secrets"
+#   - variable: OPENWEATHERMAP_API_KEY
+#     secret: OPENWEATHERMAP_API_KEY_SECRET # Secret manager'dan alınacaksa
+
+# buildConfig specifies build-time settings.
+# buildConfig:
+  # Optional: Command to build your application.
+  # If your package.json has a "build" script (e.g., "next build"),
+  # App Hosting will usually detect and run it automatically.
+  # buildCommand: npm run build
+
+# Optional: Firebase services to integrate with.
+# firebase:
+  # projectId: "your-firebase-project-id" # Usually inferred
+
+# Optional: Health check path.
+# healthCheck:
+#   path: /api/health # Create a simple API route that returns 200 OK
+
+# Serve static assets from the default .next/static directory.
+# This is usually handled automatically for Next.js with 'output: standalone'.
+# staticAssets:
+#   - path: /.next/static
+#     target: /_next/static
