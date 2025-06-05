@@ -105,6 +105,11 @@ export async function handleAddProjectActivityAction(
     const fileInput = formData.get('file') as File | null;
     const idToken = formData.get('idToken') as string | null;
 
+    if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
+      console.error("[Action Log - handleAddProjectActivityAction] Invalid or missing projectId in formData.");
+      return { success: false, message: "Proje ID'si form verilerinde eksik veya geçersiz." };
+    }
+
     const idTokenLength = idToken ? idToken.length : 'N/A';
     console.log(`[Action Log - handleAddProjectActivityAction] Extracted form data. Project ID: ${projectId}, Content present: ${!!content}, File name: ${fileInput?.name || 'Yok'}, File size: ${fileInput?.size || 'N/A'}, ID Token length: ${idTokenLength}`);
 
@@ -123,10 +128,6 @@ export async function handleAddProjectActivityAction(
     const { uid: serverVerifiedUserId, name: serverVerifiedUserName, photoURL: serverVerifiedUserPhotoURL } = userDetails;
     console.log(`[Action Log - handleAddProjectActivityAction] Server-verified user: UID=${serverVerifiedUserId}, Name=${serverVerifiedUserName}`);
 
-    if (!projectId) {
-      console.error("[Action Log - handleAddProjectActivityAction] Validation Error: Missing projectId.");
-      return { success: false, message: "Proje ID zorunludur." };
-    }
     if (!content && (!fileInput || fileInput.size === 0)) {
       console.error("[Action Log - handleAddProjectActivityAction] Validation Error: Content or file must be provided.");
       return { success: false, message: "Yorum veya dosya eklemelisiniz." };
@@ -157,7 +158,7 @@ export async function handleAddProjectActivityAction(
       content: content || undefined,
       fileName: fileInput && fileInput.size > 0 ? fileInput.name : undefined,
       fileType: fileInput && fileInput.size > 0 ? fileInput.type : undefined,
-      // hotel: projectHotel, // Include hotel if fetched
+      // hotel: projectHotel, // Include hotel if fetched // Removed as activity does not store hotel
     };
     console.log("[Action Log - handleAddProjectActivityAction] Prepared initial activity data:", JSON.stringify(initialActivityData, null, 2));
 
@@ -216,7 +217,7 @@ export async function handleAddProjectActivityAction(
         } catch (cleanupError: any) {
             console.error(`[Action Log - handleAddProjectActivityAction] Error cleaning up preliminary activity ${newActivityId} after file upload failure:`, cleanupError);
         }
-        return { success: false, message: `Dosya yüklenirken veya aktivite güncellenirken hata: ${uploadError.message}` };
+        return { success: false, message: `Dosya yüklenirken veya aktivite güncellenirken hata: ${uploadError.message}. Lütfen sunucu loglarını kontrol edin.` };
       }
     }
 
@@ -278,13 +279,19 @@ export async function handleUpdateActivityStatusAction(
     }
     
     if (newStatus !== 'pending_approval') {
-        console.warn("[Action Log - handleUpdateActivityStatusAction] This action is only for 'pending_approval'. Other statuses should use specific approve/reject actions.");
-        // Client-side logic should ensure this is a valid transition by the author.
+        console.warn("[Action Log - handleUpdateActivityStatusAction] This action is currently only intended for 'pending_approval'. User is attempting to set status to:", newStatus);
+        // Depending on requirements, you might want to allow other status updates by the author,
+        // or restrict this action strictly to 'pending_approval'.
+        // For now, we'll allow it but log a warning.
     }
 
     if (!activityId || !newStatus) {
         console.error("[Action Log - handleUpdateActivityStatusAction] Activity ID or new status is missing.");
         return { success: false, message: "Aktivite ID ve yeni durum zorunludur." };
+    }
+     if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
+      console.error("[Action Log - handleUpdateActivityStatusAction] Invalid or missing projectId.");
+      return { success: false, message: "Proje ID'si eksik veya geçersiz." };
     }
     
     const updates: Partial<ProjectActivity> = { status: newStatus };
@@ -298,7 +305,7 @@ export async function handleUpdateActivityStatusAction(
     await updateProjectActivity(activityId, updates); // Assumes updateProjectActivity is robust
     revalidatePath(`/projects/${projectId}`);
     console.log(`[Action Log - handleUpdateActivityStatusAction] Successfully updated activity ${activityId} to status ${newStatus}.`);
-    return { success: true, message: "Aktivite durumu başarıyla 'Onay Bekliyor' olarak güncellendi." };
+    return { success: true, message: `Aktivite durumu başarıyla '${newStatus}' olarak güncellendi.` };
 
   } catch (error: any) {
     console.error(`[Action Log - handleUpdateActivityStatusAction] Error updating activity ${activityId}:`, error);
@@ -336,6 +343,10 @@ export async function handleApproveActivityAction(
     if (!activityId || !projectId) {
         console.error("[Action Log - handleApproveActivityAction] Activity ID or Project ID is missing.");
         return { success: false, message: "Aktivite ID ve Proje ID zorunludur." };
+    }
+    if (typeof projectId !== 'string' || projectId.trim() === "") {
+      console.error("[Action Log - handleApproveActivityAction] Invalid or missing projectId.");
+      return { success: false, message: "Proje ID'si eksik veya geçersiz." };
     }
     const updates: Partial<ProjectActivity> = { 
         status: 'approved',
@@ -381,6 +392,10 @@ export async function handleRejectActivityAction(
     if (!activityId || !projectId) {
         console.error("[Action Log - handleRejectActivityAction] Activity ID or Project ID is missing.");
         return { success: false, message: "Aktivite ID ve Proje ID zorunludur." };
+    }
+     if (typeof projectId !== 'string' || projectId.trim() === "") {
+      console.error("[Action Log - handleRejectActivityAction] Invalid or missing projectId.");
+      return { success: false, message: "Proje ID'si eksik veya geçersiz." };
     }
     const updates: Partial<ProjectActivity> = { 
         status: 'rejected',
@@ -429,6 +444,11 @@ export async function handleUpdateProjectAction(
     const idToken = formData.get('idToken') as string | null;
     const projectId = formData.get('projectId') as string;
 
+    if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
+      console.error("[Action Log - UpdateProject] Invalid or missing projectId in formData.");
+      return { success: false, message: "Proje ID'si form verilerinde eksik veya geçersiz." };
+    }
+
     const idTokenLength = idToken ? idToken.length : 'N/A';
     console.log(`[Action Log - UpdateProject] Extracted form data. Project ID: ${projectId}, ID Token length: ${idTokenLength}`);
     
@@ -436,11 +456,6 @@ export async function handleUpdateProjectAction(
     if (!isAuthorized) {
       console.warn("[Action Log - UpdateProject] User is not authorized to update project.");
       return { success: false, message: "Bu işlemi yapma yetkiniz bulunmamaktadır veya kimlik doğrulama başarısız oldu. Lütfen sunucu loglarını kontrol edin." };
-    }
-
-    if (!projectId) {
-      console.error("[Action Log - UpdateProject] Project ID is missing from form data.");
-      return { success: false, message: "Proje ID zorunludur." };
     }
     
     const projectData: Partial<ProjectEditFormData> = {
@@ -526,7 +541,7 @@ export async function handleUpdateProjectAction(
         console.log(`[Action Log - UpdateProject] New file uploaded. URL: ${newFileURL}`);
       } catch (e: any) {
         console.error(`[Action Log - UpdateProject] Error uploading new project file: ${e.message}`, e);
-        return { success: false, message: `Yeni proje dosyası yüklenirken hata: ${e.message}` };
+        return { success: false, message: `Yeni proje dosyası yüklenirken hata: ${e.message}. Lütfen sunucu loglarını kontrol edin.` };
       }
     }
 
@@ -563,3 +578,4 @@ export async function handleUpdateProjectAction(
   }
 }
     
+
