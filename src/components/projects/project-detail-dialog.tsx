@@ -128,7 +128,6 @@ export function ProjectDetailDialog({
       const formData = new FormData(activityFormRef.current);
       formData.set('idToken', token);
 
-      // Call the action hook's dispatch function
       React.startTransition(() => {
         handleActivityFormSubmit_ActionHook(formData);
       });
@@ -156,6 +155,7 @@ export function ProjectDetailDialog({
             toast({ title: "Hata", description: result.message, variant: "destructive" });
         }
     } catch (tokenError: any) {
+        console.error("Error getting ID token for sendForApproval:", tokenError);
         toast({ title: "Kimlik Doğrulama Hatası", description: `Token alınırken hata: ${tokenError.message}`, variant: "destructive" });
     } finally {
         setIsSubmittingApproval(false);
@@ -185,6 +185,7 @@ export function ProjectDetailDialog({
           toast({ title: "Hata", description: result.message, variant: "destructive" });
         }
     } catch (tokenError: any) {
+        console.error("Error getting ID token for managerDecision:", tokenError);
         toast({ title: "Kimlik Doğrulama Hatası", description: `Token alınırken hata: ${tokenError.message}`, variant: "destructive" });
     } finally {
         setIsSubmittingDecision(false);
@@ -367,9 +368,9 @@ export function ProjectDetailDialog({
                                 </div>
                               )}
                             </div>
-                            {activity.status === 'pending_approval' && activity.messageForManager && <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-orange-400 pl-2 py-1 bg-orange-50 dark:bg-orange-900/30 rounded-r-md"><span className="font-semibold not-italic">Kullanıcı Notu:</span> {activity.messageForManager}</p>}
-                            {activity.status === 'rejected' && activity.managerFeedback && <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-red-400 pl-2 py-1 bg-red-50 dark:bg-red-900/30 rounded-r-md"><span className="font-semibold not-italic">Yönetici Geri Bildirimi:</span> {activity.managerFeedback}</p>}
-                            {activity.status === 'approved' && activity.managerFeedback && <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-green-400 pl-2 py-1 bg-green-50 dark:bg-green-900/30 rounded-r-md"><span className="font-semibold not-italic">Yönetici Geri Bildirimi:</span> {activity.managerFeedback}</p>}
+                            {activity.status === 'pending_approval' && activity.messageForManager && <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-orange-400 dark:border-orange-600 pl-2 py-1 bg-orange-50 dark:bg-orange-900/30 rounded-r-md"><span className="font-semibold not-italic">Kullanıcı Notu:</span> {activity.messageForManager}</p>}
+                            {activity.status === 'rejected' && activity.managerFeedback && <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-red-400 dark:border-red-600 pl-2 py-1 bg-red-50 dark:bg-red-900/30 rounded-r-md"><span className="font-semibold not-italic">Yönetici Geri Bildirimi:</span> {activity.managerFeedback}</p>}
+                            {activity.status === 'approved' && activity.managerFeedback && <p className="text-xs italic text-muted-foreground mt-1.5 border-l-2 border-green-400 dark:border-green-600 pl-2 py-1 bg-green-50 dark:bg-green-900/30 rounded-r-md"><span className="font-semibold not-italic">Yönetici Geri Bildirimi:</span> {activity.managerFeedback}</p>}
                           </div>
                         </li>
                       );
@@ -416,3 +417,4 @@ export function ProjectDetailDialog({
     </Dialog>
   );
 }
+
