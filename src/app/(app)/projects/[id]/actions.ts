@@ -9,7 +9,7 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import { db } from '@/lib/firebase';
 import { USER_ROLES } from '@/lib/constants';
 import { getUserRoles } from '@/services/user-service';
-import { getProjectById, updateProject, type Project as ProjectType } from '@/services/project-service';
+import { getProjectById, updateProject, type Project as ProjectType, type ProjectInputDataForService as ProjectServiceInputData } from '@/services/project-service'; // Alias for ProjectInputDataForService
 
 
 const STORAGE_BUCKET_NAME = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
@@ -114,7 +114,7 @@ export async function handleAddProjectActivityAction(
   const projectId = formData.get('projectId') as string;
   if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
     console.error("[Action Log - handleAddProjectActivityAction] Invalid or missing projectId in formData.");
-    return { success: false, message: "Proje ID'si form verilerinde eksik veya geçersiz." };
+    return { success: false, message: "Proje ID'si form verilerinde eksik veya geçersiz. Lütfen sunucu loglarını kontrol edin." };
   }
   console.log(`[Action Log - handleAddProjectActivityAction] Extracted Project ID: ${projectId}`);
 
@@ -211,19 +211,11 @@ export async function handleAddProjectActivityAction(
       console.error("Error Message:", e?.message);
       console.error("Error Code:", e?.code);
       console.error("Error Stack:", e?.stack);
-      try {
-        // Attempt to stringify the error for more context if it's an object
-        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
-      } catch (stringifyError) {
-        console.error("Could not stringify error object:", stringifyError);
+      let simpleErrorMessage = "Sunucu tarafında aktivite oluşturulurken kritik ve beklenmedik bir hata oluştu. Lütfen sunucu loglarını detaylı bir şekilde kontrol edin.";
+      if (typeof e?.message === 'string') {
+        simpleErrorMessage = `Aktivite oluşturulurken sunucu hatası: ${e.message.substring(0, 100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
       }
-
-      let clientErrorMessage = "Sunucu tarafında aktivite oluşturulurken kritik ve beklenmedik bir hata oluştu. Lütfen sunucu loglarını detaylı bir şekilde kontrol edin.";
-      // Provide a very generic message to the client to avoid issues if e.message is not a simple string
-      return { 
-        success: false, 
-        message: clientErrorMessage
-      };
+      return { success: false, message: simpleErrorMessage };
   }
 }
 
@@ -248,7 +240,7 @@ export async function handleUpdateActivityStatusAction(
   }
   if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
     console.error("[Action Log - handleUpdateActivityStatusAction] Invalid or missing projectId.");
-    return { success: false, message: "Proje ID'si eksik veya geçersiz." };
+    return { success: false, message: "Proje ID'si eksik veya geçersiz. Lütfen sunucu loglarını kontrol edin." };
   }
   try {
     if (!idToken) {
@@ -284,13 +276,11 @@ export async function handleUpdateActivityStatusAction(
     console.error("Error Message:", e?.message);
     console.error("Error Code:", e?.code);
     console.error("Error Stack:", e?.stack);
-     try {
-        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
-      } catch (stringifyError) {
-        console.error("Could not stringify error object:", stringifyError);
-      }
-    const clientErrorMessage = "Aktivite durumu güncellenirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
-    return { success: false, message: clientErrorMessage };
+    let simpleErrorMessage = "Aktivite durumu güncellenirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
+    if (typeof e?.message === 'string') {
+      simpleErrorMessage = `Aktivite durumu güncellenirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
+    }
+    return { success: false, message: simpleErrorMessage };
   }
 }
 
@@ -308,7 +298,7 @@ export async function handleApproveActivityAction(
   }
   if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
     console.error("[Action Log - handleApproveActivityAction] Invalid or missing projectId.");
-    return { success: false, message: "Proje ID'si eksik veya geçersiz." };
+    return { success: false, message: "Proje ID'si eksik veya geçersiz. Lütfen sunucu loglarını kontrol edin." };
   }
   try {
     const isManager = await checkManagerOrAdminPrivileges(idToken);
@@ -336,13 +326,11 @@ export async function handleApproveActivityAction(
     console.error("Error Message:", e?.message);
     console.error("Error Code:", e?.code);
     console.error("Error Stack:", e?.stack);
-    try {
-        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
-      } catch (stringifyError) {
-        console.error("Could not stringify error object:", stringifyError);
-      }
-    const clientErrorMessage = "Aktivite onaylanırken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
-    return { success: false, message: clientErrorMessage };
+    let simpleErrorMessage = "Aktivite onaylanırken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
+    if (typeof e?.message === 'string') {
+      simpleErrorMessage = `Aktivite onaylanırken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
+    }
+    return { success: false, message: simpleErrorMessage };
   }
 }
 
@@ -360,7 +348,7 @@ export async function handleRejectActivityAction(
   }
    if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
     console.error("[Action Log - handleRejectActivityAction] Invalid or missing projectId.");
-    return { success: false, message: "Proje ID'si eksik veya geçersiz." };
+    return { success: false, message: "Proje ID'si eksik veya geçersiz. Lütfen sunucu loglarını kontrol edin." };
   }
   try {
     const isManager = await checkManagerOrAdminPrivileges(idToken);
@@ -388,13 +376,11 @@ export async function handleRejectActivityAction(
     console.error("Error Message:", e?.message);
     console.error("Error Code:", e?.code);
     console.error("Error Stack:", e?.stack);
-    try {
-        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
-      } catch (stringifyError) {
-        console.error("Could not stringify error object:", stringifyError);
-      }
-    const clientErrorMessage = "Aktivite reddedilirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
-    return { success: false, message: clientErrorMessage };
+    let simpleErrorMessage = "Aktivite reddedilirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
+     if (typeof e?.message === 'string') {
+      simpleErrorMessage = `Aktivite reddedilirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
+    }
+    return { success: false, message: simpleErrorMessage };
   }
 }
 
@@ -403,8 +389,6 @@ interface UpdateProjectResult {
   message: string;
 }
 
-// This is the ProjectEditFormData type that handleUpdateProjectAction receives from ProjectEditForm
-// It's different from ProjectInputDataForService used by the addProject service function.
 export interface ProjectEditFormDataForAction {
   projectId: string;
   idToken?: string | null; 
@@ -432,13 +416,13 @@ export async function handleUpdateProjectAction(
   }
   if (!STORAGE_BUCKET_NAME) {
     console.error("[Action Log - UpdateProject] CRITICAL: Firebase Storage bucket name (NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) is not configured.");
-    return { success: false, message: "Sunucu yapılandırma hatası: Depolama alanı adı tanımlanmamış." };
+    return { success: false, message: "Sunucu yapılandırma hatası: Depolama alanı adı tanımlanmamış. Lütfen sunucu loglarını kontrol edin." };
   }
 
   const projectId = formData.get('projectId') as string;
   if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
     console.error("[Action Log - UpdateProject] Invalid or missing projectId in formData.");
-    return { success: false, message: "Proje ID'si form verilerinde eksik veya geçersiz." };
+    return { success: false, message: "Proje ID'si form verilerinde eksik veya geçersiz. Lütfen sunucu loglarını kontrol edin." };
   }
 
   try {
@@ -451,7 +435,7 @@ export async function handleUpdateProjectAction(
       return { success: false, message: "Bu işlemi yapma yetkiniz bulunmamaktadır veya kimlik doğrulama başarısız oldu. Lütfen sunucu loglarını kontrol edin." };
     }
     
-    const projectServiceData: Partial<ProjectInputDataForService> = { 
+    const projectServiceData: Partial<ProjectServiceInputData> = { 
       projectName: formData.get('projectName') as string,
       responsiblePersons: formData.getAll('responsiblePersons') as string[],
       status: formData.get('status') as string,
@@ -467,7 +451,7 @@ export async function handleUpdateProjectAction(
     if (endDateString) projectServiceData.endDate = new Date(endDateString);
     else {
       console.error("[Action Log - UpdateProject] End date is missing from form data for update.");
-      return { success: false, message: "Bitiş tarihi zorunludur." }; 
+      return { success: false, message: "Bitiş tarihi zorunludur. Lütfen sunucu loglarını kontrol edin." }; 
     }
 
     const projectFile = formData.get('projectFile') as File | null;
@@ -480,7 +464,7 @@ export async function handleUpdateProjectAction(
       currentProject = await getProjectById(projectId);
       if (!currentProject) {
         console.error(`[Action Log - UpdateProject] Project (ID: ${projectId}) not found.`);
-        return { success: false, message: `Proje (ID: ${projectId}) bulunamadı.` };
+        return { success: false, message: `Proje (ID: ${projectId}) bulunamadı. Lütfen sunucu loglarını kontrol edin.` };
       }
       console.log(`[Action Log - UpdateProject] Current project details fetched. Existing file URL: ${currentProject.projectFileURL || 'Yok'}`);
     } catch (e: any) {
@@ -539,7 +523,7 @@ export async function handleUpdateProjectAction(
     
     console.log("[Action Log - UpdateProject] Data to be passed to updateProject service:", JSON.stringify(projectServiceData, null, 2));
 
-    await updateProject(projectId, projectServiceData as Required<ProjectInputDataForService>); 
+    await updateProject(projectId, projectServiceData as Required<ProjectServiceInputData>); 
     console.log(`[Action Log - UpdateProject] Project ${projectId} Firestore document update initiated. Attempting to revalidate paths...`);
     revalidatePath(`/projects/${projectId}`);
     revalidatePath('/projects');
@@ -552,17 +536,11 @@ export async function handleUpdateProjectAction(
     console.error("Error Message:", e?.message);
     console.error("Error Code:", e?.code);
     console.error("Error Stack:", e?.stack);
-    try {
-        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
-      } catch (stringifyError) {
-        console.error("Could not stringify error object:", stringifyError);
-      }
-    const clientErrorMessage = "Proje güncellenirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
-    return { 
-        success: false, 
-        message: clientErrorMessage
-    };
+    let simpleErrorMessage = "Proje güncellenirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
+    if (typeof e?.message === 'string') {
+      simpleErrorMessage = `Proje güncellenirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
+    }
+    return { success: false, message: simpleErrorMessage };
   }
 }
     
-
