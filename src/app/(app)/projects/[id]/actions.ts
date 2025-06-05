@@ -9,7 +9,7 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import { db } from '@/lib/firebase';
 import { USER_ROLES } from '@/lib/constants';
 import { getUserRoles } from '@/services/user-service';
-import { getProjectById, updateProject, type ProjectEditFormData, type Project as ProjectType } from '@/services/project-service';
+import { getProjectById, updateProject, type Project as ProjectType } from '@/services/project-service';
 
 
 const STORAGE_BUCKET_NAME = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
@@ -127,7 +127,6 @@ export async function handleAddProjectActivityAction(
     return { success: false, message: "Yorum veya dosya eklemelisiniz." };
   }
   
-  // If all initial checks pass, proceed with the main logic inside a try-catch
   try {
     console.log("[Action Log - handleAddProjectActivityAction] Passed initial checks. Proceeding with activity creation logic.");
     
@@ -161,7 +160,7 @@ export async function handleAddProjectActivityAction(
 
     if (fileInput && fileInput.size > 0) {
       finalActivityType = 'file_upload'; 
-      const uniqueFileName = `${newActivityId}-${fileInput.name.replace(/\s+/g, '_')}`; // Ensure newActivityId is part of the name
+      const uniqueFileName = `${newActivityId}-${fileInput.name.replace(/\s+/g, '_')}`; 
       storagePath = `project-activities/${projectId}/${uniqueFileName}`;
       console.log(`[Action Log - handleAddProjectActivityAction] File detected. Storage path will be: ${storagePath}`);
 
@@ -177,7 +176,7 @@ export async function handleAddProjectActivityAction(
         
         console.log(`[Action Log - handleAddProjectActivityAction] Attempting to save file to Storage...`);
         await storageFile.save(fileBuffer, {
-            metadata: { contentType: fileInput.type || 'application/octet-stream' }, // Ensure content type
+            metadata: { contentType: fileInput.type || 'application/octet-stream' }, 
         });
         console.log(`[Action Log - handleAddProjectActivityAction] File saved to Storage. Attempting to make public...`);
         
@@ -207,21 +206,20 @@ export async function handleAddProjectActivityAction(
     };
 
   } catch (e: any) {
-      console.error("[Action Log - handleAddProjectActivityAction] CRITICAL UNHANDLED EXCEPTION in main action logic. Error Name:", e?.name, "Error Message:", e?.message, "Error Code:", e?.code, "Stack:", e?.stack);
+      console.error("[Action Log - handleAddProjectActivityAction] CRITICAL UNHANDLED EXCEPTION in main action logic.");
+      console.error("Error Name:", e?.name);
+      console.error("Error Message:", e?.message);
+      console.error("Error Code:", e?.code);
+      console.error("Error Stack:", e?.stack);
       try {
-        console.error("[Action Log - handleAddProjectActivityAction] Stringified error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
+        // Attempt to stringify the error for more context if it's an object
+        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
       } catch (stringifyError) {
-        console.error("[Action Log - handleAddProjectActivityAction] Could not stringify error object:", stringifyError);
+        console.error("Could not stringify error object:", stringifyError);
       }
 
-      let clientErrorMessage = "Sunucu tarafında aktivite oluşturulurken kritik bir hata oluştu. Lütfen sunucu loglarını kontrol edin.";
-      if (typeof e?.message === 'string' && e.message.trim() !== "") {
-          clientErrorMessage = `İşlem sırasında bir hata meydana geldi: ${e.message.substring(0,150)}${e.message.length > 150 ? "..." : ""}. Lütfen sunucu loglarını kontrol edin.`;
-          if (typeof e?.code === 'string') { // Firebase errors usually have a code
-            clientErrorMessage += ` (Kod: ${e.code})`;
-          }
-      }
-      
+      let clientErrorMessage = "Sunucu tarafında aktivite oluşturulurken kritik ve beklenmedik bir hata oluştu. Lütfen sunucu loglarını detaylı bir şekilde kontrol edin.";
+      // Provide a very generic message to the client to avoid issues if e.message is not a simple string
       return { 
         success: false, 
         message: clientErrorMessage
@@ -272,7 +270,7 @@ export async function handleUpdateActivityStatusAction(
     if (messageForManager && messageForManager.trim() !== "") {
         updates.messageForManager = messageForManager.trim();
     } else {
-        updates.messageForManager = null as any; // Explicitly set to null if empty
+        updates.messageForManager = null as any; 
     }
     
     await updateProjectActivity(activityId, updates);
@@ -280,23 +278,19 @@ export async function handleUpdateActivityStatusAction(
     console.log(`[Action Log - handleUpdateActivityStatusAction] Successfully updated activity ${activityId} to status ${newStatus}.`);
     return { success: true, message: `Aktivite durumu başarıyla '${newStatus}' olarak güncellendi.` };
 
-  } catch (error: any) {
-    console.error(`[Action Log - handleUpdateActivityStatusAction] Error updating activity ${activityId}:`, error);
-    let clientErrorMessage = "Sunucu tarafında bilinmeyen bir hata oluştu.";
-    try {
-        if (error && typeof error.message === 'string' && error.message.trim() !== "") {
-            clientErrorMessage = error.message;
-        } else if (error && typeof error.toString === 'function') {
-            const eStr = error.toString();
-            if (eStr !== '[object Object]' && eStr.trim() !== "") { clientErrorMessage = eStr; }
-        }
-        if (typeof error?.code === 'string') { clientErrorMessage += ` (Kod: ${error.code})`;}
-        if (clientErrorMessage.length > 150) { clientErrorMessage = clientErrorMessage.substring(0, 147) + "..."; }
-    } catch (secondaryError) {
-        console.error("[Action Log - handleUpdateActivityStatusAction] Error formatting original error:", secondaryError);
-        clientErrorMessage = "Hata detayı alınamadı.";
-    }
-    return { success: false, message: `Aktivite durumu güncellenirken bir hata oluştu: ${clientErrorMessage}. Lütfen sunucu loglarını kontrol edin.` };
+  } catch (e: any) {
+    console.error(`[Action Log - handleUpdateActivityStatusAction] CRITICAL UNHANDLED EXCEPTION while updating activity ${activityId}:`);
+    console.error("Error Name:", e?.name);
+    console.error("Error Message:", e?.message);
+    console.error("Error Code:", e?.code);
+    console.error("Error Stack:", e?.stack);
+     try {
+        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
+      } catch (stringifyError) {
+        console.error("Could not stringify error object:", stringifyError);
+      }
+    const clientErrorMessage = "Aktivite durumu güncellenirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
+    return { success: false, message: clientErrorMessage };
   }
 }
 
@@ -336,23 +330,19 @@ export async function handleApproveActivityAction(
     revalidatePath(`/projects/${projectId}`);
     console.log(`[Action Log - handleApproveActivityAction] Successfully approved activity ${activityId}.`);
     return { success: true, message: "Aktivite başarıyla onaylandı." };
-  } catch (error: any) {
-    console.error(`[Action Log - handleApproveActivityAction] Error approving activity ${activityId}:`, error);
-    let clientErrorMessage = "Sunucu tarafında bilinmeyen bir hata oluştu.";
+  } catch (e: any) {
+    console.error(`[Action Log - handleApproveActivityAction] CRITICAL UNHANDLED EXCEPTION while approving activity ${activityId}:`);
+    console.error("Error Name:", e?.name);
+    console.error("Error Message:", e?.message);
+    console.error("Error Code:", e?.code);
+    console.error("Error Stack:", e?.stack);
     try {
-        if (error && typeof error.message === 'string' && error.message.trim() !== "") {
-            clientErrorMessage = error.message;
-        } else if (error && typeof error.toString === 'function') {
-            const eStr = error.toString();
-            if (eStr !== '[object Object]' && eStr.trim() !== "") { clientErrorMessage = eStr; }
-        }
-        if (typeof error?.code === 'string') { clientErrorMessage += ` (Kod: ${error.code})`;}
-        if (clientErrorMessage.length > 150) { clientErrorMessage = clientErrorMessage.substring(0, 147) + "..."; }
-    } catch (secondaryError) {
-        console.error("[Action Log - handleApproveActivityAction] Error formatting original error:", secondaryError);
-        clientErrorMessage = "Hata detayı alınamadı.";
-    }
-    return { success: false, message: `Aktivite onaylanırken bir hata oluştu: ${clientErrorMessage}. Lütfen sunucu loglarını kontrol edin.` };
+        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
+      } catch (stringifyError) {
+        console.error("Could not stringify error object:", stringifyError);
+      }
+    const clientErrorMessage = "Aktivite onaylanırken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
+    return { success: false, message: clientErrorMessage };
   }
 }
 
@@ -368,7 +358,7 @@ export async function handleRejectActivityAction(
     console.error(`[Action Log - handleRejectActivityAction] CRITICAL: Firebase Admin SDK not initialized. Error: ${adminInitializationError}`);
     return { success: false, message: errorMessage };
   }
-  if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
+   if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
     console.error("[Action Log - handleRejectActivityAction] Invalid or missing projectId.");
     return { success: false, message: "Proje ID'si eksik veya geçersiz." };
   }
@@ -392,23 +382,19 @@ export async function handleRejectActivityAction(
     revalidatePath(`/projects/${projectId}`);
     console.log(`[Action Log - handleRejectActivityAction] Successfully rejected activity ${activityId}.`);
     return { success: true, message: "Aktivite reddedildi." };
-  } catch (error: any) {
-    console.error(`[Action Log - handleRejectActivityAction] Error rejecting activity ${activityId}:`, error);
-    let clientErrorMessage = "Sunucu tarafında bilinmeyen bir hata oluştu.";
+  } catch (e: any) {
+    console.error(`[Action Log - handleRejectActivityAction] CRITICAL UNHANDLED EXCEPTION while rejecting activity ${activityId}:`);
+    console.error("Error Name:", e?.name);
+    console.error("Error Message:", e?.message);
+    console.error("Error Code:", e?.code);
+    console.error("Error Stack:", e?.stack);
     try {
-        if (error && typeof error.message === 'string' && error.message.trim() !== "") {
-            clientErrorMessage = error.message;
-        } else if (error && typeof error.toString === 'function') {
-            const eStr = error.toString();
-            if (eStr !== '[object Object]' && eStr.trim() !== "") { clientErrorMessage = eStr; }
-        }
-        if (typeof error?.code === 'string') { clientErrorMessage += ` (Kod: ${error.code})`;}
-        if (clientErrorMessage.length > 150) { clientErrorMessage = clientErrorMessage.substring(0, 147) + "..."; }
-    } catch (secondaryError) {
-        console.error("[Action Log - handleRejectActivityAction] Error formatting original error:", secondaryError);
-        clientErrorMessage = "Hata detayı alınamadı.";
-    }
-    return { success: false, message: `Aktivite reddedilirken bir hata oluştu: ${clientErrorMessage}. Lütfen sunucu loglarını kontrol edin.` };
+        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
+      } catch (stringifyError) {
+        console.error("Could not stringify error object:", stringifyError);
+      }
+    const clientErrorMessage = "Aktivite reddedilirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
+    return { success: false, message: clientErrorMessage };
   }
 }
 
@@ -421,11 +407,11 @@ interface UpdateProjectResult {
 // It's different from ProjectInputDataForService used by the addProject service function.
 export interface ProjectEditFormDataForAction {
   projectId: string;
-  idToken?: string | null; // Added for auth check
+  idToken?: string | null; 
   projectName: string;
   responsiblePersons: string[];
-  startDate?: string | null; // Dates from form are strings
-  endDate: string;         // Dates from form are strings
+  startDate?: string | null; 
+  endDate: string;         
   status: string;
   hotel: string;
   description?: string;
@@ -449,14 +435,14 @@ export async function handleUpdateProjectAction(
     return { success: false, message: "Sunucu yapılandırma hatası: Depolama alanı adı tanımlanmamış." };
   }
 
+  const projectId = formData.get('projectId') as string;
+  if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
+    console.error("[Action Log - UpdateProject] Invalid or missing projectId in formData.");
+    return { success: false, message: "Proje ID'si form verilerinde eksik veya geçersiz." };
+  }
+
   try {
     const idToken = formData.get('idToken') as string | null;
-    const projectId = formData.get('projectId') as string;
-
-    if (!projectId || typeof projectId !== 'string' || projectId.trim() === "") {
-      console.error("[Action Log - UpdateProject] Invalid or missing projectId in formData.");
-      return { success: false, message: "Proje ID'si form verilerinde eksik veya geçersiz." };
-    }
     console.log(`[Action Log - UpdateProject] Extracted form data. Project ID: ${projectId}`);
     
     const isAuthorized = await checkManagerOrAdminPrivileges(idToken);
@@ -465,7 +451,7 @@ export async function handleUpdateProjectAction(
       return { success: false, message: "Bu işlemi yapma yetkiniz bulunmamaktadır veya kimlik doğrulama başarısız oldu. Lütfen sunucu loglarını kontrol edin." };
     }
     
-    const projectServiceData: Partial<ProjectInputDataForService> = { // This maps to what updateProject service expects
+    const projectServiceData: Partial<ProjectInputDataForService> = { 
       projectName: formData.get('projectName') as string,
       responsiblePersons: formData.getAll('responsiblePersons') as string[],
       status: formData.get('status') as string,
@@ -475,13 +461,13 @@ export async function handleUpdateProjectAction(
 
     const startDateString = formData.get('startDate') as string | null;
     if (startDateString) projectServiceData.startDate = new Date(startDateString);
-    else projectServiceData.startDate = undefined; // Or handle as 'null' if your service expects that for clearing
+    else projectServiceData.startDate = undefined; 
 
     const endDateString = formData.get('endDate') as string | null;
     if (endDateString) projectServiceData.endDate = new Date(endDateString);
     else {
       console.error("[Action Log - UpdateProject] End date is missing from form data for update.");
-      return { success: false, message: "Bitiş tarihi zorunludur." }; // End date is mandatory in ProjectInputDataForService
+      return { success: false, message: "Bitiş tarihi zorunludur." }; 
     }
 
     const projectFile = formData.get('projectFile') as File | null;
@@ -502,8 +488,8 @@ export async function handleUpdateProjectAction(
       return { success: false, message: `Mevcut proje bilgileri alınırken hata: ${e.message}. Lütfen sunucu loglarını kontrol edin.` };
     }
 
-    let newFileURL: string | undefined | null = currentProject.projectFileURL; // Default to existing
-    let newStoragePath: string | undefined | null = currentProject.projectStoragePath; // Default to existing
+    let newFileURL: string | undefined | null = currentProject.projectFileURL; 
+    let newStoragePath: string | undefined | null = currentProject.projectStoragePath; 
     const bucket = admin.storage().bucket(STORAGE_BUCKET_NAME);
 
     if (deleteExistingFile && currentProject.projectStoragePath) {
@@ -511,16 +497,14 @@ export async function handleUpdateProjectAction(
       try {
         await bucket.file(currentProject.projectStoragePath).delete();
         console.log(`[Action Log - UpdateProject] Successfully deleted old file: ${currentProject.projectStoragePath}`);
-        newFileURL = null; // Explicitly nullify if deleted
+        newFileURL = null; 
         newStoragePath = null;
       } catch (e: any) {
         console.warn(`[Action Log - UpdateProject] Error deleting old file ${currentProject.projectStoragePath}: ${e.message}. Continuing project update without file change.`);
-        // Keep existing URL/path if deletion fails but a new file isn't uploaded
       }
     }
 
     if (projectFile && projectFile.size > 0) {
-      // If a new file is uploaded, always delete the old one first (if it exists and wasn't already deleted by deleteExistingFile)
       if (!deleteExistingFile && currentProject.projectStoragePath) {
         console.log(`[Action Log - UpdateProject] Replacing old file. Attempting to delete: ${currentProject.projectStoragePath}`);
         try {
@@ -550,12 +534,12 @@ export async function handleUpdateProjectAction(
       }
     }
 
-    projectServiceData.projectFileURL = newFileURL === null ? undefined : newFileURL; // Match ProjectInputDataForService
+    projectServiceData.projectFileURL = newFileURL === null ? undefined : newFileURL; 
     projectServiceData.projectStoragePath = newStoragePath === null ? undefined : newStoragePath;
     
     console.log("[Action Log - UpdateProject] Data to be passed to updateProject service:", JSON.stringify(projectServiceData, null, 2));
 
-    await updateProject(projectId, projectServiceData as Required<ProjectInputDataForService>); // Ensure all required fields are there
+    await updateProject(projectId, projectServiceData as Required<ProjectInputDataForService>); 
     console.log(`[Action Log - UpdateProject] Project ${projectId} Firestore document update initiated. Attempting to revalidate paths...`);
     revalidatePath(`/projects/${projectId}`);
     revalidatePath('/projects');
@@ -563,19 +547,17 @@ export async function handleUpdateProjectAction(
     return { success: true, message: "Proje başarıyla güncellendi." };
 
   } catch (e: any) {
-    console.error("[Action Log - UpdateProject] CRITICAL UNHANDLED EXCEPTION in action. Error Name:", e?.name, "Error Message:", e?.message, "Error Code:", e?.code, "Stack:", e?.stack);
-     try {
-        console.error("[Action Log - UpdateProject] Stringified error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
+    console.error("[Action Log - UpdateProject] CRITICAL UNHANDLED EXCEPTION in action.");
+    console.error("Error Name:", e?.name);
+    console.error("Error Message:", e?.message);
+    console.error("Error Code:", e?.code);
+    console.error("Error Stack:", e?.stack);
+    try {
+        console.error("Stringified Error:", JSON.stringify(e, Object.getOwnPropertyNames(e)));
       } catch (stringifyError) {
-        console.error("[Action Log - UpdateProject] Could not stringify error object:", stringifyError);
+        console.error("Could not stringify error object:", stringifyError);
       }
-    let clientErrorMessage = "Sunucu tarafında proje güncellenirken kritik bir hata oluştu. Lütfen sunucu loglarını kontrol edin.";
-    if (typeof e?.message === 'string' && e.message.trim() !== "") {
-        clientErrorMessage = `Proje güncellenirken beklenmedik bir sunucu hatası oluştu: ${e.message.substring(0,150)}${e.message.length > 150 ? "..." : ""}. Lütfen sunucu loglarını kontrol edin.`;
-        if (typeof e?.code === 'string') {
-            clientErrorMessage += ` (Kod: ${e.code})`;
-        }
-    }
+    const clientErrorMessage = "Proje güncellenirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
     return { 
         success: false, 
         message: clientErrorMessage
