@@ -10,10 +10,10 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObjec
 import { db } from '@/lib/firebase'; // Client SDK Firestore for activity update
 import { USER_ROLES } from '@/lib/constants';
 import { getUserRoles } from '@/services/user-service';
-import { getProjectById, updateProject, type ProjectEditFormData } from '@/services/project-service'; // Added updateProject, ProjectEditFormData
+import { getProjectById, updateProject, type ProjectEditFormData, type Project } from '@/services/project-service'; // Added Project type
 
 
-const STORAGE_BUCKET_NAME = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'alibey-marketing-hub.appspot.com';
+const STORAGE_BUCKET_NAME = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
 
 interface AddActivityFormState {
   success: boolean;
@@ -22,9 +22,14 @@ interface AddActivityFormState {
 }
 
 async function verifyIdTokenAndGetUserDetails(idToken: string): Promise<{ uid: string; name: string; photoURL?: string } | null> {
-  console.log(`[Action Log - verifyIdTokenAndGetUserDetails] Verifying ID token. Length: ${idToken?.length}`);
+  console.log(`[Action Log - verifyIdTokenAndGetUserDetails] Firebase Admin SDK is initialized: ${admin.apps.length > 0}`);
+  console.log(`[Action Log - verifyIdTokenAndGetUserDetails] Received idToken length: ${idToken?.length}`);
   if (!admin.apps.length) {
     console.error("[Action Log - verifyIdTokenAndGetUserDetails] Firebase Admin SDK is not initialized. Cannot verify ID token.");
+    return null;
+  }
+  if (!idToken || idToken.trim() === "") {
+    console.error("[Action Log - verifyIdTokenAndGetUserDetails] Received idToken is null or empty.");
     return null;
   }
   try {
@@ -36,7 +41,7 @@ async function verifyIdTokenAndGetUserDetails(idToken: string): Promise<{ uid: s
       photoURL: decodedToken.picture || undefined,
     };
   } catch (error: any) {
-    console.error(`[Action Log - verifyIdTokenAndGetUserDetails] Error verifying ID token. Code: ${error.code}, Message: ${error.message}`);
+    console.error(`[Action Log - verifyIdTokenAndGetUserDetails] Error verifying ID token. Code: ${error.code}, Message: ${error.message}`, error);
     if (error.code === 'auth/id-token-expired') {
       console.warn("[Action Log - verifyIdTokenAndGetUserDetails] ID token has expired.");
     }
@@ -46,6 +51,7 @@ async function verifyIdTokenAndGetUserDetails(idToken: string): Promise<{ uid: s
 
 
 async function checkManagerOrAdminPrivileges(idToken?: string | null): Promise<boolean> {
+    console.log(`[Action Log - checkManagerOrAdminPrivileges] Firebase Admin SDK is initialized: ${admin.apps.length > 0}`);
     console.log(`[Action Log - checkManagerOrAdminPrivileges] Checking privileges. ID token present: ${!!idToken}`);
     if (!idToken) {
         console.warn("[Action Log - checkManagerOrAdminPrivileges] No ID token provided.");
@@ -67,7 +73,7 @@ async function checkManagerOrAdminPrivileges(idToken?: string | null): Promise<b
         console.warn(`[Action Log - checkManagerOrAdminPrivileges] User ${decodedToken.uid} is NOT Admin or Marketing Manager. Roles: ${JSON.stringify(roles)}. Access DENIED.`);
         return false;
     } catch (error: any) {
-        console.error(`[Action Log - checkManagerOrAdminPrivileges] Error verifying ID token or fetching roles. Code: ${error.code}, Message: ${error.message}`);
+        console.error(`[Action Log - checkManagerOrAdminPrivileges] Error verifying ID token or fetching roles. Code: ${error.code}, Message: ${error.message}`, error);
         return false;
     }
 }
@@ -77,7 +83,16 @@ export async function handleAddProjectActivityAction(
   prevState: AddActivityFormState | undefined,
   formData: FormData
 ): Promise<AddActivityFormState> {
-  console.log("[Action Log - handleAddProjectActivityAction] Received FormData. Attempting to add activity.");
+  console.log("[Action Log - handleAddProjectActivityAction] Action started.");
+
+  if (!STORAGE_BUCKET_NAME) {
+    console.error("[Action Log - handleAddProjectActivityAction] CRITICAL: Firebase Storage bucket name (NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) is not configured in environment variables.");
+    return { success: false, message: "Sunucu yapılandırma hatası: Depolama alanı adı tanımlanmamış. Lütfen NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ortam değişkenini kontrol edin." };
+  }
+  if (!admin.apps.length) {
+    console.error("[Action Log - handleAddProjectActivityAction] CRITICAL: Firebase Admin SDK is not initialized. This action requires Admin SDK. Check server logs for initialization errors in 'src/lib/firebase-admin.ts'.");
+    return { success: false, message: "Sunucu yapılandırma hatası: Firebase Admin SDK başlatılamadı. Sunucu loglarını kontrol edin." };
+  }
   
   try {
     const projectId = formData.get('projectId') as string;
@@ -85,7 +100,7 @@ export async function handleAddProjectActivityAction(
     const fileInput = formData.get('file') as File | null;
     const idToken = formData.get('idToken') as string | null;
 
-    console.log(`[Action Log - handleAddProjectActivityAction] Project ID: ${projectId}, Content present: ${!!content}, File present: ${!!fileInput?.name}, ID Token present: ${!!idToken}`);
+    console.log(`[Action Log - handleAddProjectActivityAction] Extracted form data. Project ID: ${projectId}, Content present: ${!!content}, File name: ${fileInput?.name || 'Yok'}, File size: ${fileInput?.size || 'N/A'}, ID Token present: ${!!idToken}`);
 
     if (!idToken) {
       console.error("[Action Log - handleAddProjectActivityAction] ID Token is missing.");
@@ -114,6 +129,7 @@ export async function handleAddProjectActivityAction(
     // Get project's hotel information (no change here, assuming it's not the cause for now)
     let projectHotel: string | undefined;
     try {
+      console.log(`[Action Log - handleAddProjectActivityAction] Fetching project details for ID: ${projectId} to get hotel info.`);
       const projectDetails = await getProjectById(projectId);
       if (projectDetails) {
         projectHotel = projectDetails.hotel;
@@ -122,7 +138,8 @@ export async function handleAddProjectActivityAction(
         console.warn(`[Action Log - handleAddProjectActivityAction] Project with ID ${projectId} not found when trying to get hotel info for activity.`);
       }
     } catch (projectError: any) {
-      console.error(`[Action Log - handleAddProjectActivityAction] Error fetching project details for hotel info: ${projectError.message}`);
+      console.error(`[Action Log - handleAddProjectActivityAction] Error fetching project details for hotel info: ${projectError.message}`, projectError);
+      // Continue without hotel info if project fetch fails, or decide to return error
     }
 
 
@@ -136,18 +153,18 @@ export async function handleAddProjectActivityAction(
       content: content || undefined,
       fileName: fileInput && fileInput.size > 0 ? fileInput.name : undefined,
       fileType: fileInput && fileInput.size > 0 ? fileInput.type : undefined,
-      // hotel: projectHotel, // hotel field removed from ProjectActivityInputData
     };
-    console.log("[Action Log - handleAddProjectActivityAction] Prepared initial activity data:", initialActivityData);
+    console.log("[Action Log - handleAddProjectActivityAction] Prepared initial activity data:", JSON.stringify(initialActivityData, null, 2));
 
 
     let newActivityId: string;
     try {
+      console.log("[Action Log - handleAddProjectActivityAction] Attempting to create preliminary activity document in Firestore...");
       const preliminaryActivity = await addProjectActivity(initialActivityData);
       newActivityId = preliminaryActivity.id;
       console.log(`[Action Log - handleAddProjectActivityAction] Preliminary activity document created with ID: ${newActivityId}`);
     } catch (error: any) {
-      console.error("[Action Log - handleAddProjectActivityAction] Error creating preliminary activity document in Firestore:", error);
+      console.error("[Action Log - handleAddProjectActivityAction] Error creating preliminary activity document in Firestore (via service):", error.message, error);
       return { success: false, message: `Aktivite ön kaydı Firestore'a yazılırken bir hata oluştu: ${error.message}` };
     }
 
@@ -158,49 +175,40 @@ export async function handleAddProjectActivityAction(
     if (fileInput && fileInput.size > 0) {
       finalActivityType = 'file_upload'; 
       storagePath = `project-activities/${projectId}/${newActivityId}/${fileInput.name}`;
-      console.log(`[Action Log - handleAddProjectActivityAction] Attempting to upload file to Storage: ${storagePath}`);
+      console.log(`[Action Log - handleAddProjectActivityAction] File detected. Storage path will be: ${storagePath}`);
 
       try {
-        if (!admin.apps.length) {
-          console.error("[Action Log - handleAddProjectActivityAction] Firebase Admin SDK is not initialized. Cannot upload file.");
-          throw new Error("Firebase Admin SDK is not initialized. File upload failed.");
-        }
-        if (!STORAGE_BUCKET_NAME) {
-          console.error("[Action Log - handleAddProjectActivityAction] Firebase Storage bucket name is not configured.");
-          throw new Error("Storage bucket name not configured. File upload failed.");
-        }
-
-        const bucket = admin.storage().bucket(STORAGE_BUCKET_NAME);
+        console.log(`[Action Log - handleAddProjectActivityAction] Attempting to read file into buffer. File name: ${fileInput.name}, size: ${fileInput.size}, type: ${fileInput.type}`);
         const fileBuffer = Buffer.from(await fileInput.arrayBuffer());
+        console.log(`[Action Log - handleAddProjectActivityAction] File buffer created. Length: ${fileBuffer.length}`);
+        
+        console.log(`[Action Log - handleAddProjectActivityAction] Accessing Firebase Admin Storage bucket: ${STORAGE_BUCKET_NAME}`);
+        const bucket = admin.storage().bucket(STORAGE_BUCKET_NAME);
+        console.log(`[Action Log - handleAddProjectActivityAction] Storage bucket obtained. Attempting to get file reference for: ${storagePath}`);
         const storageFile = bucket.file(storagePath);
         
+        console.log(`[Action Log - handleAddProjectActivityAction] Attempting to save file to Storage...`);
         await storageFile.save(fileBuffer, {
             metadata: { contentType: fileInput.type },
         });
+        console.log(`[Action Log - handleAddProjectActivityAction] File saved to Storage. Attempting to make public...`);
         
         await storageFile.makePublic();
+        console.log(`[Action Log - handleAddProjectActivityAction] File made public. Attempting to get public URL...`);
         fileURL = storageFile.publicUrl();
-
         console.log(`[Action Log - handleAddProjectActivityAction] File uploaded successfully. URL: ${fileURL}`);
 
+        console.log(`[Action Log - handleAddProjectActivityAction] Attempting to update activity document ${newActivityId} with file details...`);
         await updateProjectActivity(newActivityId, { fileURL, storagePath, type: 'file_upload' }); 
         console.log(`[Action Log - handleAddProjectActivityAction] Activity document ${newActivityId} updated with file details.`);
 
       } catch (uploadError: any) {
-        console.error("[Action Log - handleAddProjectActivityAction] Error during file upload or Firestore update for file details:", uploadError);
-        
-        if (newActivityId) {
-          try {
-            
-            console.warn(`[Action Log - handleAddProjectActivityAction] Cleanup: Attempt to delete preliminary activity ${newActivityId} after failed upload (manual check might be needed).`);
-          } catch (cleanupError) {
-            console.error(`[Action Log - handleAddProjectActivityAction] Error cleaning up preliminary activity ${newActivityId}:`, cleanupError);
-          }
-        }
+        console.error("[Action Log - handleAddProjectActivityAction] Error during file upload or Firestore update for file details:", uploadError.message, uploadError.code ? `(Code: ${uploadError.code})` : '', uploadError);
         return { success: false, message: `Dosya yüklenirken veya aktivite güncellenirken hata: ${uploadError.message}` };
       }
     }
 
+    console.log(`[Action Log - handleAddProjectActivityAction] Attempting to revalidate path: /projects/${projectId}`);
     revalidatePath(`/projects/${projectId}`);
     console.log(`[Action Log - handleAddProjectActivityAction] Successfully added activity. Type: ${finalActivityType}. Revalidating path /projects/${projectId}`);
     return { 
@@ -211,7 +219,18 @@ export async function handleAddProjectActivityAction(
 
   } catch (e: any) {
     console.error("[Action Log - handleAddProjectActivityAction] UNHANDLED EXCEPTION in action:", e);
-    return { success: false, message: `Beklenmedik bir sunucu hatası oluştu: ${e.message}. Lütfen sunucu loglarını kontrol edin.` };
+    let errorMessage = "Beklenmedik bir sunucu hatası oluştu.";
+    if (e && typeof e.message === 'string') {
+      errorMessage = `Sunucu hatası: ${e.message}`;
+    } else if (typeof e === 'string') {
+      errorMessage = `Sunucu hatası: ${e}`;
+    }
+    // Attempt to get more details if it's a FirebaseError
+    if (e && typeof e.code === 'string' && (e.code.startsWith('storage/') || e.code.startsWith('firestore/'))) {
+        errorMessage += ` (Kod: ${e.code})`;
+    }
+    console.error("[Action Log - handleAddProjectActivityAction] Responding with error:", errorMessage);
+    return { success: false, message: errorMessage };
   }
 }
 
@@ -344,22 +363,23 @@ export async function handleUpdateProjectAction(
   prevState: UpdateProjectResult | undefined,
   formData: FormData
 ): Promise<UpdateProjectResult> {
-  console.log("[Action Log - UpdateProject] Received formData. Attempting to update project.");
+  console.log("[Action Log - UpdateProject] Action started.");
+  
+  if (!STORAGE_BUCKET_NAME) {
+    console.error("[Action Log - UpdateProject] CRITICAL: Firebase Storage bucket name (NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) is not configured.");
+    return { success: false, message: "Sunucu yapılandırma hatası: Depolama alanı adı tanımlanmamış." };
+  }
+  if (!admin.apps.length) {
+    console.error("[Action Log - UpdateProject] CRITICAL: Firebase Admin SDK is not initialized.");
+    return { success: false, message: "Sunucu yapılandırma hatası: Firebase Admin SDK başlatılamadı." };
+  }
+
   try {
     const idToken = formData.get('idToken') as string | null;
     const projectId = formData.get('projectId') as string;
 
-    console.log(`[Action Log - UpdateProject] Project ID: ${projectId}, ID Token present: ${!!idToken}`);
+    console.log(`[Action Log - UpdateProject] Extracted form data. Project ID: ${projectId}, ID Token present: ${!!idToken}`);
     
-    if (!STORAGE_BUCKET_NAME) {
-      console.error("[Action Log - UpdateProject] Firebase Storage bucket name is not configured.");
-      return { success: false, message: "Sunucu yapılandırma hatası: Depolama alanı tanımlanmamış." };
-    }
-    if (!admin.apps.length) {
-      console.error("[Action Log - UpdateProject] Firebase Admin SDK is not initialized.");
-      return { success: false, message: "Sunucu yapılandırma hatası: Admin SDK başlatılamadı." };
-    }
-
     const isAuthorized = await checkManagerOrAdminPrivileges(idToken);
     if (!isAuthorized) {
       console.warn("[Action Log - UpdateProject] User is not authorized to update project.");
@@ -393,17 +413,19 @@ export async function handleUpdateProjectAction(
     const projectFile = formData.get('projectFile') as File | null;
     const deleteExistingFile = formData.get('deleteExistingFile') === 'true';
 
-    console.log(`[Action Log - UpdateProject] New Project File: ${projectFile?.name || 'Yok'}, Delete Existing File: ${deleteExistingFile}`);
+    console.log(`[Action Log - UpdateProject] Project File details: Name: ${projectFile?.name || 'Yok'}, Size: ${projectFile?.size || 'N/A'}, Delete Existing: ${deleteExistingFile}`);
 
     let currentProject: Project | null = null;
     try {
+      console.log(`[Action Log - UpdateProject] Fetching current project details for ID: ${projectId}`);
       currentProject = await getProjectById(projectId);
       if (!currentProject) {
         console.error(`[Action Log - UpdateProject] Project (ID: ${projectId}) not found.`);
         return { success: false, message: `Proje (ID: ${projectId}) bulunamadı.` };
       }
+      console.log(`[Action Log - UpdateProject] Current project details fetched. Existing file URL: ${currentProject.projectFileURL}`);
     } catch (e: any) {
-      console.error(`[Action Log - UpdateProject] Error fetching current project ${projectId}: ${e.message}`);
+      console.error(`[Action Log - UpdateProject] Error fetching current project ${projectId}: ${e.message}`, e);
       return { success: false, message: `Mevcut proje bilgileri alınırken hata: ${e.message}` };
     }
 
@@ -412,41 +434,45 @@ export async function handleUpdateProjectAction(
     const bucket = admin.storage().bucket(STORAGE_BUCKET_NAME);
 
     if (deleteExistingFile && currentProject.projectStoragePath) {
-      console.log(`[Action Log - UpdateProject] Deleting existing file: ${currentProject.projectStoragePath}`);
+      console.log(`[Action Log - UpdateProject] Attempting to delete existing file: ${currentProject.projectStoragePath}`);
       try {
         await bucket.file(currentProject.projectStoragePath).delete();
         console.log(`[Action Log - UpdateProject] Successfully deleted old file: ${currentProject.projectStoragePath}`);
         newFileURL = null;
         newStoragePath = null;
       } catch (e: any) {
-        console.error(`[Action Log - UpdateProject] Error deleting old file ${currentProject.projectStoragePath}: ${e.message}`);
+        console.error(`[Action Log - UpdateProject] Error deleting old file ${currentProject.projectStoragePath}: ${e.message}`, e);
+        // Potentially non-fatal, but log it. The new file upload might overwrite or be a new path anyway.
       }
     }
 
     if (projectFile && projectFile.size > 0) {
-      if (!deleteExistingFile && currentProject.projectStoragePath) {
-        console.log(`[Action Log - UpdateProject] Deleting old file ${currentProject.projectStoragePath} before uploading new one.`);
+      if (!deleteExistingFile && currentProject.projectStoragePath && currentProject.projectStoragePath !== `project-files/${projectId}/${`${Date.now()}-${projectFile.name.replace(/\s+/g, '_')}`}`) { // Avoid deleting if it's the same file somehow
+        console.log(`[Action Log - UpdateProject] Replacing old file. Attempting to delete: ${currentProject.projectStoragePath}`);
         try {
           await bucket.file(currentProject.projectStoragePath).delete();
+          console.log(`[Action Log - UpdateProject] Successfully deleted old file before new upload: ${currentProject.projectStoragePath}`);
         } catch (e: any) {
-          console.warn(`[Action Log - UpdateProject] Could not delete old file ${currentProject.projectStoragePath} before new upload: ${e.message}`);
+          console.warn(`[Action Log - UpdateProject] Could not delete old file ${currentProject.projectStoragePath} before new upload: ${e.message}`, e);
         }
       }
 
       const uniqueFileName = `${Date.now()}-${projectFile.name.replace(/\s+/g, '_')}`;
       const filePath = `project-files/${projectId}/${uniqueFileName}`;
-      console.log(`[Action Log - UpdateProject] Uploading new file to: ${filePath}`);
+      console.log(`[Action Log - UpdateProject] Uploading new file to: ${filePath}. File size: ${projectFile.size}, type: ${projectFile.type}`);
       try {
         const fileBuffer = Buffer.from(await projectFile.arrayBuffer());
+        console.log(`[Action Log - UpdateProject] File buffer created for new file. Length: ${fileBuffer.length}`);
         const storageFile = bucket.file(filePath);
         await storageFile.save(fileBuffer, { metadata: { contentType: projectFile.type } });
+        console.log(`[Action Log - UpdateProject] New file saved to Storage. Making public...`);
         await storageFile.makePublic();
         newFileURL = storageFile.publicUrl();
         newStoragePath = filePath;
         console.log(`[Action Log - UpdateProject] New file uploaded. URL: ${newFileURL}`);
       } catch (e: any) {
-        console.error(`[Action Log - UpdateProject] Error uploading new file: ${e.message}`);
-        return { success: false, message: `Yeni dosya yüklenirken hata: ${e.message}` };
+        console.error(`[Action Log - UpdateProject] Error uploading new project file: ${e.message}`, e);
+        return { success: false, message: `Yeni proje dosyası yüklenirken hata: ${e.message}` };
       }
     }
 
@@ -455,18 +481,26 @@ export async function handleUpdateProjectAction(
     
     console.log("[Action Log - UpdateProject] Data to be passed to updateProject service:", JSON.stringify(projectData, null, 2));
 
-
     await updateProject(projectId, projectData as Required<ProjectEditFormData>); 
+    console.log(`[Action Log - UpdateProject] Project ${projectId} Firestore document update initiated. Attempting to revalidate paths...`);
     revalidatePath(`/projects/${projectId}`);
     revalidatePath('/projects');
-    console.log(`[Action Log - UpdateProject] Project ${projectId} successfully updated.`);
+    console.log(`[Action Log - UpdateProject] Project ${projectId} successfully updated and paths revalidated.`);
     return { success: true, message: "Proje başarıyla güncellendi." };
 
   } catch (e: any) {
     console.error("[Action Log - UpdateProject] UNHANDLED EXCEPTION in action:", e);
-    return { success: false, message: `Proje güncellenirken beklenmedik bir sunucu hatası oluştu: ${e.message}. Lütfen sunucu loglarını kontrol edin.` };
+    let errorMessage = "Proje güncellenirken beklenmedik bir sunucu hatası oluştu.";
+     if (e && typeof e.message === 'string') {
+      errorMessage = `Sunucu hatası (güncelleme): ${e.message}`;
+    } else if (typeof e === 'string') {
+      errorMessage = `Sunucu hatası (güncelleme): ${e}`;
+    }
+    if (e && typeof e.code === 'string') {
+        errorMessage += ` (Kod: ${e.code})`;
+    }
+    console.error("[Action Log - UpdateProject] Responding with error:", errorMessage);
+    return { success: false, message: errorMessage };
   }
 }
-    
-
     
