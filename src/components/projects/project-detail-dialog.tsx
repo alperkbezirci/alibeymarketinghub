@@ -126,10 +126,12 @@ export function ProjectDetailDialog({
     try {
       const token = await auth.currentUser.getIdToken(true);
       const formData = new FormData(activityFormRef.current);
-      formData.set('idToken', token); // Ensure fresh token is on FormData
+      formData.set('idToken', token);
 
       // Call the action hook's dispatch function
-      handleActivityFormSubmit_ActionHook(formData);
+      React.startTransition(() => {
+        handleActivityFormSubmit_ActionHook(formData);
+      });
 
     } catch (error: any) {
       console.error("Error getting ID token or submitting activity form:", error);
@@ -414,5 +416,3 @@ export function ProjectDetailDialog({
     </Dialog>
   );
 }
-
-    
