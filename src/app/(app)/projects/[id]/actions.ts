@@ -21,7 +21,7 @@ interface AddActivityFormState {
   activityId?: string;
 }
 
-async function verifyIdTokenAndGetUserDetails(idToken: string): Promise<{ uid: string; name: string; photoURL?: string } | null> {
+async function verifyIdTokenAndGetUserDetails(idToken: string): Promise<{ uid: string; name:string; photoURL?: string } | null> {
   console.log(`[Action Log - verifyIdTokenAndGetUserDetails] Firebase Admin SDK is initialized: ${adminInitialized}`);
   console.log(`[Action Log - verifyIdTokenAndGetUserDetails] Received idToken length: ${idToken?.length}`);
   
@@ -86,7 +86,7 @@ export async function handleAddProjectActivityAction(
   prevState: AddActivityFormState | undefined,
   formData: FormData
 ): Promise<AddActivityFormState> {
-  console.log("[Action Log - handleAddProjectActivityAction] Action started.");
+  console.log("[Action Log - handleAddProjectActivityAction] Action invoked."); // VERY FIRST LOG
 
   if (!adminInitialized) {
     const errorMessage = `Sunucu yapılandırma hatası: Firebase Admin SDK başlatılamadı. Lütfen sunucu loglarını kontrol edin. Detay: ${adminInitializationError || "Bilinmeyen Admin SDK başlatma hatası."}`;
@@ -99,6 +99,7 @@ export async function handleAddProjectActivityAction(
   }
   
   try {
+    console.log("[Action Log - handleAddProjectActivityAction] Action started. Admin SDK initialized. Storage bucket name configured.");
     const projectId = formData.get('projectId') as string;
     const content = formData.get('content') as string;
     const fileInput = formData.get('file') as File | null;
@@ -226,6 +227,8 @@ export async function handleAddProjectActivityAction(
       specificMessage = e.message;
     } else if (typeof e === 'string') {
       specificMessage = e;
+    } else if (e && typeof e.toString === 'function') {
+      specificMessage = e.toString();
     }
     console.error("[Action Log - handleAddProjectActivityAction] Determined specific error message for client:", specificMessage);
     return { 
@@ -248,8 +251,7 @@ export async function handleUpdateActivityStatusAction(
     messageForManager?: string,
     idToken?: string | null 
 ): Promise<UpdateActivityStatusFormState> {
-  console.log(`[Action Log - handleUpdateActivityStatusAction] Attempting to update status for activity ${activityId} in project ${projectId} to ${newStatus}. Manager message: "${messageForManager}"`);
-  
+  console.log(`[Action Log - handleUpdateActivityStatusAction] Action invoked for activity ${activityId}, new status ${newStatus}.`);
   if (!adminInitialized) {
     return { success: false, message: `Sunucu yapılandırma hatası: Firebase Admin SDK başlatılamadı. Detay: ${adminInitializationError}` };
   }
@@ -289,7 +291,15 @@ export async function handleUpdateActivityStatusAction(
 
   } catch (error: any) {
     console.error(`[Action Log - handleUpdateActivityStatusAction] Error updating activity ${activityId}:`, error);
-    return { success: false, message: `Aktivite durumu güncellenirken bir hata oluştu: ${error.message || "Bilinmeyen bir sunucu hatası oluştu."}` };
+    let specificMessage = "Bilinmeyen bir sunucu hatası oluştu.";
+    if (error && typeof error.message === 'string') {
+      specificMessage = error.message;
+    } else if (typeof error === 'string') {
+      specificMessage = error;
+    } else if (error && typeof error.toString === 'function') {
+      specificMessage = error.toString();
+    }
+    return { success: false, message: `Aktivite durumu güncellenirken bir hata oluştu: ${specificMessage}` };
   }
 }
 
@@ -299,8 +309,7 @@ export async function handleApproveActivityAction(
     managerFeedback?: string,
     idToken?: string | null 
 ): Promise<UpdateActivityStatusFormState> {
-  console.log(`[Action Log - handleApproveActivityAction] Attempting to approve activity ${activityId} for project ${projectId}. Manager feedback: "${managerFeedback}"`);
-  
+  console.log(`[Action Log - handleApproveActivityAction] Action invoked for activity ${activityId}.`);
   if (!adminInitialized) {
     return { success: false, message: `Sunucu yapılandırma hatası: Firebase Admin SDK başlatılamadı. Detay: ${adminInitializationError}` };
   }
@@ -325,7 +334,15 @@ export async function handleApproveActivityAction(
     return { success: true, message: "Aktivite başarıyla onaylandı." };
   } catch (error: any) {
     console.error(`[Action Log - handleApproveActivityAction] Error approving activity ${activityId}:`, error);
-    return { success: false, message: `Aktivite onaylanırken bir hata oluştu: ${error.message || "Bilinmeyen bir sunucu hatası oluştu."}` };
+    let specificMessage = "Bilinmeyen bir sunucu hatası oluştu.";
+    if (error && typeof error.message === 'string') {
+      specificMessage = error.message;
+    } else if (typeof error === 'string') {
+      specificMessage = error;
+    } else if (error && typeof error.toString === 'function') {
+      specificMessage = error.toString();
+    }
+    return { success: false, message: `Aktivite onaylanırken bir hata oluştu: ${specificMessage}` };
   }
 }
 
@@ -335,8 +352,7 @@ export async function handleRejectActivityAction(
     managerFeedback?: string,
     idToken?: string | null 
 ): Promise<UpdateActivityStatusFormState> {
-  console.log(`[Action Log - handleRejectActivityAction] Attempting to reject activity ${activityId} for project ${projectId}. Manager feedback: "${managerFeedback}"`);
-  
+  console.log(`[Action Log - handleRejectActivityAction] Action invoked for activity ${activityId}.`);
   if (!adminInitialized) {
     return { success: false, message: `Sunucu yapılandırma hatası: Firebase Admin SDK başlatılamadı. Detay: ${adminInitializationError}` };
   }
@@ -361,7 +377,15 @@ export async function handleRejectActivityAction(
     return { success: true, message: "Aktivite reddedildi." };
   } catch (error: any) {
     console.error(`[Action Log - handleRejectActivityAction] Error rejecting activity ${activityId}:`, error);
-    return { success: false, message: `Aktivite reddedilirken bir hata oluştu: ${error.message || "Bilinmeyen bir sunucu hatası oluştu."}` };
+    let specificMessage = "Bilinmeyen bir sunucu hatası oluştu.";
+    if (error && typeof error.message === 'string') {
+      specificMessage = error.message;
+    } else if (typeof error === 'string') {
+      specificMessage = error;
+    } else if (error && typeof error.toString === 'function') {
+      specificMessage = error.toString();
+    }
+    return { success: false, message: `Aktivite reddedilirken bir hata oluştu: ${specificMessage}` };
   }
 }
 
@@ -374,7 +398,7 @@ export async function handleUpdateProjectAction(
   prevState: UpdateProjectResult | undefined,
   formData: FormData
 ): Promise<UpdateProjectResult> {
-  console.log("[Action Log - UpdateProject] Action started.");
+  console.log("[Action Log - UpdateProject] Action invoked.");
   
   if (!adminInitialized) {
     const errorMessage = `Sunucu yapılandırma hatası: Firebase Admin SDK başlatılamadı. Detay: ${adminInitializationError || "Bilinmeyen Admin SDK başlatma hatası."}`;
@@ -392,12 +416,9 @@ export async function handleUpdateProjectAction(
 
     console.log(`[Action Log - UpdateProject] Extracted form data. Project ID: ${projectId}, ID Token present: ${!!idToken}`);
     
-    const isAuthorized = await checkManagerOrAdminPrivileges(idToken); // This also checks adminInitialized implicitly now
+    const isAuthorized = await checkManagerOrAdminPrivileges(idToken); 
     if (!isAuthorized) {
       console.warn("[Action Log - UpdateProject] User is not authorized to update project.");
-      // If checkManagerOrAdminPrivileges returned false because Admin SDK wasn't initialized, it would have logged that.
-      // If it returned false due to role check, then this message is appropriate.
-      // If idToken was invalid, verifyIdTokenAndGetUserDetails (called by checkManager...) would have logged.
       return { success: false, message: "Bu işlemi yapma yetkiniz bulunmamaktadır veya kimlik doğrulama başarısız oldu." };
     }
 
@@ -509,6 +530,8 @@ export async function handleUpdateProjectAction(
       specificMessage = e.message;
     } else if (typeof e === 'string') {
       specificMessage = e;
+    } else if (e && typeof e.toString === 'function') {
+      specificMessage = e.toString();
     }
     if (e && typeof e.code === 'string') {
         specificMessage += ` (Kod: ${e.code})`;
@@ -520,4 +543,6 @@ export async function handleUpdateProjectAction(
     };
   }
 }
+    
+
     
