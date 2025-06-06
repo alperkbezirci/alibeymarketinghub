@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, ChevronLeft, ChevronRight, Loader2, AlertTriangle } from "lucide-react";
+import { PlusCircle, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react"; // Removed Loader2
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { EventForm } from "@/components/calendar/event-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,13 +64,17 @@ export default function CalendarPage() {
       const viewEnd = endOfWeek(addDays(endOfMonth(month), 7), { locale: tr });
       const fetchedEvents = await getEvents(viewStart, viewEnd);
       setEvents(fetchedEvents);
-    } catch (err: Error) {
-      setError(err.message || "Etkinlikler yüklenirken bir hata oluştu."); // Changed err: any to err: Error
-      toast({ title: "Hata", description: err.message || "Etkinlikler yüklenirken bir hata oluştu.", variant: "destructive" });
+    } catch (err: unknown) { // Changed to unknown
+      let message = "Etkinlikler yüklenirken bir hata oluştu.";
+      if (err instanceof Error) {
+        message = err.message;
+      }
+      setError(message);
+      toast({ title: "Hata", description: message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast]); // Removed fetchEventsForMonth from its own dependency array as it causes infinite loop if not careful
 
   useEffect(() => {
     fetchEventsForMonth(currentMonth);
@@ -105,8 +109,12 @@ export default function CalendarPage() {
       toast({ title: "Başarılı", description: `${formData.title} adlı etkinlik oluşturuldu.` });
       setIsEventDialogOpen(false);
       fetchEventsForMonth(currentMonth);
-    } catch (err: Error) {
-      toast({ title: "Hata", description: err.message || "Etkinlik kaydedilirken bir hata oluştu.", variant: "destructive" }); // Changed err: any to err: Error
+    } catch (err: unknown) { // Changed to unknown
+      let message = "Etkinlik kaydedilirken bir hata oluştu.";
+      if (err instanceof Error) {
+        message = err.message;
+      }
+      toast({ title: "Hata", description: message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -126,8 +134,8 @@ export default function CalendarPage() {
         return format(date, 'dd MMM yyyy', { locale: tr });
       }
       return format(date, 'dd MMM yyyy, HH:mm', { locale: tr });
-    } catch (_e) { // Changed catch (e) to catch (_e)
-        console.error("Error formatting date display:", dateInput, e);
+    } catch (error: unknown) {
+        console.error("Error formatting date display:", dateInput, error);
         return 'Geçersiz Tarih';
     }
   };
