@@ -3,7 +3,7 @@
 # https://firebase.google.com/docs/app-hosting/configure
 
 # Optional: Specify the Node.js version.
-# runtime: nodejs20
+runtime: nodejs20
 
 # Entrypoint for your application. This is the command that starts your Next.js server.
 # When using 'output: standalone', Next.js creates a minimal server.js file in .next/standalone.
@@ -18,11 +18,9 @@ runConfig:
   # Optional: minInstances, concurrency, cpu, memoryMiB
 
 # Optional: Environment variables available to your build and runtime.
-# env:
-#   - variable: MY_API_KEY
-#     value: "your_api_key_here_or_use_secrets"
-#   - variable: OPENWEATHERMAP_API_KEY
-#     secret: OPENWEATHERMAP_API_KEY_SECRET # Secret manager'dan alınacaksa
+env:
+  - variable: OPENWEATHERMAP_API_KEY
+    secret: OPENWEATHERMAP_API_KEY_SECRET # Firebase Secret Manager'da oluşturulacak secret'ın adı
 
 # buildConfig specifies build-time settings.
 # buildConfig:

@@ -1,45 +1,73 @@
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# Dependencies
 /node_modules
 /.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+.pnp.js
 
-# testing
-/coverage
+# Vercel
+.vercel
 
-# next.js
+# Next.js
 /.next/
 /out/
 
-# production
+# Production
 /build
 
-# misc
+# Nuxt
+.nuxt
+dist
+
+# Docusaurus
+.docusaurus
+
+# Vue
+.vitepress/dist
+.vitepress/cache
+
+# Gatsby
+.cache/
+# # Comment in the public line in if your project uses Gatsby and not Next.js
+# # https://nextjs.org/blog/next-9-1#public-directory-support
+# public
+
+# Mac
 .DS_Store
-*.pem
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+# Yarn
+yarn-error.log
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
 
-# vercel
-.vercel
-
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
-.genkit/*
-.env*
-
-# firebase
+# Firebase
+.firebase
 firebase-debug.log
-firestore-debug.log
+*.secret # Deprecated, use specific files like .env.local or platform secrets
+*.secrets # Deprecated
+
+# Environment variables
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE config
+.vscode/
+!.vscode/settings.json # Keep shared settings if any
+!.vscode/extensions.json # Keep recommended extensions if any
+!.vscode/launch.json # Keep launch configurations if any
+
+# Misc
+*.log
+npm-debug.log*
+coverage
+*.orig
