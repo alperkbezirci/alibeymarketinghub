@@ -1,4 +1,3 @@
-
 // src/contexts/auth-context.tsx
 "use client";
 
@@ -7,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { User as FirebaseAuthUser, onAuthStateChanged, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { GlobalLoader } from '@/components/layout/global-loader'; // Ensure GlobalLoader is used
 
 export interface User {
   uid: string;
@@ -71,41 +71,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               photoURL: firebaseUser.photoURL || userDataFromFirestore.photoURL,
             };
             setUser(appUser);
-            // console.log("[AuthContext] App user set from Firestore:", appUser.uid);
           } else {
             console.warn(`[AuthContext] User document not found in Firestore for UID: ${firebaseUser.uid}. Logging out.`);
-            await firebaseSignOut(auth);
+            await firebaseSignOut(auth); // Ensure user is signed out from Firebase Auth
             setUser(null);
           }
-        } catch (error: Error) {
-          console.error("[AuthContext] Error processing Firebase user:", error.message);
-          await firebaseSignOut(auth);
+        } catch (error: unknown) {
+          let message = "Bilinmeyen bir Firebase kullanıcı işleme hatası.";
+          if (error instanceof Error) message = error.message;
+          console.error("[AuthContext] Error processing Firebase user:", message);
+          await firebaseSignOut(auth); // Ensure user is signed out on error
           setUser(null);
         }
       } else {
-        // console.log("[AuthContext] No Firebase user from onAuthStateChanged. Setting app user to null.");
         setUser(null);
       }
       setLoading(false);
-      // console.log("[AuthContext] onAuthStateChanged finished. Loading:", loading, "App User UID:", user ? user.uid : 'null');
     });
 
     return () => {
-      // console.log("[AuthContext] onAuthStateChanged listener cleanup.");
       unsubscribe();
-    }
-  }, []); // Empty dependency array is correct here.
+    };
+  }, []);
 
   useEffect(() => {
-    // console.log("[AuthContext] Auth state/path effect. Loading:", loading, "User:", user ? user.uid : 'null', "Pathname:", pathname);
-    if (!loading) {
-      if (!user && pathname !== '/login') {
-        // console.log("[AuthContext] Redirecting to /login (no user, not on login page).");
-        router.replace('/login');
-      } else if (user && pathname === '/login') {
-        // console.log("[AuthContext] Redirecting to /dashboard (user exists, on login page).");
-        router.replace('/dashboard');
-      }
+    if (loading) {
+      return; // Wait until loading is false
+    }
+
+    if (!user && pathname !== '/login') {
+      router.replace('/login');
+    } else if (user && pathname === '/login') {
+      router.replace('/dashboard');
     }
   }, [user, loading, pathname, router]);
 
@@ -114,37 +111,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       // onAuthStateChanged will handle setting user and redirecting
-    } catch (error: Error) {
-      console.error("[AuthContext] Login failed:", error.code, error.message);
+    } catch (error: unknown) {
+      let code = "UNKNOWN_ERROR";
+      let message = "Giriş yapılırken bilinmeyen bir hata oluştu.";
+      if (error instanceof Error && 'code' in error) {
+        code = (error as {code: string}).code;
+        message = error.message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'string') {
+        message = error;
+      }
+      console.error("[AuthContext] Login failed:", code, message);
       setUser(null); 
       setLoading(false);
-      throw error; 
+      throw error; // Re-throw the original error so the login page can handle it
     }
-  }, []);
+  }, [setLoading, setUser]); // Added setLoading and setUser to dependencies
 
   const logout = useCallback(async () => {
     try {
       await firebaseSignOut(auth);
       setUser(null);
-      router.replace('/login'); // Use replace to avoid back button issues
-    } catch (error: any) {
-      console.error("[AuthContext] Logout failed:", error.code, error.message);
+      router.replace('/login'); 
+    } catch (error: unknown) {
+      let code = "UNKNOWN_LOGOUT_ERROR";
+      let message = "Çıkış yapılırken bilinmeyen bir hata oluştu.";
+      if (error instanceof Error && 'code' in error) {
+        code = (error as {code: string}).code;
+        message = error.message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'string') {
+        message = error;
+      }
+      console.error("[AuthContext] Logout failed:", code, message);
     }
-  }, [router]);
+  }, [router, setUser]); // Added setUser to dependencies
 
-  const isAdminOrMarketingManager = user?.roles.includes('Admin') || user?.roles.includes('Pazarlama Müdürü') || false;
+  const isAdminOrMarketingManager = user?.roles?.includes('Admin') || user?.roles?.includes('Pazarlama Müdürü') || false;
   
   const getDisplayName = (): string => {
     if (!user) return "Kullanıcı";
     return `${user.firstName} ${user.lastName}`.trim();
   };
-
-  if (loading && pathname !== '/login') {
-    return <div className="flex h-screen items-center justify-center"><p>Yükleniyor...</p></div>;
+  
+  // This initial loading state handling is crucial.
+  // It prevents rendering children or redirecting before auth state is determined.
+  if (loading) {
+    return <GlobalLoader />;
   }
   
-  if (!loading && !user && pathname !== '/login') {
-     return <div className="flex h-screen items-center justify-center"><p>Yönlendiriliyor...</p></div>;
+  // If not loading and no user, and not on login page, AuthProvider's useEffect will redirect.
+  // Children should only be rendered if user is authenticated or if it's the login page itself.
+  if (!user && pathname !== '/login') {
+    // This state should ideally be very short-lived as the useEffect above will redirect.
+    // Rendering GlobalLoader here prevents brief flashes of content before redirect.
+    return <GlobalLoader message="Yönlendiriliyor..." />;
   }
 
   return (
