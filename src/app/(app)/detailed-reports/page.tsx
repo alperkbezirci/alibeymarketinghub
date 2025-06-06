@@ -3,21 +3,20 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth, type User as AuthUser } from "@/contexts/auth-context"; 
+import { useAuth, type User as AuthUser } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Filter, SlidersHorizontal, AreaChart, History, Loader2, AlertTriangle, LineChart as LucideLineChart, BarChart as BarChartIcon, PieChart as LucidePieChart, Users, ListChecks, Activity, RefreshCw, FileText, MessageSquare, Upload, Settings2Icon } from "lucide-react";
+import { Filter, AreaChart, History, Loader2, Settings2Icon, MessageSquare, Upload, RefreshCw } from "lucide-react"; // Removed unused icons
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { getAllUsers } from '@/services/user-service'; 
+import { getAllUsers } from '@/services/user-service';
 import { getProjectCountByStatus } from '@/services/project-service';
 import { getTaskCountByStatus } from '@/services/task-service';
-import { getGlobalActivityLog, type ProjectActivity, type ProjectActivityType } from '@/services/project-activity-service';
-import { Skeleton } from '@/components/ui/skeleton';
+import { getGlobalActivityLog, type ProjectActivity } from '@/services/project-activity-service'; // Removed ProjectActivityType
 import { AppLogo } from '@/components/layout/app-logo';
-import { BarChart, Bar, Pie, PieChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
+import { Pie, PieChart, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'; // Removed unused Recharts components
 import { format, parseISO, isValid as isValidDate } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import Link from 'next/link';
@@ -32,7 +31,7 @@ const PIE_CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var
 export default function DetailedReportsPage() {
   const { isAdminOrMarketingManager } = useAuth();
   const { toast } = useToast();
-  
+
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
@@ -48,7 +47,7 @@ export default function DetailedReportsPage() {
   const [activityLog, setActivityLog] = useState<ProjectActivity[]>([]);
   const [isLoadingActivityLog, setIsLoadingActivityLog] = useState(true);
   const [activityLogError, setActivityLogError] = useState<string | null>(null);
-  
+
   const [selectedUserIdFilter, setSelectedUserIdFilter] = useState<string>("all");
   const [startDateInput, setStartDateInput] = useState<string>(""); // YYYY-MM-DD
   const [endDateInput, setEndDateInput] = useState<string>("");   // YYYY-MM-DD
@@ -61,9 +60,10 @@ export default function DetailedReportsPage() {
     try {
       const fetchedUsers = await getAllUsers();
       setUsers(fetchedUsers.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
-    } catch (error: any) {
-      setUsersError(error.message || "Kullanıcılar yüklenemedi.");
-      toast({ title: "Kullanıcı Yükleme Hatası", description: error.message || "Kullanıcılar yüklenemedi.", variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Kullanıcılar yüklenemedi.";
+      setUsersError(message);
+      toast({ title: "Kullanıcı Yükleme Hatası", description: message, variant: "destructive" });
     } finally {
       setIsLoadingUsers(false);
     }
@@ -77,9 +77,10 @@ export default function DetailedReportsPage() {
     try {
       const counts = await getProjectCountByStatus();
       setProjectStatusData(counts.map(item => ({ name: item.status, value: item.count })));
-    } catch (error: any) {
-      setProjectStatusError(error.message || "Proje durumları yüklenemedi.");
-      toast({ title: "Proje İstatistik Hatası", description: error.message || "Proje durumları yüklenemedi.", variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Proje durumları yüklenemedi.";
+      setProjectStatusError(message);
+      toast({ title: "Proje İstatistik Hatası", description: message, variant: "destructive" });
     } finally {
       setIsLoadingProjectStatus(false);
     }
@@ -89,9 +90,10 @@ export default function DetailedReportsPage() {
     try {
       const counts = await getTaskCountByStatus();
       setTaskStatusData(counts.map(item => ({ name: item.status, value: item.count })));
-    } catch (error: any) {
-      setTaskStatusError(error.message || "Görev durumları yüklenemedi.");
-      toast({ title: "Görev İstatistik Hatası", description: error.message || "Görev durumları yüklenemedi.", variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Görev durumları yüklenemedi.";
+      setTaskStatusError(message);
+      toast({ title: "Görev İstatistik Hatası", description: message, variant: "destructive" });
     } finally {
       setIsLoadingTaskStatus(false);
     }
@@ -114,7 +116,7 @@ export default function DetailedReportsPage() {
         end.setHours(23, 59, 59, 999); // Include the whole day
         options.dateEnd = end;
       }
-      
+
       if (options.dateStart && options.dateEnd && options.dateStart > options.dateEnd) {
         toast({ title: "Geçersiz Tarih Aralığı", description: "Başlangıç tarihi, bitiş tarihinden sonra olamaz.", variant: "destructive" });
         setActivityLog([]);
@@ -124,9 +126,10 @@ export default function DetailedReportsPage() {
 
       const log = await getGlobalActivityLog(options);
       setActivityLog(log);
-    } catch (error: any) {
-      setActivityLogError(error.message || "Aktivite kaydı yüklenemedi.");
-      toast({ title: "Aktivite Kaydı Hatası", description: error.message || "Aktivite kaydı yüklenemedi.", variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Aktivite kaydı yüklenemedi.";
+      setActivityLogError(message);
+      toast({ title: "Aktivite Kaydı Hatası", description: message, variant: "destructive" });
     } finally {
       setIsLoadingActivityLog(false);
     }
@@ -137,12 +140,11 @@ export default function DetailedReportsPage() {
     setStartDateInput("");
     setEndDateInput("");
     // setSelectedHotelFilter("all"); // For future use
-    
-    // Call all fetch functions. fetchActivityLogData will use the reset filter values.
+
     if (isAdminOrMarketingManager) {
       fetchUsersForFilter();
       fetchStaticReportData();
-      fetchActivityLogData(); // This will now use the cleared (default) filters
+      fetchActivityLogData();
     }
   }, [isAdminOrMarketingManager, fetchUsersForFilter, fetchStaticReportData, fetchActivityLogData]);
 
@@ -151,12 +153,10 @@ export default function DetailedReportsPage() {
     if (isAdminOrMarketingManager) {
       fetchUsersForFilter();
       fetchStaticReportData();
-      // Initial activity log fetch will happen in the next useEffect based on default filters
     }
-  }, [isAdminOrMarketingManager]); // Removed fetchAllData from here to avoid multiple calls on init
+  }, [isAdminOrMarketingManager, fetchUsersForFilter, fetchStaticReportData]); // Added missing dependencies
 
   useEffect(() => {
-    // Refetch activity log when filters change
     if (isAdminOrMarketingManager) {
         fetchActivityLogData();
     }
@@ -184,7 +184,7 @@ export default function DetailedReportsPage() {
         else text = `durumunu güncelledi: ${activity.status || 'belirtilmemiş'}.`;
         break;
       default:
-        icon = <Activity className="mr-2 h-4 w-4 text-gray-500 flex-shrink-0" />;
+        icon = <History className="mr-2 h-4 w-4 text-gray-500 flex-shrink-0" />; // Changed to History for default case
         text = `bir eylem gerçekleştirdi (${activity.type}).`;
     }
     return (
@@ -229,7 +229,7 @@ export default function DetailedReportsPage() {
   };
 
 
-  if (!isAdminOrMarketingManager && !isLoadingUsers) { 
+  if (!isAdminOrMarketingManager && !isLoadingUsers) {
      return (
       <div className="flex flex-col items-center justify-center h-full text-center p-6">
         <AppLogo className="h-20 w-auto text-destructive mb-6" />
@@ -238,7 +238,7 @@ export default function DetailedReportsPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
@@ -279,16 +279,16 @@ export default function DetailedReportsPage() {
                 )}
               </SelectContent>
             </Select>
-            <Input 
-              type="date" 
-              placeholder="Başlangıç Tarihi" 
+            <Input
+              type="date"
+              placeholder="Başlangıç Tarihi"
               value={startDateInput}
               onChange={(e) => setStartDateInput(e.target.value)}
               disabled={isLoadingActivityLog}
             />
-            <Input 
-              type="date" 
-              placeholder="Bitiş Tarihi" 
+            <Input
+              type="date"
+              placeholder="Bitiş Tarihi"
               value={endDateInput}
               onChange={(e) => setEndDateInput(e.target.value)}
               disabled={isLoadingActivityLog}
@@ -353,3 +353,4 @@ export default function DetailedReportsPage() {
     </div>
   );
 }
+
