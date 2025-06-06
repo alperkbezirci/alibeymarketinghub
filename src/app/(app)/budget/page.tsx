@@ -4,16 +4,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, TrendingUp, Layers, Loader2, Users, CheckCircle, AlertTriangle, Download } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { PlusCircle, TrendingUp, Layers, Loader2 } from "lucide-react"; // Removed Users, CheckCircle, AlertTriangle, Download
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // Removed DialogClose
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { InvoiceForm, type InvoiceFormData } from "@/components/budget/invoice-form"; // InvoiceFormData for client form
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // Removed CardFooter
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { HOTEL_NAMES, MANAGED_BUDGET_HOTELS } from "@/lib/constants";
-import { useSpendingCategories, type SpendingCategory } from "@/contexts/spending-categories-context";
+import { MANAGED_BUDGET_HOTELS } from "@/lib/constants"; // Removed HOTEL_NAMES
+import { useSpendingCategories } from "@/contexts/spending-categories-context"; // Removed type SpendingCategory
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { getHotelBudgetLimits, type HotelBudgetLimits } from "@/services/budget-config-service";
@@ -21,7 +21,7 @@ import { addInvoice, getAllInvoices, type Invoice, type InvoiceInputDataForServi
 import { addTask, updateTaskAssignees, type TaskInputData } from '@/services/task-service';
 import { getAllUsers, type User as AppUser } from "@/services/user-service";
 import { format, addDays } from "date-fns";
-import { tr } from "date-fns/locale";
+// import { tr } from "date-fns/locale"; // Removed tr
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,12 +29,7 @@ import { cn } from "@/lib/utils";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"; // Firebase client storage SDK
 import { v4 as uuidv4 } from 'uuid'; // For unique file names/paths
 
-interface BudgetSummaryItem {
-  name: string;
-  totalBudget: number;
-  spent: number;
-  remaining: number;
-}
+// Removed unused BudgetSummaryItem interface
 
 const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; 
 
@@ -75,9 +70,10 @@ export default function BudgetPage() {
       setHotelBudgets(limits);
       setInvoices(fetchedInvoices);
  
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching budget data:", error);
-      toast({ title: "Bütçe Yükleme Hatası", description: error.message || "Bütçe verileri yüklenirken bir sorun oluştu.", variant: "destructive"});
+      const errorMessage = error instanceof Error ? error.message : "Bütçe verileri yüklenirken bir sorun oluştu.";
+      toast({ title: "Bütçe Yükleme Hatası", description: errorMessage, variant: "destructive"});
       setHotelBudgets(MANAGED_BUDGET_HOTELS.reduce((acc, name) => ({...acc, [name]: 0}), {}));
       setInvoices([]);
     } finally {
@@ -171,9 +167,10 @@ export default function BudgetPage() {
       setPendingInvoiceDataForTurquality(invoiceDataForService); // Store for Turquality dialog
       setIsTurqualityDialogOpen(true); // Ask about Turquality
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error in invoice saving process:", error);
-      toast({ title: "Fatura İşlem Hatası", description: error.message || "Fatura işlenirken bir sorun oluştu.", variant: "destructive" });
+      const errorMessage = error instanceof Error ? error.message : "Fatura işlenirken bir sorun oluştu.";
+      toast({ title: "Fatura İşlem Hatası", description: errorMessage, variant: "destructive" });
       setIsSubmittingProcess(false); // Reset on error
     }
     // isSubmittingProcess will be set to false after Turquality flow or if an error occurs
@@ -213,16 +210,17 @@ export default function BudgetPage() {
         try {
             await linkTaskToInvoice(lastAddedInvoiceId, newTask.id);
             mainToastDescription += ` Turquality görevi oluşturuldu ve faturaya başarıyla bağlandı.`;
-        } catch (linkError: any) {
-            mainToastDescription += ` Turquality görevi oluşturuldu ancak faturaya bağlanırken bir hata oluştu: ${linkError.message}`;
-            toast({ title: "Bağlantı Hatası", description: `Görev faturaya bağlanamadı: ${linkError.message}`, variant: "warning" });
+        } catch (linkError: unknown) {
+            const linkErrorMessage = linkError instanceof Error ? linkError.message : "Görev faturaya bağlanamadı.";
+            mainToastDescription += ` Turquality görevi oluşturuldu ancak faturaya bağlanırken bir hata oluştu: ${linkErrorMessage}`;
+            toast({ title: "Bağlantı Hatası", description: linkErrorMessage, variant: "warning" });
         }
         
         setIsLoadingUsersForAssignment(true);
         try {
             const users = await getAllUsers();
             setUsersForAssignment(users.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
-        } catch (userError) {
+        } catch (userError: unknown) {
             console.error("Error fetching users for task assignment:", userError);
             mainToastDescription += " Atama için kullanıcılar yüklenemedi.";
             toast({ title: "Kullanıcı Yükleme Hatası", description: "Görev ataması için kullanıcılar yüklenemedi.", variant: "destructive" });
@@ -238,8 +236,9 @@ export default function BudgetPage() {
       }
       
       fetchBudgetData(); 
-    } catch (error: any) {
-      toast({ title: "Turquality İşlem Hatası", description: error.message || "Turquality görevi oluşturulurken veya fatura güncellenirken bir sorun oluştu.", variant: "destructive" });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Turquality görevi oluşturulurken veya fatura güncellenirken bir sorun oluştu.";
+      toast({ title: "Turquality İşlem Hatası", description: errorMessage, variant: "destructive" });
     } finally {
       setIsTurqualityDialogOpen(false);
       setPendingInvoiceDataForTurquality(null);
@@ -265,8 +264,9 @@ export default function BudgetPage() {
       } else {
         toast({ title: "Bilgi", description: "Turquality görevine kimse atanmadı. Görevi daha sonra manuel olarak atayabilirsiniz.", variant: "default" });
       }
-    } catch (error: any) {
-      toast({ title: "Görev Atama Hatası", description: error.message || "Görev atanırken bir sorun oluştu.", variant: "destructive" });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Görev atanırken bir sorun oluştu.";
+      toast({ title: "Görev Atama Hatası", description: errorMessage, variant: "destructive" });
     } finally {
       setIsAssignTaskDialogOpen(false);
       setNewlyCreatedTurqualityTaskId(null);
@@ -414,7 +414,7 @@ export default function BudgetPage() {
           <CardTitle className="font-headline text-xl flex items-center">
             <TrendingUp className="mr-2 h-5 w-5 text-primary" /> Ana Bütçe Özeti
           </CardTitle>
-          <CardDescription>Oteller bazında genel bütçe durumu. Limitler CMS'den, harcamalar faturalardan hesaplanmaktadır.</CardDescription>
+          <CardDescription>Oteller bazında genel bütçe durumu. Limitler CMS&apos;den, harcamalar faturalardan hesaplanmaktadır.</CardDescription>
         </CardHeader>
         <CardContent>
           {(isLoadingBudgetConfig || isLoadingInvoices) ? (
@@ -459,7 +459,7 @@ export default function BudgetPage() {
           <CardTitle className="font-headline text-xl flex items-center">
             <Layers className="mr-2 h-5 w-5 text-primary" /> Harcama Kategorileri
           </CardTitle>
-          <CardDescription>Kategori bazında bütçe limitleri (CMS'den) ve harcamalar (faturalardan hesaplanmaktadır). Detayları görmek için bir kategoriye tıklayın.</CardDescription>
+          <CardDescription>Kategori bazında bütçe limitleri (CMS&apos;den) ve harcamalar (faturalardan hesaplanmaktadır). Detayları görmek için bir kategoriye tıklayın.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {(isLoadingSpendingCategories || isLoadingInvoices) ? (
