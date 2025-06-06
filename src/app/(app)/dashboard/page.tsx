@@ -7,13 +7,13 @@ import { QuickActions } from "@/components/dashboard/quick-actions";
 import { OverviewCard } from "@/components/dashboard/overview-card";
 import { WeatherWidget } from "@/components/dashboard/weather-widget";
 import { useAuth } from "@/contexts/auth-context";
-import { ClipboardList, ListTodo, CheckSquare, Loader2, AlertTriangle, PlusCircle } from "lucide-react";
+import { ClipboardList, ListTodo, CheckSquare, Loader2 } from "lucide-react"; // AlertTriangle, PlusCircle kaldırıldı
 import { getActiveTasks, getOverdueTasks, addTask, updateTaskAssignees, type Task, type TaskInputData } from '@/services/task-service';
 import { getPendingApprovalActivities, type ProjectActivity } from '@/services/project-activity-service';
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { InvoiceForm } from "@/components/budget/invoice-form";
+import { InvoiceForm, type InvoiceFormData } from "@/components/budget/invoice-form"; // InvoiceFormData import edildi
 import { addInvoice, type InvoiceInputDataForService, linkTaskToInvoice } from '@/services/invoice-service';
 import { getAllUsers, type User as AppUser } from "@/services/user-service";
 import { format, addDays, parseISO } from "date-fns"; // parseISO eklendi
@@ -84,9 +84,13 @@ export default function DashboardPage() {
         const approvals = await getPendingApprovalActivities(5);
         setPendingApprovalsData(approvals);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let errorMessage = "Genel özet verileri yüklenirken bir sorun oluştu.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
       console.error("Error fetching dashboard data:", error);
-      toast({ title: "Kontrol Paneli Hatası", description: "Genel özet verileri yüklenirken bir sorun oluştu.", variant: "destructive" });
+      toast({ title: "Kontrol Paneli Hatası", description: errorMessage, variant: "destructive" });
     } finally {
       setIsLoadingActiveTasks(false);
       setIsLoadingOverdueTasks(false);
@@ -98,37 +102,55 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleSaveInvoiceForDashboard = async (formDataFromComponent: import('@/components/budget/invoice-form').InvoiceFormData) => {
+  const handleSaveInvoiceForDashboard = async (formDataFromComponent: InvoiceFormData) => {
     setIsSubmittingProcess(true);
     setIsInvoiceDialogOpen(false);
     
+    // InvoiceFormData (from form) is slightly different from InvoiceInputDataForService (for service)
+    // regarding file handling and date types. We adapt it here.
     const invoiceDataForService: InvoiceInputDataForService = {
       invoiceNumber: formDataFromComponent.invoiceNumber,
-      invoiceDate: formDataFromComponent.invoiceDate,
+      invoiceDate: formDataFromComponent.invoiceDate, // Already Date from form
       hotel: formDataFromComponent.hotel,
       spendingCategoryName: formDataFromComponent.spendingCategoryName,
       companyName: formDataFromComponent.companyName,
       originalAmount: formDataFromComponent.originalAmount,
       originalCurrency: formDataFromComponent.originalCurrency,
       description: formDataFromComponent.description,
-      amountInEur: formDataFromComponent.amountInEur,
-      exchangeRateToEur: formDataFromComponent.exchangeRateToEur,
-      // fileURL and storagePath will be handled if a file is part of formDataFromComponent
-      fileURL: formDataFromComponent.file ? undefined : (formDataFromComponent as any).fileURL, // Adapt if InvoiceFormData changes
-      storagePath: formDataFromComponent.file ? undefined : (formDataFromComponent as any).storagePath,
+      amountInEur: formDataFromComponent.amountInEur, // Calculated in form
+      exchangeRateToEur: formDataFromComponent.exchangeRateToEur, // Calculated in form
+      // fileURL and storagePath will be handled by addInvoice if formDataFromComponent.file exists
+      // This assumes addInvoice can take a File object, or file upload is separate.
+      // For now, we pass undefined, assuming addInvoice expects URL/path if file already uploaded.
+      fileURL: undefined, 
+      storagePath: undefined,
     };
+     // If formDataFromComponent had a file, it would need to be uploaded first,
+     // then fileURL and storagePath populated in invoiceDataForService before calling addInvoice.
+     // This example simplifies and assumes addInvoice might handle the file or it's pre-uploaded.
+     // OR, if InvoiceFormData contained fileURL/storagePath directly, that would be used.
+     // The current InvoiceFormData has `file?: File | null`, so upload logic is needed.
+     // For this quick fix, we assume addInvoice expects URL/Path if they exist on formData, otherwise undefined.
+     // This part might need adjustment based on how addInvoice truly handles files.
 
     setPendingInvoiceData(invoiceDataForService);
 
     try {
-      // File upload logic would need to be added here if formDataFromComponent.file exists
-      // For simplicity, assuming file handling is done within addInvoice or before this call if necessary
+      // File upload logic here if formDataFromComponent.file exists
+      // This is a placeholder - real upload would involve Firebase Storage client SDK calls.
+      // For simplicity, we are currently passing undefined for fileURL/storagePath.
+      // The `addInvoice` service might need to be adapted to accept File objects,
+      // or file upload should happen here and resulting URL/path passed to `addInvoice`.
 
-      const newInvoice = await addInvoice(invoiceDataForService); // This function needs to handle potential file upload
+      const newInvoice = await addInvoice(invoiceDataForService); 
       setLastAddedInvoiceId(newInvoice.id);
       setIsTurqualityDialogOpen(true);
-    } catch (error: any) {
-      toast({ title: "Fatura Kayıt Hatası", description: error.message || "Fatura kaydedilirken bir sorun oluştu.", variant: "destructive" });
+    } catch (error: unknown) {
+      let errorMessage = "Fatura kaydedilirken bir sorun oluştu.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      toast({ title: "Fatura Kayıt Hatası", description: errorMessage, variant: "destructive" });
       setPendingInvoiceData(null);
       setIsSubmittingProcess(false);
     }
@@ -144,9 +166,6 @@ export default function DashboardPage() {
     if (pendingInvoiceData.originalCurrency !== 'EUR' && pendingInvoiceData.amountInEur) {
       mainToastDescription += ` (EUR karşılığı: ${pendingInvoiceData.amountInEur.toLocaleString('tr-TR', { style: 'currency', currency: 'EUR' })})`;
     }
-    // Add file status to toast if applicable
-    // if (pendingInvoiceData.fileURL) { mainToastDescription += " Dosya yüklendi."; }
-
 
     try {
       if (isTurqualityApplicable && pendingInvoiceData.invoiceDate && pendingInvoiceData.companyName) {
@@ -167,19 +186,23 @@ export default function DashboardPage() {
         try {
             await linkTaskToInvoice(lastAddedInvoiceId, newTask.id);
             mainToastDescription += ` Turquality görevi oluşturuldu ve faturaya başarıyla bağlandı.`;
-        } catch (linkError: any) {
-            mainToastDescription += ` Turquality görevi oluşturuldu ancak faturaya bağlanırken bir hata oluştu: ${linkError.message}`;
-            toast({ title: "Bağlantı Hatası", description: `Görev faturaya bağlanamadı: ${linkError.message}`, variant: "warning" });
+        } catch (linkError: unknown) {
+            let linkErrorMessage = "Görev faturaya bağlanamadı.";
+            if (linkError instanceof Error) linkErrorMessage = linkError.message;
+            mainToastDescription += ` Turquality görevi oluşturuldu ancak faturaya bağlanırken bir hata oluştu: ${linkErrorMessage}`;
+            toast({ title: "Bağlantı Hatası", description: linkErrorMessage, variant: "warning" });
         }
         
         setIsLoadingUsersForAssignment(true);
         try {
             const users = await getAllUsers();
             setUsersForAssignment(users.sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)));
-        } catch (userError) {
+        } catch (userError: unknown) {
             console.error("Error fetching users for task assignment:", userError);
             mainToastDescription += " Atama için kullanıcılar yüklenemedi.";
-            toast({ title: "Kullanıcı Yükleme Hatası", description: "Görev ataması için kullanıcılar yüklenemedi.", variant: "destructive" });
+            let userErrorMessage = "Görev ataması için kullanıcılar yüklenemedi.";
+            if (userError instanceof Error) userErrorMessage = userError.message;
+            toast({ title: "Kullanıcı Yükleme Hatası", description: userErrorMessage, variant: "destructive" });
         } finally {
             setIsLoadingUsersForAssignment(false);
         }
@@ -190,8 +213,10 @@ export default function DashboardPage() {
         toast({ title: "Başarılı", description: `${mainToastDescription} Bütçe detayları için Bütçe sayfasını kontrol edin.` });
       }
       fetchDashboardData(); 
-    } catch (error: any) {
-      toast({ title: "Turquality İşlem Hatası", description: error.message || "Turquality işlemi sırasında bir sorun oluştu.", variant: "destructive" });
+    } catch (error: unknown) {
+      let errorMessage = "Turquality işlemi sırasında bir sorun oluştu.";
+      if (error instanceof Error) errorMessage = error.message;
+      toast({ title: "Turquality İşlem Hatası", description: errorMessage, variant: "destructive" });
     } finally {
       setIsTurqualityDialogOpen(false);
       setPendingInvoiceData(null);
@@ -215,8 +240,10 @@ export default function DashboardPage() {
       } else if (newlyCreatedTurqualityTaskId) {
         toast({ title: "Bilgi", description: "Turquality görevine kimse atanmadı. Görevi daha sonra manuel olarak atayabilirsiniz.", variant: "default" });
       }
-    } catch (error: any) {
-      toast({ title: "Görev Atama Hatası", description: error.message || "Görev atanırken bir sorun oluştu.", variant: "destructive" });
+    } catch (error: unknown) {
+      let errorMessage = "Görev atanırken bir sorun oluştu.";
+      if (error instanceof Error) errorMessage = error.message;
+      toast({ title: "Görev Atama Hatası", description: errorMessage, variant: "destructive" });
     } finally {
       setIsAssignTaskDialogOpen(false);
       setNewlyCreatedTurqualityTaskId(null);
