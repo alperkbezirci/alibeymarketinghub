@@ -43,8 +43,18 @@ async function checkAdminPrivilegesForAction(idToken?: string | null): Promise<b
       console.warn(`[CMS Action - checkAdminPrivilegesForAction] User ${decodedToken.uid} has no roles array or roles are null. Fetched roles: ${JSON.stringify(roles)}. Access DENIED.`);
       return false;
     }
-  } catch (error: any) {
-    console.error("[CMS Action - checkAdminPrivilegesForAction] Error during privilege check:", error.message, error.code ? `(Code: ${error.code})` : '');
+  } catch (error: unknown) {
+    let errorMessage = "Bilinmeyen bir hata oluştu";
+    let errorCode = undefined;
+    if (error instanceof Error) {
+        errorMessage = error.message;
+        if ('code' in error) {
+            errorCode = (error as any).code;
+        }
+    } else if (typeof error === 'string') {
+        errorMessage = error;
+    }
+    console.error("[CMS Action - checkAdminPrivilegesForAction] Error during privilege check:", errorMessage, errorCode ? `(Code: ${errorCode})` : '');
     return false;
   }
 }
@@ -110,10 +120,16 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
               `[CMS Action] Project ${activityData.projectId} for activity ${activityDoc.id} not found.`
             );
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
+          let individualErrorMessage = "Bilinmeyen bir hata oluştu";
+            if (error instanceof Error) {
+                individualErrorMessage = error.message;
+            } else if (typeof error === 'string') {
+                individualErrorMessage = error;
+            }
           console.error(
             `[CMS Action] Error processing individual activity ${activityDoc.id} (fetching project or updating):`,
-            error.message
+            individualErrorMessage
           );
         }
       }
@@ -130,8 +146,15 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
     revalidatePath('/projects'); // Etkilenen proje detay sayfalarını da revalidate etmek iyi olabilir.
     return { success: true, message, updatedCount, processedCount };
 
-  } catch (error: any) {
-    console.error("[CMS Action] Error in updateActivitiesWithHotelInfoAction:", error.message);
-    return { success: false, message: `Aktiviteler güncellenirken bir sunucu hatası oluştu: ${error.message}` };
+  } catch (error: unknown) {
+    let generalErrorMessage = "Bilinmeyen bir hata oluştu";
+    if (error instanceof Error) {
+        generalErrorMessage = error.message;
+    } else if (typeof error === 'string') {
+        generalErrorMessage = error;
+    }
+    console.error("[CMS Action] Error in updateActivitiesWithHotelInfoAction:", generalErrorMessage);
+    return { success: false, message: `Aktiviteler güncellenirken bir sunucu hatası oluştu: ${generalErrorMessage}` };
   }
 }
+
