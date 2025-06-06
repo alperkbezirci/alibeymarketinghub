@@ -6,12 +6,12 @@ import React, { useState, useEffect, useCallback, useRef, useActionState, startT
 import { useAuth } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Settings, Palette, DollarSign, ListPlus, Edit2, Trash2, Loader2, UploadCloud, DatabaseZap } from "lucide-react";
+import { Palette, DollarSign, ListPlus, Edit2, Loader2, UploadCloud, DatabaseZap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useSpendingCategories, type SpendingCategory } from '@/contexts/spending-categories-context';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CategoryEditForm } from "@/components/cms/category-edit-form";
 import { Skeleton } from '@/components/ui/skeleton';
 import { getHotelBudgetLimitsForCms, saveHotelBudgetLimitsCms, type BudgetConfigData } from '@/services/budget-config-service';
@@ -70,8 +70,9 @@ export default function CmsPage() {
     try {
       const limits = await getHotelBudgetLimitsForCms();
       setBudgetLimits(limits);
-    } catch (error: any) {
-      toast({ title: "Hata", description: error.message || "Bütçe limitleri yüklenemedi.", variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu.";
+      toast({ title: "Hata", description: message || "Bütçe limitleri yüklenemedi.", variant: "destructive" });
     } finally {
       setIsLoadingBudgetLimits(false);
     }
@@ -85,8 +86,9 @@ export default function CmsPage() {
       if (settings.logoUrl && !settings.logoUrl.startsWith('https://placehold.co')) {
         // Potentially set selectedLogoFileName if parsing from URL
       }
-    } catch (error: any) {
-      toast({ title: "Hata", description: error.message || "Arayüz ayarları yüklenemedi.", variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu.";
+      toast({ title: "Hata", description: message || "Arayüz ayarları yüklenemedi.", variant: "destructive" });
     } finally {
       setIsLoadingUiSettings(false);
     }
@@ -138,8 +140,9 @@ export default function CmsPage() {
       };
       await saveHotelBudgetLimitsCms(limitsToSave);
       toast({ title: "Başarılı", description: "Otel bütçe limitleri kaydedildi." });
-    } catch (error: any) {
-      toast({ title: "Hata", description: error.message || "Bütçe limitleri kaydedilemedi.", variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu.";
+      toast({ title: "Hata", description: message || "Bütçe limitleri kaydedilemedi.", variant: "destructive" });
     } finally {
       setIsSavingBudgetLimits(false);
     }
@@ -162,8 +165,9 @@ export default function CmsPage() {
       toast({ title: "Başarılı", description: "Arayüz ayarları kaydedildi." });
       setSelectedLogoFileName(null); 
       if (logoFileInputRef.current) logoFileInputRef.current.value = ""; 
-    } catch (error: any) {
-      toast({ title: "Hata", description: error.message || "Arayüz ayarları kaydedilemedi.", variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu.";
+      toast({ title: "Hata", description: message || "Arayüz ayarları kaydedilemedi.", variant: "destructive" });
     } finally {
       setIsSavingUiSettings(false);
     }
@@ -206,7 +210,7 @@ export default function CmsPage() {
     setSelectedCategory(null);
   };
 
-  const onRunActivityUpdate = () => { // Removed async here
+  const onRunActivityUpdate = () => { 
     if (!currentUser) {
       toast({ title: "Hata", description: "İşlemi yapmak için kullanıcı bilgisi bulunamadı.", variant: "destructive" });
       return;
@@ -221,12 +225,13 @@ export default function CmsPage() {
         const formData = new FormData();
         formData.append('idToken', idToken);
         
-        startTransition(() => { // Wrap the action dispatch in startTransition
+        startTransition(() => { 
           handleUpdateActivitiesSubmit(formData);
         });
       })
-      .catch((error: any) => {
-        toast({ title: "Token Hatası", description: `Kimlik token'ı alınırken hata: ${error.message}`, variant: "destructive" });
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "Bilinmeyen bir token hatası.";
+        toast({ title: "Token Hatası", description: `Kimlik token'ı alınırken hata: ${message}`, variant: "destructive" });
       });
   };
   
@@ -238,7 +243,7 @@ export default function CmsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><Palette className="mr-2 h-5 w-5 text-primary"/> Arayüz Özelleştirme</CardTitle>
-            <CardDescription>Uygulamanın genel başlığını ve logosunu buradan yönetebilirsiniz. Veriler Firestore'da saklanır.</CardDescription>
+            <CardDescription>Uygulamanın genel başlığını ve logosunu buradan yönetebilirsiniz. Veriler Firestore&apos;da saklanır.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingUiSettings ? (
@@ -292,7 +297,7 @@ export default function CmsPage() {
                         <p className="text-sm text-muted-foreground">Logo seçilmedi.</p>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Logo yükleme işlevi henüz tam aktif değildir. Yüklenen logo URL'si burada güncellenecektir.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Logo yükleme işlevi henüz tam aktif değildir. Yüklenen logo URL&apos;si burada güncellenecektir.</p>
                 </div>
                 <Button onClick={handleSaveUISettings} disabled={isSavingUiSettings}>
                   {isSavingUiSettings && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -306,7 +311,7 @@ export default function CmsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><DollarSign className="mr-2 h-5 w-5 text-primary"/> Ana Bütçe Limitleri</CardTitle>
-            <CardDescription>Otel bazlı ana bütçe limitlerini (EUR) güncelleyin. Veriler Firestore'da saklanır.</CardDescription>
+            <CardDescription>Otel bazlı ana bütçe limitlerini (EUR) güncelleyin. Veriler Firestore&apos;da saklanır.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingBudgetLimits ? (
@@ -363,7 +368,7 @@ export default function CmsPage() {
         <Card className="shadow-lg md:col-span-2">
           <CardHeader>
             <CardTitle className="font-headline flex items-center"><ListPlus className="mr-2 h-5 w-5 text-primary"/> Harcama Kategorileri</CardTitle>
-            <CardDescription>Yeni harcama kategorileri oluşturun ve mevcutları yönetin. Veriler Firestore'da saklanır.</CardDescription>
+            <CardDescription>Yeni harcama kategorileri oluşturun ve mevcutları yönetin. Veriler Firestore&apos;da saklanır.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -446,7 +451,7 @@ export default function CmsPage() {
                         <AlertDialogHeader>
                             <AlertDialogTitle>Emin misiniz?</AlertDialogTitle>
                             <AlertDialogDescription>
-                            Bu işlem, 'hotel' alanı olmayan tüm proje aktivitelerini, bağlı oldukları projenin otel bilgisiyle güncelleyecektir.
+                            Bu işlem, &apos;hotel&apos; alanı olmayan tüm proje aktivitelerini, bağlı oldukları projenin otel bilgisiyle güncelleyecektir.
                             Çok sayıda aktivite varsa bu işlem biraz zaman alabilir. Devam etmek istiyor musunuz?
                             </AlertDialogDescription>
                         </AlertDialogHeader>
@@ -460,7 +465,7 @@ export default function CmsPage() {
                         </AlertDialogContent>
                     </AlertDialog>
                     <p className="text-xs text-muted-foreground mt-2">
-                        Bu, mevcut proje aktivitelerine 'hotel' alanını ekler. Yeni aktiviteler zaten bu bilgiyle oluşturulacaktır.
+                        Bu, mevcut proje aktivitelerine &apos;hotel&apos; alanını ekler. Yeni aktiviteler zaten bu bilgiyle oluşturulacaktır.
                     </p>
                 </CardContent>
             </Card>
@@ -479,7 +484,7 @@ export default function CmsPage() {
             <DialogHeader>
               <DialogTitle className="font-headline text-2xl">Kategoriyi Düzenle</DialogTitle>
               <DialogDescription>
-                "{selectedCategory.name}" kategorisinin adını veya limitini güncelleyin.
+                &quot;{selectedCategory.name}&quot; kategorisinin adını veya limitini güncelleyin.
               </DialogDescription>
             </DialogHeader>
             <CategoryEditForm
