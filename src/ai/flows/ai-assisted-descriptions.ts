@@ -56,15 +56,21 @@ const generateDescriptionFlow = ai.defineFlow(
       console.warn("AI description generation returned no description or unexpected output. Raw output:", response.raw?.choices[0]?.message?.content);
       return { error: "Yapay zeka geçerli bir proje açıklaması üretemedi veya açıklama alanı boştu." };
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error calling generateDescriptionPrompt:", err);
-      if (err.message && err.message.includes('503 Service Unavailable')) {
-        return { error: "Yapay zeka modeli şu anda aşırı yüklenmiş durumda. Lütfen daha sonra tekrar deneyin." };
+      let errorMessage = "Yapay zeka destekli açıklama oluşturulurken bir hata oluştu. Lütfen daha sonra tekrar deneyin veya açıklamayı manuel olarak girin.";
+      if (err instanceof Error) {
+        if (err.message && err.message.includes('503 Service Unavailable')) {
+          errorMessage = "Yapay zeka modeli şu anda aşırı yüklenmiş durumda. Lütfen daha sonra tekrar deneyin.";
+        } else if (err.message && err.message.includes('JSON')) {
+          errorMessage = "Yapay zeka modelinden gelen yanıt JSON formatında değildi. Lütfen tekrar deneyin.";
+        } else {
+            errorMessage = `İşlem sırasında hata: ${err.message}`;
+        }
+      } else if (typeof err === 'string') {
+        errorMessage = err;
       }
-      if (err.message && err.message.includes('JSON')) {
-        return { error: "Yapay zeka modelinden gelen yanıt JSON formatında değildi. Lütfen tekrar deneyin." };
-      }
-      return { error: "Yapay zeka destekli açıklama oluşturulurken bir hata oluştu. Lütfen daha sonra tekrar deneyin veya açıklamayı manuel olarak girin." };
+      return { error: errorMessage };
     }
   }
 );

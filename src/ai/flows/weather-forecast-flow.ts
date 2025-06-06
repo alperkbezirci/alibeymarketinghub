@@ -45,8 +45,14 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
             humidity: cwData.main.humidity,
             windSpeed: cwData.wind.speed,
         };
-    } catch (currentError: any) {
-        console.warn(`[weather-forecast-flow] Could not fetch current weather for ${location}: ${currentError.message}`);
+    } catch (currentError: unknown) {
+        let message = "Bilinmeyen bir hata oluştu";
+        if (currentError instanceof Error) {
+            message = currentError.message;
+        } else if (typeof currentError === 'string') {
+            message = currentError;
+        }
+        console.warn(`[weather-forecast-flow] Could not fetch current weather for ${location}: ${message}`);
         // Continue to fetch forecast even if current weather fails
     }
 
@@ -153,11 +159,27 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
       location,
     };
 
-  } catch (error: any) {
-    console.error("[weather-forecast-flow] Error fetching or processing weather data:", error.response?.data || error.message, error);
+  } catch (error: unknown) {
+    let errorMessage = "Bilinmeyen bir hata oluştu";
+    let responseDataMessage: string | undefined;
+
+    if (typeof error === 'object' && error !== null && 'response' in error) {
+        const responseError = error.response as { data?: { message?: string } };
+        if (responseError.data?.message) {
+            responseDataMessage = responseError.data.message;
+        }
+    }
+    
+    if (error instanceof Error) {
+        errorMessage = error.message;
+    } else if (typeof error === 'string') {
+        errorMessage = error;
+    }
+
+    console.error("[weather-forecast-flow] Error fetching or processing weather data:", responseDataMessage || errorMessage, error);
     return {
       location,
-      error: `Hava durumu alınırken bir hata oluştu: ${error.response?.data?.message || error.message}`
+      error: `Hava durumu alınırken bir hata oluştu: ${responseDataMessage || errorMessage}`
     };
   }
 }
