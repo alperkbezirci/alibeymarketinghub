@@ -4,60 +4,90 @@ import * as admin from 'firebase-admin';
 let adminInitialized = false;
 let adminInitializationError: string | null = null;
 
-const firebaseConfigEnv = process.env.FIREBASE_CONFIG;
-let projectIdFromEnv: string | undefined;
+console.log("================ Firebase Admin SDK Initialization Start ================");
+console.log("Node.js version:", process.version);
+console.log("Initial admin.apps.length:", admin.apps.length);
 
-if (firebaseConfigEnv) {
+// Log relevant environment variables that Admin SDK might use
+console.log("Env: GOOGLE_APPLICATION_CREDENTIALS:", process.env.GOOGLE_APPLICATION_CREDENTIALS || "Not Set");
+console.log("Env: GOOGLE_CLOUD_PROJECT (or GCLOUD_PROJECT):", process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "Not Set");
+console.log("Env: FIREBASE_CONFIG:", process.env.FIREBASE_CONFIG || "Not Set");
+
+if (admin.apps.length === 0) {
   try {
-    const parsedConfig = JSON.parse(firebaseConfigEnv);
-    projectIdFromEnv = parsedConfig.projectId;
-  } catch (parseError: any) {
-    console.warn("[Admin SDK] Could not parse FIREBASE_CONFIG env variable:", parseError.message);
-  }
-} else {
-  console.warn("[Admin SDK] FIREBASE_CONFIG environment variable is not set.");
-}
-
-if (!admin.apps.length) {
-  try {
-    const initOptions: admin.AppOptions = {};
-    
-    // Google Cloud ortamlarında (App Hosting, Cloud Run, Cloud Functions vb.)
-    // GOOGLE_APPLICATION_CREDENTIALS veya proje ID'si genellikle otomatik olarak ayarlanır.
-    // Ancak, projectIdFromEnv'yi kullanarak açıkça belirtmek bazen yardımcı olabilir.
-    if (projectIdFromEnv) {
-      initOptions.projectId = projectIdFromEnv;
-      console.log(`[Admin SDK] Attempting initialization with explicit projectId: ${projectIdFromEnv}`);
-    } else {
-      console.log("[Admin SDK] Attempting initialization with default project discovery (projectId not found in FIREBASE_CONFIG).");
-    }
-
-    // Application Default Credentials'ı açıkça kullanmayı dene
-    try {
-      initOptions.credential = admin.credential.applicationDefault();
-      console.log("[Admin SDK] Using admin.credential.applicationDefault() for credentials.");
-    } catch (credError: any) {
-      console.warn(`[Admin SDK] Failed to get admin.credential.applicationDefault(). This might be okay if initializeApp() can find credentials another way. Error: ${credError.message}`);
-      // Eğer bu başarısız olursa, initializeApp()'ın varsayılan credential bulma mekanizmasına güvenmeye devam et.
-      // initOptions.credential set edilmemiş olacak ve initializeApp kendi başına deneyecek.
-    }
-    
-    admin.initializeApp(initOptions);
+    console.log("Attempting admin.initializeApp() with no arguments (recommended for GCP environments)...");
+    // For GCP environments (like Firebase App Hosting, Cloud Run, Cloud Functions),
+    // initializeApp() with no arguments should use Application Default Credentials
+    // and discover projectId from the environment (e.g., from FIREBASE_CONFIG or GOOGLE_CLOUD_PROJECT).
+    admin.initializeApp();
     adminInitialized = true;
-    console.log(`[Admin SDK] Firebase Admin SDK successfully initialized. Project ID used for init: ${admin.app().options.projectId || 'Default'}`);
-  } catch (e: any) {
-    adminInitializationError = e.message || "Unknown Admin SDK initialization error";
-    console.error("CRITICAL: Firebase Admin SDK initialization failed:", adminInitializationError);
-    if (e.stack) {
-        console.error("[Admin SDK] Initialization Stack Trace:", e.stack);
+    const app = admin.app();
+    console.log("SUCCESS: Firebase Admin SDK initialized successfully via default method.");
+    console.log("Initialized App Name:", app.name);
+    console.log("Initialized App Project ID:", app.options.projectId || "Not detected in app.options (expected from env)");
+  } catch (e1: any) {
+    console.error("ERROR: admin.initializeApp() with no arguments FAILED.");
+    console.error("Initial Error Name:", e1?.name);
+    console.error("Initial Error Message:", e1?.message);
+    console.error("Initial Error Code:", e1?.code);
+    console.error("Initial Error Stack:", e1?.stack);
+    adminInitializationError = `Initial init failed: ${e1.message}`;
+
+    // Fallback attempt: Try with explicit projectId if available from environment variables
+    const projectIdFromEnvConfig = process.env.FIREBASE_CONFIG
+      ? (() => {
+          try {
+            return JSON.parse(process.env.FIREBASE_CONFIG!).projectId;
+          } catch {
+            return undefined;
+          }
+        })()
+      : undefined;
+      
+    const projectIdToTry = process.env.GOOGLE_CLOUD_PROJECT || projectIdFromEnvConfig;
+
+    if (projectIdToTry) {
+      console.log(`Attempting fallback init: admin.initializeApp({ projectId: "${projectIdToTry}" })`);
+      try {
+        admin.initializeApp({ projectId: projectIdToTry });
+        adminInitialized = true; // Mark as initialized if fallback succeeds
+        const app = admin.app();
+        console.log("SUCCESS: Firebase Admin SDK initialized successfully with explicit projectId on fallback.");
+        console.log("Initialized App Name (fallback):", app.name);
+        console.log("Initialized App Project ID (fallback):", app.options.projectId);
+        adminInitializationError = null; // Clear previous error if fallback succeeds
+      } catch (e2: any) {
+        console.error(`ERROR: admin.initializeApp({ projectId: "${projectIdToTry}" }) FAILED.`);
+        console.error("Fallback Error Name:", e2?.name);
+        console.error("Fallback Error Message:", e2?.message);
+        console.error("Fallback Error Code:", e2?.code);
+        console.error("Fallback Error Stack:", e2?.stack);
+        // Keep the more specific error from the fallback if it occurs, or retain the initial one
+        adminInitializationError = `Fallback init failed: ${e2.message} (Initial error: ${e1.message})`;
+      }
+    } else {
+      console.warn("No projectId found in GOOGLE_CLOUD_PROJECT or FIREBASE_CONFIG for fallback initialization.");
+      // adminInitializationError is already set from the first attempt
     }
-    console.error("[Admin SDK] Ensure Application Default Credentials (ADC) are set up correctly for your Firebase App Hosting environment. The runtime service account needs appropriate permissions. Project ID detected from FIREBASE_CONFIG (if any):", projectIdFromEnv);
-    console.error("[Admin SDK] Without a successfully initialized Admin SDK, server-side Firebase operations requiring admin privileges will fail.");
-    adminInitialized = false;
+
+    if (!adminInitialized) {
+        console.error("CRITICAL: All Firebase Admin SDK initialization attempts FAILED.");
+        console.error("Final Initialization Error recorded:", adminInitializationError);
+        console.error("Please ensure Application Default Credentials (ADC) are correctly set up for your Firebase App Hosting environment, and the runtime service account has necessary IAM permissions (e.g., Firebase Admin SDK Administrator Service Agent, Cloud Datastore User, Storage Object Admin).");
+    }
   }
 } else {
   adminInitialized = true;
-  console.log("[Admin SDK] Firebase Admin SDK was already initialized in a previous import.");
+  console.log("Firebase Admin SDK was already initialized. Using existing instance.");
+  const app = admin.app();
+  console.log("Existing App Name:", app.name);
+  console.log("Existing App Project ID:", app.options.projectId || "Not detected in app.options");
 }
+
+console.log("Admin SDK Initialized Flag after all attempts:", adminInitialized);
+if (adminInitializationError && !adminInitialized) {
+  console.log("Final Admin SDK Initialization Error Message to be exported:", adminInitializationError);
+}
+console.log("================ Firebase Admin SDK Initialization End ================");
 
 export { admin, adminInitialized, adminInitializationError };
