@@ -5,10 +5,6 @@ import React from 'react';
 import { AppLogo } from '@/components/layout/app-logo';
 import { Loader2 } from 'lucide-react';
 
-interface GlobalLoaderProps {
-  message?: string;
-}
-
 export function GlobalLoader({ message = "Yükleniyor..." }: GlobalLoaderProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4">

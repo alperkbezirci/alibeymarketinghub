@@ -5,8 +5,6 @@
 import { revalidatePath } from 'next/cache';
 import { admin, adminInitialized, adminInitializationError } from '@/lib/firebase-admin';
 import { addProjectActivity, updateProjectActivity, type ProjectActivityInputData, type ProjectActivityStatus, type ProjectActivity } from '@/services/project-activity-service';
-// import type { DecodedIdToken } from 'firebase-admin/auth'; // Kullanılmıyor
-// import { db } from '@/lib/firebase'; // Kullanılmıyor
 import { USER_ROLES } from '@/lib/constants';
 import { getUserRoles } from '@/services/user-service';
 import { getProjectById, updateProject, type Project as ProjectType, type ProjectInputDataForService as ProjectServiceInputData } from '@/services/project-service'; // Alias for ProjectInputDataForService
@@ -45,7 +43,7 @@ async function verifyIdTokenAndGetUserDetails(idToken: string): Promise<{ uid: s
     if (error instanceof Error) {
         errorMessage = error.message;
         if ('code' in error) {
-            errorCode = (error as any).code; // Keep any here if 'code' is not standard on Error
+            errorCode = (error as { code?: string }).code;
         }
     } else if (typeof error === 'string') {
         errorMessage = error;
@@ -87,7 +85,7 @@ async function checkManagerOrAdminPrivileges(idToken?: string | null): Promise<b
         if (error instanceof Error) {
             errorMessage = error.message;
             if ('code' in error) {
-                errorCode = (error as any).code;
+                errorCode = (error as { code?: string }).code;
             }
         } else if (typeof error === 'string') {
             errorMessage = error;
@@ -221,7 +219,7 @@ export async function handleAddProjectActivityAction(
         if (uploadError instanceof Error) {
             errorMessage = uploadError.message;
             if('code' in uploadError) errorCode = (uploadError as any).code;
-        } else if (typeof uploadError === 'string') {
+        } else if (typeof uploadError === 'string') { // This check might not be strictly necessary if only Error instances are expected
             errorMessage = uploadError;
         }
         console.error("[Action Log - handleAddProjectActivityAction] Error during file upload or Firestore update for file details:", errorMessage, errorCode ? `(Code: ${errorCode})` : '', uploadError);
@@ -245,7 +243,7 @@ export async function handleAddProjectActivityAction(
       if (e instanceof Error) {
         console.error("Error Name:", e.name);
         console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as any).code);
+        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
         console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Aktivite oluşturulurken sunucu hatası: ${e.message.substring(0, 100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
       } else if (typeof e === 'string') {
@@ -298,7 +296,7 @@ export async function handleUpdateActivityStatusAction(
     if (messageForManager && messageForManager.trim() !== "") {
         updates.messageForManager = messageForManager.trim();
     } else {
-        updates.messageForManager = null as any; 
+        updates.messageForManager = null;
     }
     
     await updateProjectActivity(activityId, updates);
@@ -312,7 +310,7 @@ export async function handleUpdateActivityStatusAction(
     if (e instanceof Error) {
         console.error("Error Name:", e.name);
         console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as any).code);
+        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
         console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Aktivite durumu güncellenirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
     } else if (typeof e === 'string') {
@@ -364,7 +362,7 @@ export async function handleApproveActivityAction(
     if (e instanceof Error) {
         console.error("Error Name:", e.name);
         console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as any).code);
+        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
         console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Aktivite onaylanırken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
     } else if (typeof e === 'string') {
@@ -416,7 +414,7 @@ export async function handleRejectActivityAction(
      if (e instanceof Error) {
         console.error("Error Name:", e.name);
         console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as any).code);
+        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
         console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Aktivite reddedilirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
     } else if (typeof e === 'string') {
@@ -590,7 +588,7 @@ export async function handleUpdateProjectAction(
     if (e instanceof Error) {
         console.error("Error Name:", e.name);
         console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as any).code);
+        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
         console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Proje güncellenirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
     } else if (typeof e === 'string') {

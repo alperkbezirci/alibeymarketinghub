@@ -1,11 +1,9 @@
 // src/app/(app)/user-management/actions.ts
 "use server";
 
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase"; // Client SDK auth
 import { admin } from '@/lib/firebase-admin'; // Firebase Admin SDK
-import { createUserDocumentInFirestore, deleteUserDocument, updateUserProfile, getUserRoles } from "@/services/user-service"; 
-// import { USER_ROLES } from '@/lib/constants';
+import { createUserDocumentInFirestore, deleteUserDocument, updateUserProfile } from "@/services/user-service";
+// TODO: import { USER_ROLES } from '@/lib/constants'; // Kullanılmıyor, ancak yetkilendirme eklendiğinde gerekebilir.
 
 interface AddUserResult {
   success: boolean;
@@ -38,7 +36,7 @@ async function checkAdminPrivileges(idToken?: string | null): Promise<boolean> {
 }
 
 
-export async function handleAddUserAction(prevState: any, formData: FormData): Promise<AddUserResult> {
+export async function handleAddUserAction(prevState: unknown, formData: FormData): Promise<AddUserResult> {
   // const idToken = formData.get('idToken') as string | null; // Formdan ID token al (istemci sağlamalı)
   // const isAdmin = await checkAdminPrivileges(idToken); // ID Token'ı kontrole gönder
   const isAdmin = await checkAdminPrivileges(); // Şimdilik ID Token olmadan çağırıyoruz, bu da false dönecek
@@ -84,7 +82,7 @@ export async function handleAddUserAction(prevState: any, formData: FormData): P
     );
     
     return { success: true, message: `"${firstName} ${lastName}" adlı kullanıcı başarıyla oluşturuldu.`, uid: userRecord.uid };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error adding new user via Admin SDK:", error);
     let errorMessage = "Kullanıcı oluşturulurken bir hata oluştu.";
     if (error.code === "auth/email-already-exists") {
@@ -93,7 +91,7 @@ export async function handleAddUserAction(prevState: any, formData: FormData): P
       errorMessage = "Şifre çok zayıf. Lütfen en az 6 karakterli bir şifre seçin.";
     } else if (error.code === "auth/invalid-email") {
       errorMessage = "Geçersiz e-posta formatı.";
-    }
+    } // else { errorMessage = "Kullanıcı oluşturulurken bir hata oluştu."; } // Generic message
     return { success: false, message: errorMessage };
   }
 }
@@ -104,7 +102,7 @@ interface UpdateUserResult {
   message: string;
 }
 
-export async function handleUpdateUserAction(prevState: any, formData: FormData): Promise<UpdateUserResult> {
+export async function handleUpdateUserAction(prevState: unknown, formData: FormData): Promise<UpdateUserResult> {
   // const idToken = formData.get('idToken') as string | null;
   // const isAdmin = await checkAdminPrivileges(idToken);
   const isAdmin = await checkAdminPrivileges();
@@ -138,7 +136,7 @@ export async function handleUpdateUserAction(prevState: any, formData: FormData)
     // await admin.auth().setCustomUserClaims(uid, { roles: roles });
 
     return { success: true, message: `"${firstName} ${lastName}" adlı kullanıcının bilgileri güncellendi.` };
-  } catch (error: any) {
+  } catch (error: Error) {
     console.error("Error updating user:", error);
     return { success: false, message: error.message || "Kullanıcı güncellenirken bir hata oluştu." };
   }
@@ -149,7 +147,7 @@ interface DeleteUserResult {
   message: string;
 }
 
-export async function handleDeleteUserAction(uid: string, userFullName: string, idToken?: string | null): Promise<DeleteUserResult> {
+export async function handleDeleteUserAction(uid: string, userFullName: string): Promise<DeleteUserResult> {
   // const isAdmin = await checkAdminPrivileges(idToken);
   const isAdmin = await checkAdminPrivileges();
   if (!isAdmin) {
@@ -169,9 +167,9 @@ export async function handleDeleteUserAction(uid: string, userFullName: string, 
     
     return { success: true, message: `"${userFullName}" kullanıcısı başarıyla sistemden silindi.` };
   } catch (error: any) {
-    console.error("Error deleting user:", error);
+    console.error("Error deleting user:", error); // 'any' bırakıldı çünkü Firebase Admin hatası detaylı bilgi içerebilir.
     if (error.code === 'auth/user-not-found') {
-      // Kullanıcı Auth'da bulunamadıysa, Firestore belgesini silmeyi dene
+      // Kullanıcı Auth'da bulunamadıysa, Firestore belgesini silmeyi dene.
       try {
         await deleteUserDocument(uid);
         return { success: true, message: `"${userFullName}" kullanıcısının Firestore belgesi silindi (Auth'da bulunamadı).` };

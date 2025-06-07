@@ -8,7 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input'; // Ensure Input is imported if used
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CalendarDays, Info, Hotel, Users, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud, Download } from "lucide-react";
@@ -79,7 +79,7 @@ export function ProjectDetailDialog({
     try {
       const activities = await getProjectActivities(project.id);
       setProjectActivities(activities);
-    } catch (err: any) {
+    } catch (err: Error) {
       console.error("Error fetching project activities for dialog:", err);
       setActivitiesError(err.message || "Proje aktiviteleri yüklenirken bir hata oluştu.");
       toast({ title: "Aktivite Yükleme Hatası", description: err.message, variant: "destructive", duration: 7000 });
@@ -132,7 +132,7 @@ export function ProjectDetailDialog({
         handleActivityFormSubmit_ActionHook(formData);
       });
 
-    } catch (error: any) {
+    } catch (error: Error) {
       console.error("Error getting ID token or submitting activity form:", error);
       toast({ title: "Form Gönderim Hatası", description: `Bir hata oluştu: ${error.message || "Token alınamadı."}`, variant: "destructive" });
     }
@@ -152,7 +152,7 @@ export function ProjectDetailDialog({
             setActivityToApprove(null);
             setApprovalMessage("");
         } else {
-            toast({ title: "Hata", description: result.message, variant: "destructive" });
+            toast({ title: "Hata", description: result.error || "İşlem başarısız oldu.", variant: "destructive" });
         }
     } catch (tokenError: any) {
         console.error("Error getting ID token for sendForApproval:", tokenError);
@@ -183,7 +183,7 @@ export function ProjectDetailDialog({
           setManagerFeedbackInput("");
         } else {
           toast({ title: "Hata", description: result.message, variant: "destructive" });
-        }
+        } // Assuming handleApprove/RejectAction return a consistent shape with message and success
     } catch (tokenError: any) {
         console.error("Error getting ID token for managerDecision:", tokenError);
         toast({ title: "Kimlik Doğrulama Hatası", description: `Token alınırken hata: ${tokenError.message}`, variant: "destructive" });
@@ -355,7 +355,7 @@ export function ProjectDetailDialog({
                             )}
                             <div className={cn("flex items-center justify-between mt-2.5 pt-2 border-t border-dashed", activity.status === 'pending_approval' && isAdminOrMarketingManager ? "flex-wrap gap-y-2" : "")}>
                               <Badge variant="outline" className={cn("text-xs font-medium py-0.5 px-2", activityStatusInfo.color)}><ActivityIcon className={cn("mr-1.5 h-3.5 w-3.5", activityStatusInfo.iconColor)} />{activityStatusInfo.text}</Badge>
-                              {activity.status === 'draft' && isCurrentUserAuthor && (
+                              {activity.status === 'draft' && isCurrentUserAuthor && project.status !== 'Tamamlandı' && project.status !== 'İptal Edildi' && ( // Prevent sending to approval if project is finished/cancelled
                                 <Dialog open={activityToApprove?.id === activity.id} onOpenChange={(open) => { if(open) { setActivityToApprove(activity); setApprovalMessage(activity.messageForManager || ""); } else { setActivityToApprove(null); setApprovalMessage(""); }}}>
                                   <DialogTrigger asChild><Button variant="outline" size="xs" className="text-xs h-7 px-2 py-1 text-primary hover:bg-primary/5 border-primary/50"><ThumbsUp className="mr-1 h-3.5 w-3.5" /> Onaya Gönder</Button></DialogTrigger>
                                   <DialogContent><DialogHeader><DialogTitle className="font-headline text-xl">İçeriği Onaya Gönder</DialogTitle><DialogDescription asChild><div>Aşağıdaki güncellemeyi onaya göndermek üzeresiniz.<blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">{activity.content ? `"${activity.content.substring(0,100)}${activity.content.length > 100 ? "..." : ""}"` : `Dosya: "${activity.fileName}"`}</blockquote></div></DialogDescription></DialogHeader><div className="py-2"><Label htmlFor="approvalMessageDlg" className="text-sm font-medium">Yönetici için Mesaj (Opsiyonel)</Label><Textarea id="approvalMessageDlg" placeholder="Onaylayan kişiye not..." value={approvalMessage} onChange={(e) => setApprovalMessage(e.target.value)} rows={3} className="mt-1"/></div><DialogFooter><DialogClose asChild><Button variant="ghost" disabled={isSubmittingApproval}>İptal</Button></DialogClose><Button onClick={handleSendForApproval} disabled={isSubmittingApproval}>{isSubmittingApproval && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Gönder</Button></DialogFooter></DialogContent>

@@ -4,7 +4,6 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/auth-context';
 import { ThemeProvider } from '@/components/theme-provider';
-import { GlobalLoader } from '@/components/layout/global-loader'; // GlobalLoader import edildi
 
 export const metadata: Metadata = {
   title: 'Ali Bey Marketing Hub',

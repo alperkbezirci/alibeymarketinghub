@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 // Link importu kaldırıldı, çünkü artık dialog kullanıyoruz.
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2, AlertTriangle, Eye } from "lucide-react"; // Eye ikonu eklendi
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { TaskForm } from "@/components/tasks/task-form";
@@ -66,7 +66,7 @@ export default function TasksPage() {
       setTasks(fetchedTasks);
       setProjectsList(fetchedProjects);
       setUsersList(fetchedUsers);
-
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message || "Veriler yüklenirken bir hata oluştu.");
       toast({ title: "Hata", description: err.message, variant: "destructive" });
@@ -95,7 +95,7 @@ export default function TasksPage() {
       await addTask(formData);
       toast({ title: "Başarılı", description: `${formData.taskName} adlı görev oluşturuldu.` });
       setIsFormDialogOpen(false);
-      fetchPageData(); 
+ fetchPageData();
     } catch (err: any) {
       toast({ title: "Hata", description: err.message || "Görev kaydedilirken bir hata oluştu.", variant: "destructive" });
     } finally {
@@ -128,7 +128,7 @@ export default function TasksPage() {
       fetchPageData(); // Refresh list
       setIsDetailDialogOpen(false); // Close dialog
       setSelectedTaskForDetail(null);
-    } catch (err: any) {
+    } catch (err: any) { // eslint-disable-next-line @typescript-eslint/no-explicit-any
       toast({ title: "Silme Hatası", description: err.message || "Görev silinirken bir hata oluştu.", variant: "destructive" });
     }
   };
@@ -178,7 +178,7 @@ export default function TasksPage() {
               <DialogDescription>
                 Yeni bir görev oluşturmak için lütfen ilgili alanları doldurun.
               </DialogDescription>
-            </DialogHeader>
+ </DialogHeader>
             <TaskForm 
               onSave={handleSaveTask} 
               onClose={() => setIsFormDialogOpen(false)}
@@ -191,7 +191,7 @@ export default function TasksPage() {
       <Card>
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Input placeholder="Görev adında ara..." disabled />
+ <Input placeholder="Görev adında ara..." disabled />
             <Select disabled>
               <SelectTrigger><SelectValue placeholder="Otel Seçin" /></SelectTrigger>
               <SelectContent>
@@ -213,7 +213,7 @@ export default function TasksPage() {
                 {TASK_PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={() => toast({description: "Filtreler sıfırlandı (işlevsellik eklenecek)."})}>Filtreleri Sıfırla</Button>
+ <Button variant="outline" onClick={() => toast({description: "Filtreler sıfırlandı (işlevsellik eklenecek)." })}>Filtreleri Sıfırla</Button>
           </div>
         </CardContent>
       </Card>
@@ -249,7 +249,7 @@ export default function TasksPage() {
           <Button onClick={fetchPageData} variant="outline" className="mt-4">Tekrar Dene</Button>
         </div>
       )}
-      
+
       {!isLoading && !error && tasks.length === 0 && (
         <p className="col-span-full text-center text-muted-foreground py-8">
           Gösterilecek görev bulunmamaktadır. Sağ üst köşedeki 'Yeni Görev Oluştur' butonu ile ilk görevinizi ekleyebilirsiniz.
@@ -277,7 +277,7 @@ export default function TasksPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                 <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenDetailDialog(task)}>
+ <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenDetailDialog(task)}>
                    <Eye className="mr-2 h-4 w-4" /> Detayları Gör
                  </Button>
               </CardFooter>

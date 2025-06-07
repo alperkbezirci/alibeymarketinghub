@@ -55,7 +55,6 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
   const [selectedFileName, setSelectedFileName] = useState<string | null>(initialData?.file?.name || null);
   const [rateEurToCurrency, setRateEurToCurrency] = useState<number | string>(initialData?.exchangeRateToEur ? (1 / initialData.exchangeRateToEur) : "");
   const [calculatedEurAmount, setCalculatedEurAmount] = useState<number | null>(initialData?.amountInEur || null);
-  
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -91,8 +90,7 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
   }, [amount, currency, rateEurToCurrency]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!invoiceNumber || !invoiceDate || !companyName || !amount) {
+ if (!invoiceNumber || !invoiceDate || !companyName || !amount) {
       toast({ title: "Eksik Bilgi", description: "Lütfen fatura numarası, tarih, şirket adı ve tutar alanlarını doldurun.", variant: "destructive" });
       return;
     }
@@ -106,7 +104,6 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
       return;
     }
 
-    let finalAmountInEur = numericAmount;
     let finalExchangeRateForToast: number | null = null;
 
     if (currency !== 'EUR') {
@@ -115,10 +112,8 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
         toast({ title: "Eksik Bilgi", description: "Lütfen geçerli bir döviz kuru girin (1 EUR = X " + currency +").", variant: "destructive" });
         return;
       }
-      finalAmountInEur = numericAmount / numericRateEurToCurrency;
       finalExchangeRateForToast = 1 / numericRateEurToCurrency; // Store rate as 1 Original = X EUR
     } else {
-      finalAmountInEur = numericAmount; // If EUR, amount is already in EUR
     }
 
     if (calculatedEurAmount === null || isNaN(calculatedEurAmount)) {
@@ -235,7 +230,7 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
             disabled={isSaving}
           />
            <p className="text-xs text-muted-foreground mt-1">
-            1 EUR'nun kaç {currency} yaptığını giriniz.
+ 1 EUR&apos;nun kaç {currency} yaptığını giriniz.
           </p>
         </div>
       )}

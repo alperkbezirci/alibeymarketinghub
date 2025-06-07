@@ -3,7 +3,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-// Link importu kaldırıldı.
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2, AlertTriangle, Eye } from "lucide-react"; // Eye ikonu eklendi
@@ -15,8 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HOTEL_NAMES, PROJECT_STATUSES } from "@/lib/constants";
-import { useToast } from "@/hooks/use-toast";
-import { getProjects, addProject, type Project, type ProjectFormData, type ProjectInputDataForService } from "@/services/project-service";
+import { type Toast, useToast } from "@/hooks/use-toast";
+import { getProjects, addProject, type Project, type ProjectFormData, type ProjectInputDataForService, ProjectError } from "@/services/project-service";
 import { getAllUsers, type User as AppUser } from "@/services/user-service"; // User import edildi
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -26,12 +25,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/auth-context'; // Auth context import
 
 export default function ProjectsPage() {
-  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false); 
-  const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<Project | null>(null); 
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState<boolean>(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState<boolean>(false);
+  const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<Project | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [usersList, setUsersList] = useState<AppUser[]>([]); 
+  const [usersList, setUsersList] = useState<AppUser[]>([]);
 
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true); 
@@ -45,12 +44,12 @@ export default function ProjectsPage() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  const fetchPageData = useCallback(async () => {
+  const fetchPageData = useCallback(async (toast: Toast) => {
     setIsLoadingProjects(true);
     setIsLoadingUsers(true);
     setError(null);
     try {
-      const projectsPromise = getProjects();
+      const projectsPromise = getProjects(isAdminOrMarketingManager); // Pass role for potential filtering
       const usersPromise = getAllUsers();
       
       const [fetchedProjects, fetchedUsers] = await Promise.all([projectsPromise, usersPromise]);
@@ -58,12 +57,15 @@ export default function ProjectsPage() {
       setProjects(fetchedProjects);
       setUsersList(fetchedUsers as AppUser[]); // Ensure type compatibility for usersList
     } catch (err: any) {
-      setError(err.message || "Projeler veya kullanıcılar yüklenirken bir hata oluştu.");
-      toast({ title: "Hata", description: err.message, variant: "destructive" });
+      const message = err instanceof ProjectError ? err.message : "Projeler veya kullanıcılar yüklenirken bir hata oluştu.";
+      setError(message);
+      toast({ title: "Hata", description: message, variant: "destructive" });
     } finally {
       setIsLoadingProjects(false);
       setIsLoadingUsers(false);
     }
+    // Add toast as a dependency here
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast]);
 
   useEffect(() => {
@@ -71,7 +73,7 @@ export default function ProjectsPage() {
   }, [fetchPageData]);
 
   useEffect(() => {
-    const action = searchParams.get('action');
+    const action: string | null = searchParams.get('action');
     if (action === 'new') {
       setIsFormDialogOpen(true);
       router.replace(pathname, { scroll: false });
@@ -87,7 +89,7 @@ export default function ProjectsPage() {
       if (formData.projectFile) {
         const file = formData.projectFile;
         const uniqueFileName = `${uuidv4()}-${file.name}`;
-        const filePath = `project-files/${uniqueFileName}`; 
+        const filePath = `project-files/${uniqueFileName}`;
         
         const clientSideStorage = getStorage();
         const fileRef = storageRef(clientSideStorage, filePath);
@@ -109,10 +111,11 @@ export default function ProjectsPage() {
         description: formData.description,
         projectFileURL: projectFileURL,
         projectStoragePath: projectStoragePath,
+        createdBy: currentUser?.uid || 'unknown', // Add createdBy field
       };
       
       await addProject(projectDataForService);
-      toast({ title: "Başarılı", description: `${formData.projectName} adlı proje oluşturuldu.` });
+      toast({ title: "Başarılı", description: `'${formData.projectName}' adlı proje oluşturuldu.` });
       setIsFormDialogOpen(false);
       fetchPageData(); 
     } catch (err: any)      {
@@ -129,7 +132,7 @@ export default function ProjectsPage() {
 
   const formatDateDisplay = (dateInput: string | undefined | null, dateFormat: string = 'dd/MM/yyyy') => {
     if (!dateInput) return 'N/A';
-    try {
+    try { 
       return format(new Date(dateInput), dateFormat, { locale: tr });
     } catch (e) {
       console.error("Error formatting date:", dateInput, e);
@@ -227,7 +230,7 @@ export default function ProjectsPage() {
       {!isLoading && !error && projects.length > 0 && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
-            <Card key={project.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <Card key={project.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer" onClick={() => handleOpenDetailDialog(project)}>
               <CardHeader>
                 <CardTitle className="font-headline text-xl">{project.projectName}</CardTitle>
                 <CardDescription>{project.hotel}</CardDescription>
@@ -240,9 +243,9 @@ export default function ProjectsPage() {
                   <Badge variant={project.status === "Tamamlandı" ? "default" : "secondary"}>{project.status}</Badge>
                 </div>
               </CardContent>
-              <CardFooter>
-                <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenDetailDialog(project)}>
-                   <Eye className="mr-2 h-4 w-4" /> Detayları Gör
+              <CardFooter className="flex justify-end">
+                <Button variant="outline" size="sm">
+                  <Eye className="mr-2 h-4 w-4" /> Detayları Gör
                  </Button>
               </CardFooter>
             </Card>

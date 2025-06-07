@@ -61,7 +61,7 @@ export function ProjectForm({ onSave, initialData, onClose, isSaving }: ProjectF
       const fetchedUsers = await getAllUsers();
       setUsersList(fetchedUsers);
     } catch (err: any) {
-      setUsersError(err.message || "Kullanıcılar yüklenirken bir hata oluştu.");
+ setUsersError(err instanceof Error ? err.message : "Kullanıcılar yüklenirken bir hata oluştu.");
       toast({ title: "Hata", description: err.message || "Kullanıcılar yüklenirken bir hata oluştu.", variant: "destructive" });
     } finally {
       setIsLoadingUsers(false);

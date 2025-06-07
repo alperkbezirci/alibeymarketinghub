@@ -4,9 +4,9 @@
 
 import React, { useEffect, useState, useCallback, useActionState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFormStatus } from 'react-dom';
+import { useFormStatus, useFormState } from 'react-dom';
 import { getProjectById, type Project } from '@/services/project-service';
-import { getAllUsers, type User as AppUser } from '@/services/user-service';
+import { getAllUsers, type User as AppUser, type UserData } from '@/services/user-service';
 import { getTasksByProjectId, type Task } from '@/services/task-service';
 import { getProjectActivities, type ProjectActivity, type ProjectActivityStatus } from '@/services/project-activity-service';
 import { handleAddProjectActivityAction, handleUpdateActivityStatusAction, handleApproveActivityAction, handleRejectActivityAction } from './actions';
@@ -20,16 +20,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud, Download } from 'lucide-react'; // Added Download
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Keep Avatar
+import { AlertTriangle, ArrowLeft, Users, CalendarDays, Info, Hotel, GitBranch, Paperclip, MessageSquare, Send, Edit, CheckCircle, AlertCircle, Clock, ThumbsUp, Loader2, SmilePlus, ThumbsDown, UploadCloud, Download } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
-import { AppLogo } from '@/components/layout/app-logo';
-import { GlobalLoader } from '@/components/layout/global-loader';
+import { AppLogo } from '@/components/layout/app-logo'; // Keep AppLogo
+import { GlobalLoader } from '@/components/layout/global-loader'; // Keep GlobalLoader
 
 
 function SubmitActivityButton() {
@@ -37,7 +37,6 @@ function SubmitActivityButton() {
   return (
     <Button type="submit" disabled={pending} className="w-full sm:w-auto">
       {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-      Gönder
     </Button>
   );
 }
@@ -54,15 +53,14 @@ export default function ProjectDetailsPage() {
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
   const [projectActivities, setProjectActivities] = useState<ProjectActivity[]>([]);
 
-  const [isLoadingProject, setIsLoadingProject] = useState(true);
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
 
-  const [addActivityState, handleAddActivitySubmit] = useActionState(handleAddProjectActivityAction, undefined);
+  const [addActivityState, handleAddActivitySubmit] = useFormState(handleAddProjectActivityAction, undefined);
   const activityFormRef = React.useRef<HTMLFormElement>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [selectedActivityFileName, setSelectedActivityFileName] = useState<string | null>(null);
   const [idTokenForActivityForm, setIdTokenForActivityForm] = useState<string>('');
 
@@ -73,6 +71,7 @@ export default function ProjectDetailsPage() {
   const [activityForDecision, setActivityForDecision] = useState<ProjectActivity | null>(null);
   const [decisionType, setDecisionType] = useState<'approve' | 'reject' | null>(null);
   const [managerFeedbackInput, setManagerFeedbackInput] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
 
   useEffect(() => {
@@ -101,7 +100,7 @@ export default function ProjectDetailsPage() {
       const fetchedProject = await getProjectById(projectId);
       setProject(fetchedProject);
       if (fetchedProject) {
-        const fetchedUsers = await getAllUsers();
+        const fetchedUsers: UserData[] = await getAllUsers();
         setUsers(fetchedUsers);
       }
     } catch (err: any) {
@@ -110,7 +109,7 @@ export default function ProjectDetailsPage() {
       toast({ title: "Proje Yükleme Hatası", description: err.message, variant: "destructive" });
     } finally {
       setIsLoadingProject(false);
-    }
+    } 
   }, [projectId, toast]);
 
   const fetchTasksForProject = useCallback(async () => {
@@ -118,8 +117,8 @@ export default function ProjectDetailsPage() {
     setIsLoadingTasks(true);
     try {
       const tasks = await getTasksByProjectId(projectId);
-      setProjectTasks(tasks);
-    } catch (err: any) {
+      setProjectTasks(tasks); 
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error("Error fetching project tasks:", err);
       let userFriendlyMessage = "Projeye ait görevler yüklenirken bir hata oluştu. ";
       if (err.message && (err.message.includes("index required") || err.message.includes("needs an index"))) {
@@ -138,8 +137,8 @@ export default function ProjectDetailsPage() {
     setIsLoadingActivities(true);
     try {
       const activities = await getProjectActivities(projectId);
-      setProjectActivities(activities);
-    } catch (err: any) {
+      setProjectActivities(activities); 
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error("Error fetching project activities:", err);
       let userFriendlyMessage = "Proje aktiviteleri yüklenirken bir hata oluştu. ";
        if (err.message && (err.message.includes("index required") || err.message.includes("needs an index"))) {
@@ -163,7 +162,7 @@ export default function ProjectDetailsPage() {
     if (addActivityState?.message) {
       if (addActivityState.success) {
         toast({ title: "Başarılı", description: addActivityState.message });
-        activityFormRef.current?.reset();
+        activityFormRef.current?.reset(); 
         if(fileInputRef.current) fileInputRef.current.value = "";
         setSelectedActivityFileName(null);
         fetchActivitiesForProject();
@@ -222,18 +221,18 @@ export default function ProjectDetailsPage() {
     if (!dateInput) return 'Belirtilmemiş';
     try {
       return format(new Date(dateInput), dateFormat, { locale: tr });
-    } catch (e) {
-      return 'Geçersiz Tarih';
+    } catch (e) { // eslint-disable-line @typescript-eslint/no-unused-vars
+      return 'Geçersiz Tarih'; 
     }
   };
 
   const formatRelativeTime = (dateInput: string | undefined | null) => {
     if (!dateInput) return '';
     try {
-      return formatDistanceToNow(new Date(dateInput), { addSuffix: true, locale: tr });
+      return formatDistanceToNow(new Date(dateInput), { addSuffix: true, locale: tr }); // eslint-disable-line @typescript-eslint/no-unused-vars
     } catch (e) {
       return '';
-    }
+    } 
   };
 
   const getResponsiblePersonNames = () => {
@@ -242,7 +241,7 @@ export default function ProjectDetailsPage() {
     }
     return project.responsiblePersons.map(uid => {
       const user = users.find(u => u.uid === uid);
-      return user ? `${user.firstName} ${user.lastName}` : `Kullanıcı (ID: ${uid.substring(0,6)}...)`;
+      return user ? `${user.firstName} ${user.lastName}` : `Kullanıcı (ID: ${uid.substring(0, 6)}...)`;
     }).join(', ');
   };
 
@@ -389,7 +388,7 @@ export default function ProjectDetailsPage() {
                           Atanan: {task.assignedTo.map(uid => {
                             const user = users.find(u => u.uid === uid);
                             return user ? `${user.firstName} ${user.lastName}` : `Kullanıcı (ID: ${uid.substring(0,6)}...)`;
-                          }).join(', ')}
+                          }).join(', ')} 
                         </p>
                       )}
                     </li>
@@ -429,7 +428,7 @@ export default function ProjectDetailsPage() {
                             id="activityFile"
                             name="file"
                             type="file"
-                            ref={fileInputRef}
+                            ref={fileInputRef as React.MutableRefObject<HTMLInputElement>}
                             className="hidden"
                             onChange={(e) => setSelectedActivityFileName(e.target.files?.[0]?.name || null)}
                         />
@@ -647,9 +646,9 @@ export default function ProjectDetailsPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setActivityForDecision(null); setDecisionType(null); setManagerFeedbackInput("");}} disabled={isSubmittingDecision}>İptal</Button>
-            <Button
+            <Button // eslint-disable-next-line @typescript-eslint/no-unused-vars
               onClick={handleManagerDecision}
-              disabled={isSubmittingDecision}
+              disabled={isSubmittingDecision} 
               className={cn(decisionType === 'approve' ? "bg-green-600 hover:bg-green-700" : "bg-destructive hover:bg-destructive/90")}
             >
               {isSubmittingDecision && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

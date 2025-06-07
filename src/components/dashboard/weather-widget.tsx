@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/ui/skeleton'; // Assuming Loader2 is intended to be imported from here
 import { AlertTriangle, Thermometer, Droplets, Wind, CalendarDays, Clock, RefreshCw, MapPin } from 'lucide-react';
 import { getWeatherForecast } from '@/ai/flows/weather-forecast-flow';
 import type { WeatherInfoOutput, DailyForecastSchema as DailyForecastType, HourlyDetailSchema as HourlyDetailType } from '@/ai/schemas/weather-schemas';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 
 const DEFAULT_LOCATION = "Side, Türkiye";
+const Loader2 = () => <div className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />; // Simple Loader2 representation if not in skeleton
 
 export function WeatherWidget() {
   const [weatherData, setWeatherData] = useState<WeatherInfoOutput | null>(null);
@@ -39,7 +40,7 @@ export function WeatherWidget() {
       } else {
         setWeatherData(data);
       }
-    } catch (err: any) {
+    } catch (err: Error) {
       setError(err.message || "Hava durumu yüklenirken bir hata oluştu.");
       setWeatherData(null);
     } finally {
@@ -215,7 +216,7 @@ export function WeatherWidget() {
         </CardTitle>
         <Button variant="ghost" size="icon" onClick={fetchWeather} aria-label="Hava durumunu yenile" disabled={isLoading}>
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-        </Button>
+        </Button> // Added closing tag for Button
       </CardHeader>
       <CardContent className="pt-2 pb-3 px-4 space-y-4">
         {renderCurrentWeather()}

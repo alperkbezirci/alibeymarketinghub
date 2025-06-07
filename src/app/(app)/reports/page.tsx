@@ -4,8 +4,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart as LucideLineChart, BarChart as BarChartIcon, PieChart as LucidePieChart } from "lucide-react";
-import { BarChart, Bar, Line, Pie, PieChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { LineChart as LucideLineChart } from "lucide-react";
 
 // TODO: Define proper types for chart data
 // Data will be fetched and processed from Firebase
@@ -31,7 +30,7 @@ export default function ReportsPage() {
         <CardContent className="space-y-8">
           <div>
             <h3 className="text-lg font-semibold mb-2">Aylık Görev Tamamlama Oranları</h3>
-            {taskCompletionData.length > 0 ? (
+            {/* {taskCompletionData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={taskCompletionData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -43,11 +42,11 @@ export default function ReportsPage() {
                   <Bar dataKey="overdue" name="Geciken Görevler" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : (
+            ) : ( */}
               <p className="text-sm text-muted-foreground text-center py-8">Görev tamamlama verisi bulunmamaktadır. İlgili veriler sisteme eklendikçe grafikler burada görünecektir.</p>
-            )}
+            {/* )} */}
           </div>
-          
+
           <div>
             <h3 className="text-lg font-semibold mb-2">Katıldığım Projelerin Durumu</h3>
             {projectStatusData.length > 0 ? (
@@ -69,11 +68,11 @@ export default function ReportsPage() {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend wrapperStyle={{fontSize: "12px"}} />
+                  <Legend wrapperStyle={{ fontSize: "12px" }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-               <p className="text-sm text-muted-foreground text-center py-8">Proje durum verisi bulunmamaktadır. İlgili veriler sisteme eklendikçe grafikler burada görünecektir.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Proje durum verisi bulunmamaktadır. İlgili veriler sisteme eklendikçe grafikler burada görünecektir.</p>
             )}
           </div>
         </CardContent>

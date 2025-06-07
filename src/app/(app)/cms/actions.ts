@@ -49,7 +49,7 @@ async function checkAdminPrivilegesForAction(idToken?: string | null): Promise<b
     if (error instanceof Error) {
         errorMessage = error.message;
         if ('code' in error) {
-            errorCode = (error as any).code;
+            errorCode = (error as { code?: string }).code;
         }
     } else if (typeof error === 'string') {
         errorMessage = error;

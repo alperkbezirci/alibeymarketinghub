@@ -10,7 +10,6 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet" // SheetHeader, SheetTitle, SheetDescription might not be needed if using direct h2/p
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -209,9 +208,9 @@ const Sidebar = React.forwardRef<
             side={side}
           >
             {/* Visually hidden title and description for accessibility compliance */}
-            <div className="sr-only">
+            <SheetHeader className="sr-only">
               <h2 id={mobileSheetInternalTitleId}>Ana Mobil Menü</h2>
-              <p id={mobileSheetInternalDescriptionId}>Uygulamanın mobil ana navigasyon menüsü.</p>
+              <SheetDescription id={mobileSheetInternalDescriptionId}>Uygulamanın mobil ana navigasyon menüsü.</SheetDescription>
             </div>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>

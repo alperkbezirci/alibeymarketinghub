@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, type User } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { PlusCircle, Edit3, Trash2, Loader2, RefreshCw } from "lucide-react"; // UserCog kaldırıldı
+import { PlusCircle, Edit3, Trash2, Loader2, RefreshCw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { AddUserForm } from '@/components/user-management/add-user-form';
 import { EditUserForm } from '@/components/user-management/edit-user-form';
 import { handleDeleteUserAction } from './actions';
-import { USER_ROLES } from '@/lib/constants';
+import { USER_ROLES } from '@/lib/constants'; // UserCog kaldırıldı
 import { AppLogo } from '@/components/layout/app-logo'; // AppLogo import edildi
 
 
@@ -40,7 +40,7 @@ export default function UserManagementPage() {
     try {
       const fetchedUsers = await getAllUsers();
       setUsers(fetchedUsers);
-    } catch (error: any) {
+    } catch (error: Error) {
       setUsersError(error.message || "Kullanıcılar yüklenirken bir hata oluştu.");
       toast({ title: "Hata", description: error.message || "Kullanıcılar yüklenirken bir hata oluştu.", variant: "destructive" });
     } finally {
@@ -217,9 +217,9 @@ export default function UserManagementPage() {
             <AlertDialogTitle>Kullanıcıyı Silmek Üzeresiniz</AlertDialogTitle>
             <AlertDialogDescription>
               "{userToDelete?.firstName} {userToDelete?.lastName}" adlı kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem kullanıcının Firestore verilerini silecektir.
-              <br />
+              <br/>
               <strong className="text-destructive">Firebase Authentication kaydının silinmesi Admin SDK gerektirir ve bu arayüzden tam olarak yapılamayabilir.</strong>
-              <br />
+              <br/>
               Bu işlem geri alınamaz.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -3,9 +3,7 @@ import React from 'react';
 
 interface AppLogoProps extends React.SVGProps<SVGSVGElement> {
   // You can add specific props for the logo if needed
-}
-
-export function AppLogo({ className, ...props }: AppLogoProps) {
+} export function AppLogo({ className, ...props }: AppLogoProps) {
   return (
     <svg
       id="katman_1_icon" // Changed ID to avoid conflict if both are on the same page somewhere else

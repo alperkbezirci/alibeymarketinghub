@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2, Briefcase, Hotel, CalendarDays, Tag, UserCheck, ListChecks, Loader2 } from "lucide-react";
+import { Trash2, Briefcase, Hotel, CalendarDays, Tag, UserCheck, ListChecks } from "lucide-react";
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import type { Task } from '@/services/task-service';
@@ -45,7 +45,7 @@ export function TaskDetailDialog({
     if (!dateInput) return 'Belirtilmemiş';
     try {
       return format(new Date(dateInput), dateFormat, { locale: tr });
-    } catch (e) {
+    } catch (_e) {
       return 'Geçersiz Tarih';
     }
   };
@@ -159,7 +159,6 @@ export function TaskDetailDialog({
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>İptal</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Evet, Sil
               </AlertDialogAction>
             </AlertDialogFooter>

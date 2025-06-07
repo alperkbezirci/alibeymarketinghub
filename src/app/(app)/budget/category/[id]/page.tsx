@@ -11,7 +11,7 @@ import {Button} from "@/components/ui/button";
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ArrowLeft, AlertTriangle, LineChart, ListFilter, Edit2, Trash2, Loader2, Download } from "lucide-react";
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -110,8 +110,10 @@ export default function SpendingCategoryDetailPage() {
         if (invoice.invoiceDate && invoice.amountInEur) {
           try {
             const date = parseISO(invoice.invoiceDate);
-            const monthYearKey = format(date, 'yyyy-MM');
-            spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
+ if (isValid(date)) {
+ const monthYearKey = format(date, 'yyyy-MM');
+ spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
+ }
           } catch (_e: any) {
              console.warn(`Geçersiz fatura tarihi: ${invoice.invoiceDate} (ID: ${invoice.id})`);
           }
@@ -151,8 +153,10 @@ export default function SpendingCategoryDetailPage() {
             if (invoice.invoiceDate && invoice.amountInEur) {
             try {
                 const date = parseISO(invoice.invoiceDate);
-                const monthYearKey = format(date, 'yyyy-MM');
-                spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
+ if (isValid(date)) {
+ const monthYearKey = format(date, 'yyyy-MM');
+ spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
+ }
             } catch (_e: any) {
                 console.warn(`Geçersiz fatura tarihi: ${invoice.invoiceDate} (ID: ${invoice.id})`);
             }
@@ -331,7 +335,7 @@ export default function SpendingCategoryDetailPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Faturayı Silmek Üzeresiniz</AlertDialogTitle>
               <AlertDialogDescription>
-                &quot;{invoiceToDelete.invoiceNumber}&quot; numaralı, {invoiceToDelete.companyName} adına kesilmiş faturayı silmek istediğinizden emin misiniz?
+ &quot;{invoiceToDelete.invoiceNumber}&quot; numaralı, {invoiceToDelete.companyName} adına kesilmiş faturayı silmek istediğinizden emin misiniz?
                 Bu işlem geri alınamaz. Varsa, ilişkili dosya da Storage'dan silinecektir.
               </AlertDialogDescription>
             </AlertDialogHeader>

@@ -9,7 +9,7 @@ import { getProjectById, type Project } from '@/services/project-service';
 import { getAllUsers, type User as AppUser } from '@/services/user-service';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge'; // Import Badge
 import { Button } from "@/components/ui/button";
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, ArrowLeft, Edit, CalendarDays, Info, Hotel, Briefcase, UserCheck, Tag, ListChecks } from 'lucide-react';
@@ -60,8 +60,8 @@ export default function TaskDetailPage() {
       setError(err.message || `Görev (ID: ${taskId}) detayları yüklenirken bir hata oluştu.`);
       toast({ title: "Görev Yükleme Hatası", description: err.message, variant: "destructive" });
     } finally {
-      setIsLoadingTask(false);
-      setIsLoadingUsers(false); // Users are fetched regardless of project
+ setIsLoadingTask(false);
+ setIsLoadingUsers(false); // Users are fetched regardless of project
     }
   }, [taskId, toast]);
 
@@ -73,7 +73,7 @@ export default function TaskDetailPage() {
     if (!dateInput) return 'Belirtilmemiş';
     try {
       return format(new Date(dateInput), dateFormat, { locale: tr });
-    } catch (e) {
+    } catch (error) {
       return 'Geçersiz Tarih';
     }
   };

@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card";
 import { useAuth } from '@/contexts/auth-context';
 import { AppLogo } from '@/components/layout/app-logo'; 
 import { AppLogotype } from '@/components/layout/app-logotype';
@@ -16,7 +16,7 @@ import { GlobalLoader } from '@/components/layout/global-loader'; // GlobalLoade
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false); // Renamed from isLoading to avoid conflict
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
@@ -26,7 +26,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       // Navigation is handled by AuthProvider's useEffect
-    } catch (error: any) {
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error("Login page error catch:", error.message);
       let errorMessage = "Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.";
       if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
@@ -53,8 +53,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center space-y-4 pt-8">
-          <AppLogo className="h-16 w-auto text-primary mx-auto" /> 
-          <AppLogotype className="h-7 w-auto text-foreground mx-auto" /> 
+          <AppLogo className="h-16 w-auto text-primary mx-auto" />
+          <AppLogotype className="h-7 w-auto text-foreground mx-auto" />
           <CardDescription className="pt-2">Pazarlama Yönetim Platformuna Hoş Geldiniz</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -93,7 +93,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="text-center pb-8">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Ali Bey Hotels & Resorts. Tüm hakları saklıdır.
+            &copy; {new Date().getFullYear()} Ali Bey Hotels &amp; Resorts. T&uuml;m hakları saklıdır.
           </p>
         </CardFooter>
       </Card>

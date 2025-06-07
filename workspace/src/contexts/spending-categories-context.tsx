@@ -1,10 +1,10 @@
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               evet
+
 "use client";
 
 import React, { createContext, useState, useContext, useCallback, ReactNode, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  getSpendingCategories as fetchCategoriesFromDb, 
+import {
+  getSpendingCategories as fetchCategoriesFromDb,
   addSpendingCategory as addCategoryToDb,
   updateSpendingCategory as updateCategoryInDb,
   // deleteSpendingCategory as deleteCategoryFromDb, // For future use
@@ -36,9 +36,13 @@ export function SpendingCategoriesProvider({ children }: { children: ReactNode }
     try {
       const dbCategories = await fetchCategoriesFromDb();
       setCategories(dbCategories);
-    } catch (err: Error) {
-      setError(err.message || "Kategoriler yüklenirken bir hata oluştu.");
-      toast({ title: "Hata", description: err.message || "Kategoriler yüklenirken bir hata oluştu.", variant: "destructive" });
+    } catch (err: unknown) {
+      let message = "Kategoriler yüklenirken bir hata oluştu.";
+      if (err instanceof Error) {
+        message = err.message;
+      }
+      setError(message);
+      toast({ title: "Hata", description: message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -65,9 +69,13 @@ export function SpendingCategoriesProvider({ children }: { children: ReactNode }
     try {
       const newCategory = await addCategoryToDb(trimmedName, limit);
       setCategories(prevCategories => [...prevCategories, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
-      toast({ title: "Başarılı", description: `\"${trimmedName}\" kategorisi eklendi.` });
-    } catch (err: Error) {
-      toast({ title: "Hata", description: err.message || "Kategori eklenirken bir hata oluştu.", variant: "destructive" });
+      toast({ title: "Başarılı", description: `"${trimmedName}" kategorisi eklendi.` });
+    } catch (err: unknown) {
+      let message = "Kategori eklenirken bir hata oluştu.";
+      if (err instanceof Error) {
+        message = err.message;
+      }
+      toast({ title: "Hata", description: message, variant: "destructive" });
     }
   }, [categories, toast]);
 
@@ -92,8 +100,12 @@ export function SpendingCategoriesProvider({ children }: { children: ReactNode }
         prevCategories.map(cat => (cat.id === id ? { ...cat, name: trimmedName, limit } : cat)).sort((a, b) => a.name.localeCompare(b.name))
       );
       toast({ title: "Başarılı", description: `"${trimmedName}" kategorisi güncellendi.` });
-    } catch (err: any) {
-      toast({ title: "Hata", description: err.message || "Kategori güncellenirken bir hata oluştu.", variant: "destructive" });
+    } catch (err: unknown) {
+      let message = "Kategori güncellenirken bir hata oluştu.";
+      if (err instanceof Error) {
+        message = err.message;
+      }
+      toast({ title: "Hata", description: message, variant: "destructive" });
     }
   }, [categories, toast]);
 

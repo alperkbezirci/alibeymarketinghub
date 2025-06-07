@@ -15,7 +15,7 @@ import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import type { Task, TaskInputData } from '@/services/task-service';
+import type { Task, TaskInputData } from "@/services/task-service";
 import { getProjects, type Project } from '@/services/project-service';
 
 interface TaskFormProps {
@@ -27,7 +27,7 @@ interface TaskFormProps {
 
 const NO_PROJECT_VALUE = "__none__"; 
 const LOADING_PROJECTS_PLACEHOLDER_VALUE = "__loading_projects_placeholder__";
-const PROJECTS_ERROR_PLACEHOLDER_VALUE = "__projects_error_placeholder__";
+const PROJECTS_ERROR_PLACEHOLDER_VALUE = "__projects_error_placeholder__"; // Keep this for potential future use or if directly used in JSX
 const NO_PROJECTS_PLACEHOLDER_VALUE = "__no_projects_found_placeholder__";
 
 
@@ -36,7 +36,7 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
   const [selectedProject, setSelectedProject] = useState(initialData?.project || NO_PROJECT_VALUE);
   const [hotel, setHotel] = useState(initialData?.hotel || (HOTEL_NAMES.length > 0 ? HOTEL_NAMES[0] : ""));
   const [status, setStatus] = useState(initialData?.status || TASK_STATUSES[0]);
-  const [priority, setPriority] = useState(initialData?.priority || TASK_PRIORITIES[1]); 
+  const [priority, setPriority] = useState(initialData?.priority || TASK_PRIORITIES[1]);
   const [dueDate, setDueDate] = useState<Date | undefined>(initialData?.dueDate ? new Date(initialData.dueDate) : undefined);
   const [assignedTo, setAssignedTo] = useState(initialData?.assignedTo || ""); 
   const [description, setDescription] = useState(initialData?.description || "");
@@ -52,7 +52,7 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
     setProjectsError(null);
     try {
       const fetchedProjects = await getProjects();
-      setProjectsList(fetchedProjects as Project[]);
+      setProjectsList(fetchedProjects); // Removed 'as Project[]'
     } catch (err: any) {
       setProjectsError(err.message || "Projeler yüklenirken bir hata oluştu.");
       console.error("Error fetching projects for task form:", err.message);
@@ -60,7 +60,7 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
       setIsLoadingProjects(false);
     }
   }, []);
-
+  
   useEffect(() => {
     fetchProjectsForSelect();
   }, [fetchProjectsForSelect]);
@@ -78,7 +78,7 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
       hotel,
       status,
       priority,
-      dueDate, 
+      dueDate,
       assignedTo: typeof assignedTo === 'string' && assignedTo.trim() !== '' ? assignedTo.split(',').map(s => s.trim()) : (Array.isArray(assignedTo) ? assignedTo : []),
       description,
     };
@@ -91,7 +91,7 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
         <Label htmlFor="taskName">Görev Adı <span className="text-destructive">*</span></Label>
         <Input id="taskName" value={taskName} onChange={(e) => setTaskName(e.target.value)} required disabled={isSaving}/>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="project">İlgili Proje</Label>

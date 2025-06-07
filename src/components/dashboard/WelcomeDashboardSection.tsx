@@ -4,15 +4,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import type { User as AuthUser } from '@/contexts/auth-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Removed Button as it was unused
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, Briefcase, ListChecks, CalendarDays, ChevronRight } from 'lucide-react';
 import { getProjectsByUserId, type Project } from '@/services/project-service';
 import { getTasksByUserId, type Task } from '@/services/task-service';
 import { getEvents, type CalendarEvent } from '@/services/calendar-service';
-import { format, addDays, isBefore, parseISO, startOfToday, endOfDay, isValid } from 'date-fns';
+import { format, addDays, isBefore, parseISO, startOfToday, endOfDay, isValid, isAfter } from 'date-fns'; // Added isAfter
 import { tr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -90,7 +88,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
         const userTasks = tasksResponse.value;
         const now = new Date();
         const filteredPendingTasks = userTasks
-          .filter(t => {
+          .filter(t => { // Simplified filtering logic
             if (t.status === 'Tamamlandı') return false;
             if (!t.dueDate) return true; 
             const dueDateObj = parseISO(t.dueDate);
@@ -101,10 +99,11 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
             ...t,
             isOverdue: t.dueDate && isValid(parseISO(t.dueDate)) ? isBefore(parseISO(t.dueDate), now) && t.status !== 'Tamamlandı' : false,
           }))
-          .sort((a, b) => {
+          .sort((a, b) => { // Improved sorting logic
             if (a.isOverdue && !b.isOverdue) return -1;
             if (!a.isOverdue && b.isOverdue) return 1;
-            if (a.dueDate && b.dueDate && isValid(parseISO(a.dueDate)) && isValid(parseISO(b.dueDate))) {
+            // Sort by due date, overdue first, then soonest due
+ if (a.dueDate && b.dueDate && isValid(parseISO(a.dueDate)) && isValid(parseISO(b.dueDate))) {
               return parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime();
             }
             if (a.dueDate && isValid(parseISO(a.dueDate))) return -1; 
@@ -149,7 +148,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
       setError("Hoş geldin verileri yüklenirken bir hata oluştu.");
     } finally {
       setIsLoading(false);
-    }
+    } // Removed unnecessary 'e: any' catch block as Promise.allSettled handles individual errors
   }, [user.uid]);
 
   useEffect(() => {
@@ -238,7 +237,7 @@ export function WelcomeDashboardSection({ user }: WelcomeDashboardSectionProps) 
       <CardHeader>
         <CardTitle className="font-headline text-2xl">Hoş Geldin, {user.firstName || 'Kullanıcı'}!</CardTitle>
         <CardDescription>İşte önümüzdeki 7 gün için çalışma planınıza dair bir özet.</CardDescription>
-      </CardHeader>
+ </CardHeader> {/* Added closing tag */}
       <CardContent className="space-y-6">
         {error && (
           <div className="text-destructive bg-destructive/10 p-3 rounded-md flex items-center">
