@@ -43,7 +43,7 @@ async function verifyIdTokenAndGetUserDetails(idToken: string): Promise<{ uid: s
     if (error instanceof Error) {
         errorMessage = error.message;
         if ('code' in error) {
-            errorCode = (error as { code?: string }).code;
+ errorCode = (error as { code: string }).code;
         }
     } else if (typeof error === 'string') {
         errorMessage = error;
@@ -83,9 +83,10 @@ async function checkManagerOrAdminPrivileges(idToken?: string | null): Promise<b
         let errorMessage = "Bilinmeyen bir yetki kontrol hatası oluştu";
         let errorCode: string | undefined;
         if (error instanceof Error) {
-            errorMessage = error.message;
-            if ('code' in error) {
-                errorCode = (error as { code?: string }).code;
+ errorMessage = error.message;
+      // Safely check for 'code' property on the error object
+            if (typeof error === 'object' && error !== null && 'code' in error) {
+                errorCode = error.code as string;
             }
         } else if (typeof error === 'string') {
             errorMessage = error;
@@ -168,13 +169,17 @@ export async function handleAddProjectActivityAction(
       newActivityId = preliminaryActivity.id;
       console.log(`[Action Log - handleAddProjectActivityAction] Preliminary activity document created with ID: ${newActivityId}`);
     } catch (error: unknown) {
-        let errorMessage = "Bilinmeyen bir aktivite kaydı hatası oluştu";
-        if (error instanceof Error) {
-            errorMessage = error.message;
-        } else if (typeof error === 'string') {
-            errorMessage = error;
+      let errorMessage = "Bilinmeyen bir aktivite kaydı hatası oluştu";
+      let errorCode: string | undefined;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if ('code' in error) {
+          errorCode = error.code as string;
         }
-      console.error("[Action Log - handleAddProjectActivityAction] Error creating preliminary activity document in Firestore (via service):", errorMessage, error);
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      console.error("[Action Log - handleAddProjectActivityAction] Error creating preliminary activity document in Firestore (via service):", errorMessage, errorCode ? `(Code: ${errorCode})` : '', error);
       return { success: false, message: `Aktivite ön kaydı Firestore'a yazılırken bir hata oluştu: ${errorMessage}. Lütfen sunucu loglarını kontrol edin.` };
     }
 
@@ -218,7 +223,9 @@ export async function handleAddProjectActivityAction(
         let errorCode: string | undefined;
         if (uploadError instanceof Error) {
             errorMessage = uploadError.message;
-            if('code' in uploadError) errorCode = (uploadError as any).code;
+            if ('code' in uploadError) {
+              errorCode = (uploadError as { code: string }).code;
+            }
         } else if (typeof uploadError === 'string') { // This check might not be strictly necessary if only Error instances are expected
             errorMessage = uploadError;
         }
@@ -241,10 +248,14 @@ export async function handleAddProjectActivityAction(
       console.error("[Action Log - handleAddProjectActivityAction] CRITICAL UNHANDLED EXCEPTION in main action logic.");
       let simpleErrorMessage = "Sunucu tarafında aktivite oluşturulurken kritik ve beklenmedik bir hata oluştu. Lütfen sunucu loglarını detaylı bir şekilde kontrol edin.";
       if (e instanceof Error) {
-        console.error("Error Name:", e.name);
-        console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
-        console.error("Error Stack:", e.stack);
+ console.error("Error Name:", e.name);
+ console.error("Error Message:", e.message);
+        let errorCode: string | undefined;
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
+ errorCode = e.code; // Safely access 'code' property if it exists
+ console.error("Error Code:", errorCode);
+ }
+ console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Aktivite oluşturulurken sunucu hatası: ${e.message.substring(0, 100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
       } else if (typeof e === 'string') {
         simpleErrorMessage = e;
@@ -308,9 +319,13 @@ export async function handleUpdateActivityStatusAction(
     console.error(`[Action Log - handleUpdateActivityStatusAction] CRITICAL UNHANDLED EXCEPTION while updating activity ${activityId}:`);
     let simpleErrorMessage = "Aktivite durumu güncellenirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
     if (e instanceof Error) {
-        console.error("Error Name:", e.name);
-        console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
+ console.error("Error Name:", e.name);
+ console.error("Error Message:", e.message);
+ let errorCode: string | undefined;
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
+ errorCode = e.code; // Safely access 'code' property if it exists
+ console.error("Error Code:", errorCode);
+    }
         console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Aktivite durumu güncellenirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
     } else if (typeof e === 'string') {
@@ -361,9 +376,13 @@ export async function handleApproveActivityAction(
     let simpleErrorMessage = "Aktivite onaylanırken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
     if (e instanceof Error) {
         console.error("Error Name:", e.name);
-        console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
-        console.error("Error Stack:", e.stack);
+ console.error("Error Message:", e.message);
+        let errorCode: string | undefined;
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
+ errorCode = e.code; // Safely access 'code' property if it exists
+ console.error("Error Code:", errorCode);
+    }
+ console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Aktivite onaylanırken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
     } else if (typeof e === 'string') {
         simpleErrorMessage = e;
@@ -412,9 +431,13 @@ export async function handleRejectActivityAction(
     console.error(`[Action Log - handleRejectActivityAction] CRITICAL UNHANDLED EXCEPTION while rejecting activity ${activityId}:`);
     let simpleErrorMessage = "Aktivite reddedilirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
      if (e instanceof Error) {
-        console.error("Error Name:", e.name);
-        console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
+ console.error("Error Name:", e.name);
+ console.error("Error Message:", e.message);
+ let errorCode: string | undefined;
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
+ errorCode = e.code; // Safely access 'code' property if it exists
+ console.error("Error Code:", errorCode);
+    }
         console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Aktivite reddedilirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
     } else if (typeof e === 'string') {
@@ -511,8 +534,11 @@ export async function handleUpdateProjectAction(
       let errorMessage = "Bilinmeyen bir mevcut proje bilgisi alma hatası";
       if (e instanceof Error) errorMessage = e.message;
       else if (typeof e === 'string') errorMessage = e;
-      console.error(`[Action Log - UpdateProject] Error fetching current project ${projectId}: ${errorMessage}`, e);
-      return { success: false, message: `Mevcut proje bilgileri alınırken hata: ${errorMessage}. Lütfen sunucu loglarını kontrol edin.` };
+      let errorCode: string | undefined;
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
+        errorCode = e.code;
+ }
+      return { success: false, message: `Mevcut proje bilgileri alınırken hata: ${errorMessage}${errorCode ? ` (Kod: ${errorCode})` : ''}. Lütfen sunucu loglarını kontrol edin.` };
     }
 
     let newFileURL: string | undefined | null = currentProject.projectFileURL; 
@@ -530,7 +556,11 @@ export async function handleUpdateProjectAction(
         let errorMessage = "Bilinmeyen bir eski dosya silme hatası";
         if (e instanceof Error) errorMessage = e.message;
         else if (typeof e === 'string') errorMessage = e;
-        console.warn(`[Action Log - UpdateProject] Error deleting old file ${currentProject.projectStoragePath}: ${errorMessage}. Continuing project update without file change.`);
+ let errorCode: string | undefined;
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
+ errorCode = e.code;
+        }
+ console.warn(`[Action Log - UpdateProject] Error deleting old file ${currentProject.projectStoragePath}: ${errorMessage}${errorCode ? ` (Kod: ${errorCode})` : ''}. Continuing project update without file change.`, e);
       }
     }
 
@@ -544,8 +574,11 @@ export async function handleUpdateProjectAction(
           let errorMessage = "Bilinmeyen bir eski dosya silme hatası (yeni yükleme öncesi)";
           if (e instanceof Error) errorMessage = e.message;
           else if (typeof e === 'string') errorMessage = e;
-          console.warn(`[Action Log - UpdateProject] Could not delete old file ${currentProject.projectStoragePath} before new upload: ${errorMessage}. New file will still be uploaded.`);
-        }
+ let errorCode: string | undefined; // Declare errorCode here
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') { // Explicit check
+            errorCode = e.code;
+          }
+ console.warn(`[Action Log - UpdateProject] Could not delete old file ${currentProject.projectStoragePath} before new upload: ${errorMessage}${errorCode ? ` (Kod: ${errorCode})` : ''}. New file will still be uploaded.`, e);
       }
 
       const uniqueFileName = `${Date.now()}-${projectFile.name.replace(/\s+/g, '_')}`;
@@ -565,8 +598,11 @@ export async function handleUpdateProjectAction(
         let errorMessage = "Bilinmeyen bir yeni proje dosyası yükleme hatası";
         if (e instanceof Error) errorMessage = e.message;
         else if (typeof e === 'string') errorMessage = e;
-        console.error(`[Action Log - UpdateProject] Error uploading new project file: ${errorMessage}`, e);
-        return { success: false, message: `Yeni proje dosyası yüklenirken hata: ${errorMessage}. Lütfen sunucu loglarını kontrol edin.` };
+ let errorCode: string | undefined;
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
+ errorCode = e.code;
+        }
+ return { success: false, message: `Yeni proje dosyası yüklenirken hata: ${errorMessage}${errorCode ? ` (Kod: ${errorCode})` : ''}. Lütfen sunucu loglarını kontrol edin.` };
       }
     }
 
@@ -586,9 +622,12 @@ export async function handleUpdateProjectAction(
     console.error("[Action Log - UpdateProject] CRITICAL UNHANDLED EXCEPTION in action.");
     let simpleErrorMessage = "Proje güncellenirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
     if (e instanceof Error) {
+ console.error("Error Stack:", e.stack);
         console.error("Error Name:", e.name);
-        console.error("Error Message:", e.message);
-        if('code' in e) console.error("Error Code:", (e as { code?: string }).code);
+ console.error("Error Message:", e.message);
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') { // Explicit check
+ console.error("Error Code:", e.code); // Access code here
+        }
         console.error("Error Stack:", e.stack);
         simpleErrorMessage = `Proje güncellenirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
     } else if (typeof e === 'string') {

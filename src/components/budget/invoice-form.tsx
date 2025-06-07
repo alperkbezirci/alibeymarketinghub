@@ -62,13 +62,13 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
     if (!initialData?.spendingCategoryName && !category && spendingCategoriesFromContext.length > 0 && !isLoadingCategories) {
       setCategory(spendingCategoriesFromContext[0].name);
     }
-  }, [initialData, category, spendingCategoriesFromContext, isLoadingCategories]);
+  }, [initialData, category, spendingCategoriesFromContext, isLoadingCategories, setCategory]);
 
   useEffect(() => {
     if (currency === 'EUR') {
       setRateEurToCurrency(""); // Clear rate if currency is EUR
     }
-  }, [currency]);
+  }, [currency, setRateEurToCurrency]);
 
   useEffect(() => {
     const localAmount = parseFloat(String(amount));
@@ -87,7 +87,7 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
         setCalculatedEurAmount(null);
       }
     }
-  }, [amount, currency, rateEurToCurrency]);
+  }, [amount, currency, rateEurToCurrency, setCalculatedEurAmount]);
 
   const handleSubmit = (e: React.FormEvent) => {
  if (!invoiceNumber || !invoiceDate || !companyName || !amount) {

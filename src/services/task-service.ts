@@ -1,4 +1,4 @@
-
+https://alibeyvlubhotels.com/manavgat/index.php
 // src/services/task-service.ts
 'use server';
 /**
@@ -14,7 +14,7 @@ const convertToISOString = (dateField: Timestamp | Date | string | undefined | n
   try {
     return new Date(dateField).toISOString();
   } catch (e) {
-    console.warn("Could not convert date field to ISO string:", dateField);
+    console.warn("Could not convert date field to ISO string:", dateField); // The variable 'e' is intentionally ignored here
     return typeof dateField === 'string' ? dateField : undefined;
   }
 };
@@ -70,10 +70,14 @@ export async function getTasks(): Promise<Task[]> {
       } as Task;
     });
     return taskList;
-  } catch (error: any) {
-    console.error("[SERVICE_ERROR] Original error in getTasks:", error); 
+  } catch (error: unknown) {
+    console.error("[SERVICE_ERROR] Original error in getTasks:", error);
     let userMessage = "Görevler alınırken bir hata oluştu.";
-    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+    // Safely access error properties
+ if (error instanceof Error && (error as any).code === 'failed-precondition' && error.message?.includes('index')) {
+        // Specific handling for Firestore index errors
+        // Cast to any to access the code property if necessary, but prefer type guards
+        const firestoreError = error as any; // Consider defining a more specific Firestore error type if available
         userMessage += " Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir: " + error.message;
     } else {
         userMessage += ` Detaylar için sunucu konsolunu kontrol edin: ${error.message}`;
@@ -137,15 +141,21 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
       } as Task;
     });
     return taskList;
-  } catch (error: any) {
-    console.error(`[SERVICE_ERROR] Original Firestore error in getTasksByProjectId for project ID ${projectId}:`, error); 
+  } catch (error: unknown) {
+    console.error(`[SERVICE_ERROR] Original Firestore error in getTasksByProjectId for project ID ${projectId}:`, error);
     let detailedMessage = `Projeye ait görevler alınırken bir hata oluştu (Proje ID: ${projectId}). `;
-    if (error.code === "failed-precondition" || (error.message && error.message.toLowerCase().includes("index required"))) {
-        detailedMessage += "Bu hata, Firestore'da bu sorgu için gerekli bir veritabanı indeksinin eksik olmasından kaynaklanmaktadır. ";
-        detailedMessage += "Lütfen SUNUCU KONSOLU loglarında veya tarayıcınızın GELİŞTİRİCİ KONSOLU'nda '[SERVICE_ERROR]' ile başlayan orijinal Firestore hata mesajını bulun. ";
-        detailedMessage += `Bu orijinal mesaj, eksik indeksi Firebase konsolunda oluşturmanız için bir BAĞLANTI içerecektir (${error.message}). İndeksi oluşturduktan sonra birkaç dakika beklemeniz gerekebilir.`;
+    if (error instanceof Error) {
+      // Check for Firestore specific error codes or messages
+      const firestoreError = error as any; // Use any temporarily to check for non-standard error properties like 'code'
+      if (firestoreError.code === "failed-precondition" || (error.message && error.message.toLowerCase().includes("index required"))) {
+          detailedMessage += "Bu hata, Firestore'da bu sorgu için gerekli bir veritabanı indeksinin eksik olmasından kaynaklanmaktadır. ";
+          detailedMessage += "Lütfen SUNUCU KONSOLU loglarında veya tarayıcınızın GELİŞTİRİCİ KONSOLU'ndaki '[SERVICE_ERROR]' ile başlayan orijinal Firestore hata mesajını bulun. ";
+          detailedMessage += `Bu orijinal mesaj, eksik indeksi Firebase konsolunda oluşturmanız için bir BAĞLANTI içerecektir (${error.message}). İndeksi oluşturduktan sonra birkaç dakika beklemeniz gerekebilir.`;
+      } else {
+          detailedMessage += `Lütfen daha fazla bilgi için SUNUCU KONSOLU loglarındaki veya tarayıcınızın GELİŞTİRİCİ KONSOLU'ndaki '[SERVICE_ERROR]' ile başlayan orijinal hata mesajını kontrol edin (${error.message}).`;
+      }
     } else {
-        detailedMessage += `Lütfen daha fazla bilgi için SUNUCU KONSOLU loglarındaki veya tarayıcınızın GELİŞTİRİCİ KONSOLU'ndaki '[SERVICE_ERROR]' ile başlayan orijinal hata mesajını kontrol edin (${error.message}).`;
+      detailedMessage += `Bilinmeyen bir hata oluştu. Detaylar için konsolu kontrol edin.`;
     }
     throw new Error(detailedMessage);
   }
@@ -156,7 +166,7 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
     // If taskData.project is undefined (meaning "__none__" was selected in form), save as empty string.
     const projectValueForFirestore = taskData.project === undefined ? '' : taskData.project;
 
-    const dataToSave: { [key: string]: any } = { 
+    const dataToSave: Omit<TaskInputData, 'dueDate' | 'assignedTo'> & { dueDate: Timestamp, assignedTo: string[], createdAt: any, updatedAt: any, turqualityTaskId?: string } = { 
       taskName: taskData.taskName,
       project: projectValueForFirestore, 
       hotel: taskData.hotel,
@@ -191,9 +201,12 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
       updatedAt: convertToISOString(newData?.updatedAt) || new Date().toISOString(), 
       turqualityTaskId: newData?.turqualityTaskId,
     };
-  } catch (error: any) {
-    console.error(`[SERVICE_ERROR] Original error in addTask:`, error); 
-    throw new Error(`Görev eklenirken bir hata oluştu. Detaylar için konsolu kontrol edin: ${error.message}`);
+  } catch (error: unknown) {
+    // Safely log the error
+    console.error(`[SERVICE_ERROR] Original error in addTask:`, error instanceof Error ? error : 'An unknown error occurred'); 
+    // Provide a user-friendly error message
+    const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu.';
+    throw new Error(`Görev eklenirken bir hata oluştu. Detaylar için konsolu kontrol edin: ${errorMessage}`);
   }
 }
 
@@ -207,15 +220,17 @@ export async function updateTaskAssignees(taskId: string, assignedTo: string[]):
       assignedTo: assignedTo,
       updatedAt: serverTimestamp()
     });
-  } catch (error: any) {
-    console.error(`Error updating task assignees for task ${taskId}: `, error); 
+  } catch (error: unknown) {
+    // Safely log the error
+ console.error(`Error updating task assignees for task ${taskId}: `, error instanceof Error ? error : 'An unknown error occurred'); 
+    // Provide a user-friendly error message
     throw new Error(`Görev atamaları güncellenirken bir hata oluştu: ${error.message}`);
   }
 }
 
 export async function updateTask(taskId: string, updates: Partial<Omit<TaskInputData, 'dueDate'> & {dueDate?: Date}>): Promise<void> {
   const taskDoc = doc(db, TASKS_COLLECTION, taskId);
-  const dataToUpdate: any = { ...updates, updatedAt: serverTimestamp() };
+  const dataToUpdate: Partial<Omit<TaskInputData, 'dueDate'> & {dueDate?: Timestamp, assignedTo?: string[]}> & { updatedAt: Timestamp } = { ...updates, updatedAt: serverTimestamp() };
 
   if (updates.dueDate) {
     dataToUpdate.dueDate = Timestamp.fromDate(updates.dueDate);
@@ -242,13 +257,14 @@ export async function deleteTask(taskId: string): Promise<void> {
   if (!taskId) {
     throw new Error("Görev ID'si silme işlemi için zorunludur.");
   }
-  try {
-    const taskDocRef = doc(db, TASKS_COLLECTION, taskId);
-    await deleteDoc(taskDocRef);
+  try {const taskDocRef = doc(db, TASKS_COLLECTION, taskId);
+ await deleteDoc(taskDocRef);
     console.log(`Task with ID: ${taskId} successfully deleted from Firestore.`);
-  } catch (error: any) {
-    console.error(`Error deleting task with ID ${taskId} from Firestore: `, error);
-    throw new Error(`Görev (ID: ${taskId}) Firestore'dan silinirken bir hata oluştu: ${error.message || 'Bilinmeyen sunucu hatası'}`);
+  } catch (error: unknown) {
+    // Safely log the error
+    console.error(`Error deleting task with ID ${taskId} from Firestore: `, error instanceof Error ? error : 'An unknown error occurred');
+    const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen sunucu hatası';
+    throw new Error(`Görev (ID: ${taskId}) Firestore'dan silinirken bir hata oluştu: ${errorMessage}`);
   }
 }
 
@@ -266,9 +282,10 @@ export async function getTaskCountByStatus(): Promise<{ status: string; count: n
     });
 
     return Object.entries(statusCounts).map(([status, count]) => ({ status, count }));
-  } catch (error: any) {
-    console.error("Error fetching task count by status: ", error);
-    throw new Error(`Görev sayıları durumlarına göre alınırken bir hata oluştu: ${error.message}`);
+  } catch (error: unknown) {
+    console.error("Error fetching task count by status: ", error instanceof Error ? error : 'An unknown error occurred');
+    const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu.';
+ throw new Error(`Görev sayıları durumlarına göre alınırken bir hata oluştu: ${errorMessage}`);
   }
 }
 
@@ -315,8 +332,10 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
       })).sort((a,b) => a.month.localeCompare(b.month));
 
   } catch (error: any) {
-    console.error("Error fetching task completion trend: ", error);
-    throw new Error(`Görev tamamlama trendi alınırken bir hata oluştu: ${error.message}`);
+    // Safely log the error
+    console.error("Error fetching task completion trend: ", error instanceof Error ? error : 'An unknown error occurred');
+    const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu.';
+    throw new Error(`Görev tamamlama trendi alınırken bir hata oluştu: ${errorMessage}`);
   }
 }
 
@@ -346,11 +365,13 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
       } as Task);
     });
     return taskList;
-  } catch (error: any) {
-    console.error(`[SERVICE_ERROR] Original Firestore error in getTasksByUserId for user ID ${userId}:`, error); 
+  } catch (error: unknown) {
+    console.error(`[SERVICE_ERROR] Original Firestore error in getTasksByUserId for user ID ${userId}:`, error instanceof Error ? error : 'An unknown error occurred'); 
     let userMessage = `Kullanıcıya (${userId}) ait görevler alınırken bir hata oluştu.`;
-     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
-        userMessage += ` Lütfen Firestore için 'tasks' koleksiyonunda 'assignedTo' (array-contains) ve 'dueDate' (asc) alanlarını içeren bir bileşik index oluşturduğunuzdan emin olun. Hata mesajında index oluşturma linki olabilir: ${error.message}`;
+    if (error instanceof Error) {
+      const firestoreError = error as any; // Use any temporarily to check for non-standard error properties like 'code'
+      if (firestoreError.code === 'failed-precondition' && error.message?.includes('index')) {
+ userMessage += ` Lütfen Firestore için 'tasks' koleksiyonunda 'assignedTo' (array-contains) ve 'dueDate' (asc) alanlarını içeren bir bileşik index oluşturduğunuzdan emin olun. Hata mesajında index oluşturma linki olabilir: ${error.message}`;
     } else {
       userMessage += ` Detaylar: ${error.message}`;
     }
@@ -386,8 +407,10 @@ export async function getTaskStatsByUserId(userId: string): Promise<{ month: str
       .map(([month, stats]) => ({ month, ...stats }))
       .sort((a, b) => a.month.localeCompare(b.month)); 
 
-  } catch (error: any) {
-    console.error(`Error fetching task stats for user ${userId}: `, error); 
+  } catch (error: unknown) {
+    // Safely log the error
+    console.error(`Error fetching task stats for user ${userId}: `, error instanceof Error ? error : 'An unknown error occurred'); 
+    const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu.';
     throw new Error(`Kullanıcı görev istatistikleri alınırken bir hata oluştu: ${error.message}`);
   }
 }
@@ -423,8 +446,9 @@ export async function getActiveTasks(limitCount: number = 5): Promise<Task[]> {
       } as Task;
     });
     return taskList;
-  } catch (error: any) {
-    console.error("Error fetching active tasks: ", error); 
+  } catch (error: unknown) {
+    // Safely log the error
+    console.error("Error fetching active tasks: ", error instanceof Error ? error : 'An unknown error occurred'); 
     let userMessage = "Aktif görevler alınırken bir hata oluştu.";
     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
         userMessage += ` Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir: ${error.message}`;
@@ -468,8 +492,9 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
       } as Task;
     });
     return taskList;
-  } catch (error: any) {
-    console.error("Error fetching overdue tasks: ", error); 
+  } catch (error: unknown) {
+    // Safely log the error
+    console.error("Error fetching overdue tasks: ", error instanceof Error ? error : 'An unknown error occurred'); 
     let userMessage = "Gecikmiş görevler alınırken bir hata oluştu.";
     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
         userMessage += ` Lütfen Firestore için gerekli index'in oluşturulduğundan emin olun. Hata mesajında index oluşturma linki olabilir: ${error.message}`;

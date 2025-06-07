@@ -54,12 +54,12 @@ export function TaskForm({ onSave, initialData, onClose, isSaving }: TaskFormPro
       const fetchedProjects = await getProjects();
       setProjectsList(fetchedProjects); // Removed 'as Project[]'
     } catch (err: any) {
-      setProjectsError(err.message || "Projeler yüklenirken bir hata oluştu.");
-      console.error("Error fetching projects for task form:", err.message);
+ setProjectsError(err instanceof Error ? err.message : "Projeler yüklenirken bir hata oluştu.");
+      console.error("Error fetching projects for task form:", err instanceof Error ? err.message : err);
     } finally {
       setIsLoadingProjects(false);
     }
-  }, []);
+  }, [setProjectsList, setIsLoadingProjects, setProjectsError, getProjects]);
   
   useEffect(() => {
     fetchProjectsForSelect();

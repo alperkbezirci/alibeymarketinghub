@@ -3,8 +3,8 @@
 
 import React, { createContext, useState, useContext, useCallback, ReactNode, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import {
-  getSpendingCategories as fetchCategoriesFromDb,
+import { 
+  getSpendingCategories as fetchCategoriesFromDb, 
   addSpendingCategory as addCategoryToDb,
   updateSpendingCategory as updateCategoryInDb,
   // deleteSpendingCategory as deleteCategoryFromDb, // For future use
@@ -123,3 +123,5 @@ export const useSpendingCategories = (): SpendingCategoriesContextType => {
   }
   return context;
 };
+
+    

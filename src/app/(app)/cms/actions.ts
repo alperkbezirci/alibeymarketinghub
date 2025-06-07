@@ -1,9 +1,8 @@
-
+eve
 // src/app/(app)/cms/actions.ts
 "use server";
 
 import { admin } from '@/lib/firebase-admin';
-import { getUserRoles } from '@/services/user-service';
 import { revalidatePath } from 'next/cache';
 import { USER_ROLES } from '@/lib/constants';
 import { getProjectById } from '@/services/project-service'; // Proje servisinden otel bilgisini almak için
@@ -23,9 +22,15 @@ async function checkAdminPrivilegesForAction(idToken?: string | null): Promise<b
   try {
     console.log("[CMS Action - checkAdminPrivilegesForAction] Verifying ID token...");
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    console.log(`[CMS Action - checkAdminPrivilegesForAction] ID Token for UID ${decodedToken.uid} verified. Fetching roles...`);
+    console.log(`[CMS Action - checkAdminPrivilegesForAction] ID Token for UID ${decodedToken.uid} verified. Fetching roles...`);    
+    // Check for expected properties on decodedToken to avoid potential issues
+    if (!decodedToken || !decodedToken.uid) {
+        console.warn("[CMS Action - checkAdminPrivilegesForAction] ID token verification failed or returned incomplete data.");
+        return false;
+    }
+
     
-    const roles = await getUserRoles(decodedToken.uid);
+    const userDoc = await admin.firestore().collection('users').doc(decodedToken.uid).get();
     
     // Loglamayı detaylandıralım
     console.log(`[CMS Action - checkAdminPrivilegesForAction] Fetched roles for UID ${decodedToken.uid}:`, JSON.stringify(roles));
@@ -43,13 +48,16 @@ async function checkAdminPrivilegesForAction(idToken?: string | null): Promise<b
       console.warn(`[CMS Action - checkAdminPrivilegesForAction] User ${decodedToken.uid} has no roles array or roles are null. Fetched roles: ${JSON.stringify(roles)}. Access DENIED.`);
       return false;
     }
-  } catch (error: unknown) {
+  } catch (error) {
     let errorMessage = "Bilinmeyen bir hata oluştu";
     let errorCode = undefined;
-    if (error instanceof Error) {
-        errorMessage = error.message;
-        if ('code' in error) {
-            errorCode = (error as { code?: string }).code;
+ if (error instanceof Error) {
+ errorMessage = error.message;
+ // Check if the error is a FirebaseError or has a 'code' property
+ // Safely check if error is an object before accessing properties
+ if (typeof error === 'object' && error !== null && 'code' in error) {
+ // Use a more specific type assertion if 'code' is expected to be a string
+            errorCode = (error as any).code; // Use `any` here as FirebaseError is not directly typed, but this is limited to the error object itself.
         }
     } else if (typeof error === 'string') {
         errorMessage = error;
@@ -59,13 +67,10 @@ async function checkAdminPrivilegesForAction(idToken?: string | null): Promise<b
   }
 }
 
-
 export async function handleUpdateActivitiesWithHotelInfoAction(
   prevState: UpdateActivityResult | undefined,
   formData: FormData
 ): Promise<UpdateActivityResult> {
-  const idToken = formData.get('idToken') as string | null;
-
   const isAdmin = await checkAdminPrivilegesForAction(idToken);
   if (!isAdmin) {
     return { success: false, message: "Bu işlemi yalnızca Admin rolüne sahip kullanıcılar gerçekleştirebilir." };
@@ -121,15 +126,15 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
             );
           }
         } catch (error: unknown) {
+          // Handle individual activity processing errors
           let individualErrorMessage = "Bilinmeyen bir hata oluştu";
-            if (error instanceof Error) {
-                individualErrorMessage = error.message;
-            } else if (typeof error === 'string') {
-                individualErrorMessage = error;
-            }
+ if (error instanceof Error) {
+ individualErrorMessage = error.message;
+ } else if (typeof error === 'string') {
+ individualErrorMessage = error;
+ }
           console.error(
-            `[CMS Action] Error processing individual activity ${activityDoc.id} (fetching project or updating):`,
-            individualErrorMessage
+ `[CMS Action] Error processing individual activity ${activityDoc.id} (fetching project or updating):`, individualErrorMessage
           );
         }
       }
@@ -144,17 +149,20 @@ export async function handleUpdateActivitiesWithHotelInfoAction(
     console.log(`[CMS Action] ${message}`);
     revalidatePath('/detailed-reports'); // Aktiviteler güncellendiği için raporlar sayfasını revalidate et
     revalidatePath('/projects'); // Etkilenen proje detay sayfalarını da revalidate etmek iyi olabilir.
+
     return { success: true, message, updatedCount, processedCount };
 
   } catch (error: unknown) {
-    let generalErrorMessage = "Bilinmeyen bir hata oluştu";
+    // Handle general batch processing errors
+ let generalErrorMessage = "Bilinmeyen bir hata oluştu";
     if (error instanceof Error) {
         generalErrorMessage = error.message;
-    } else if (typeof error === 'string') {
+ } else if (typeof error === 'string') {
         generalErrorMessage = error;
     }
     console.error("[CMS Action] Error in updateActivitiesWithHotelInfoAction:", generalErrorMessage);
     return { success: false, message: `Aktiviteler güncellenirken bir sunucu hatası oluştu: ${generalErrorMessage}` };
   }
 }
+
 

@@ -96,10 +96,14 @@ export default function ProjectDetailsPage() {
     }
     setIsLoadingProject(true);
     setError(null);
-    try {
+    try { // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const fetchedProject = await getProjectById(projectId);
       setProject(fetchedProject);
       if (fetchedProject) {
+        // Using type assertion here based on the expected return type of getAllUsers
+        // If getAllUsers can return something else, further checks might be needed
+        // For now, assuming it returns UserData[] as per the import
+
         const fetchedUsers: UserData[] = await getAllUsers();
         setUsers(fetchedUsers);
       }
@@ -115,10 +119,10 @@ export default function ProjectDetailsPage() {
   const fetchTasksForProject = useCallback(async () => {
     if (!projectId) return;
     setIsLoadingTasks(true);
-    try {
+    try { // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tasks = await getTasksByProjectId(projectId);
       setProjectTasks(tasks); 
-    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch (err: unknown) {
       console.error("Error fetching project tasks:", err);
       let userFriendlyMessage = "Projeye ait görevler yüklenirken bir hata oluştu. ";
       if (err.message && (err.message.includes("index required") || err.message.includes("needs an index"))) {
@@ -135,10 +139,10 @@ export default function ProjectDetailsPage() {
   const fetchActivitiesForProject = useCallback(async () => {
     if (!projectId) return;
     setIsLoadingActivities(true);
-    try {
+    try { // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const activities = await getProjectActivities(projectId);
       setProjectActivities(activities); 
-    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch (err: unknown) {
       console.error("Error fetching project activities:", err);
       let userFriendlyMessage = "Proje aktiviteleri yüklenirken bir hata oluştu. ";
        if (err.message && (err.message.includes("index required") || err.message.includes("needs an index"))) {
@@ -220,8 +224,8 @@ export default function ProjectDetailsPage() {
   const formatDateDisplay = (dateInput: string | undefined | null, dateFormat: string = 'dd MMMM yyyy, EEEE') => {
     if (!dateInput) return 'Belirtilmemiş';
     try {
-      return format(new Date(dateInput), dateFormat, { locale: tr });
-    } catch (e) { // eslint-disable-line @typescript-eslint/no-unused-vars
+      return format(new Date(dateInput), dateFormat, { locale: tr }); // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
       return 'Geçersiz Tarih'; 
     }
   };
@@ -229,7 +233,7 @@ export default function ProjectDetailsPage() {
   const formatRelativeTime = (dateInput: string | undefined | null) => {
     if (!dateInput) return '';
     try {
-      return formatDistanceToNow(new Date(dateInput), { addSuffix: true, locale: tr }); // eslint-disable-line @typescript-eslint/no-unused-vars
+      return formatDistanceToNow(new Date(dateInput), { addSuffix: true, locale: tr });
     } catch (e) {
       return '';
     } 
@@ -280,7 +284,7 @@ export default function ProjectDetailsPage() {
         <AppLogo className="h-16 w-auto text-destructive mb-4" />
         <AlertTriangle className="w-12 h-12 text-destructive mb-3" />
         <h2 className="text-2xl font-semibold mb-2">Hata</h2>
-        <p className="text-muted-foreground mb-4">{error}</p>
+        <p className="text-muted-foreground mb-4">{error}</p> {/* Ensure error is a string */}
         <Button onClick={() => router.push('/projects')}>Proje Listesine Dön</Button>
       </div>
     );
@@ -409,7 +413,7 @@ export default function ProjectDetailsPage() {
             <CardContent className="pt-0">
               <form action={handleAddActivitySubmit} ref={activityFormRef} className="space-y-4 mb-6 p-4 border rounded-lg bg-muted/20">
                 <input type="hidden" name="projectId" value={projectId} />
-                <input type="hidden" name="idToken" value={idTokenForActivityForm} />
+                <input type="hidden" name="idToken" value={idTokenForActivityForm} /> {/* Ensure idTokenForActivityForm is a string */}
 
                 <div>
                   <Label htmlFor="activityContent" className="sr-only">Yorumunuz</Label>
@@ -479,7 +483,7 @@ export default function ProjectDetailsPage() {
                            <Avatar className="h-10 w-10 border mt-0.5">
                             <AvatarImage src={activity.userPhotoURL || `https://placehold.co/40x40.png`} alt={activity.userName} data-ai-hint="user avatar" />
                             <AvatarFallback>{activity.userName?.substring(0,1).toUpperCase() || 'K'}</AvatarFallback>
-                          </Avatar>
+                          </Avatar> {/* Ensure Avatar fallback is a string */}
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-0.5">
                                <p className="text-sm font-semibold text-card-foreground">{activity.userName}</p>
@@ -540,7 +544,7 @@ export default function ProjectDetailsPage() {
                                                   Aşağıdaki güncellemeyi Pazarlama Müdürü'ne onaya göndermek üzeresiniz. İsteğe bağlı bir mesaj ekleyebilirsiniz.
                                                   <blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">
                                                     {activity.content ? `"${activity.content.substring(0,100)}${activity.content.length > 100 ? "..." : ""}"`
-                                                                    : `Dosya: "${activity.fileName}"`}
+ : `Dosya: "${activity.fileName}"`}
                                                   </blockquote>
                                                 </DialogDescription>
                                             </DialogHeader>
@@ -629,7 +633,7 @@ export default function ProjectDetailsPage() {
                 Kullanıcı: {activityForDecision?.userName} <br />
                 İçerik: {activityForDecision?.content ? `"${activityForDecision.content.substring(0,100)}${activityForDecision.content.length > 100 ? "..." : ""}"`
                                   : `Dosya: "${activityForDecision?.fileName}"`}
-                {activityForDecision?.messageForManager && <><br/>Kullanıcı Notu: {activityForDecision.messageForManager}</>}
+                {activityForDecision?.messageForManager && <><br/>Kullanıcı Notu: {activityForDecision.messageForManager}</>} {/* Ensure activityForDecision?.messageForManager is a string */}
               </blockquote>
             </DialogDescription>
           </DialogHeader>
@@ -646,7 +650,7 @@ export default function ProjectDetailsPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setActivityForDecision(null); setDecisionType(null); setManagerFeedbackInput("");}} disabled={isSubmittingDecision}>İptal</Button>
-            <Button // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            <Button
               onClick={handleManagerDecision}
               disabled={isSubmittingDecision} 
               className={cn(decisionType === 'approve' ? "bg-green-600 hover:bg-green-700" : "bg-destructive hover:bg-destructive/90")}

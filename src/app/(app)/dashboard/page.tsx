@@ -87,14 +87,16 @@ export default function DashboardPage() {
     } catch (error: unknown) {
       let errorMessage = "Genel özet verileri yüklenirken bir sorun oluştu.";
       if (error instanceof Error) {
-        errorMessage = error.message;
+ errorMessage = `Veri yükleme hatası: ${error.message}`;
+      } else if (typeof error === 'string') {
+ errorMessage = `Veri yükleme hatası: ${error}`;
       }
       console.error("Error fetching dashboard data:", error);
       toast({ title: "Kontrol Paneli Hatası", description: errorMessage, variant: "destructive" });
     } finally {
       setIsLoadingActiveTasks(false);
       setIsLoadingOverdueTasks(false);
-      if (isAdminOrMarketingManager) setIsLoadingPendingApprovals(false);
+      if (isAdminOrMarketingManager) setIsLoadingPendingApprovals(false); // This should probably be outside the try/catch too, depending on desired behavior on error
     }
   }, [user, isAdminOrMarketingManager, toast]);
 
@@ -148,7 +150,9 @@ export default function DashboardPage() {
     } catch (error: unknown) {
       let errorMessage = "Fatura kaydedilirken bir sorun oluştu.";
       if (error instanceof Error) {
-        errorMessage = error.message;
+ errorMessage = `Fatura kayıt hatası: ${error.message}`;
+      } else if (typeof error === 'string') {
+ errorMessage = `Fatura kayıt hatası: ${error}`;
       }
       toast({ title: "Fatura Kayıt Hatası", description: errorMessage, variant: "destructive" });
       setPendingInvoiceData(null);
@@ -188,7 +192,11 @@ export default function DashboardPage() {
             mainToastDescription += ` Turquality görevi oluşturuldu ve faturaya başarıyla bağlandı.`;
         } catch (linkError: unknown) {
             let linkErrorMessage = "Görev faturaya bağlanamadı.";
-            if (linkError instanceof Error) linkErrorMessage = linkError.message;
+            if (linkError instanceof Error) {
+ linkErrorMessage = linkError.message;
+            } else if (typeof linkError === 'string') {
+ linkErrorMessage = linkError;
+            }
             mainToastDescription += ` Turquality görevi oluşturuldu ancak faturaya bağlanırken bir hata oluştu: ${linkErrorMessage}`;
             toast({ title: "Bağlantı Hatası", description: linkErrorMessage, variant: "warning" });
         }
@@ -201,7 +209,9 @@ export default function DashboardPage() {
             console.error("Error fetching users for task assignment:", userError);
             mainToastDescription += " Atama için kullanıcılar yüklenemedi.";
             let userErrorMessage = "Görev ataması için kullanıcılar yüklenemedi.";
-            if (userError instanceof Error) userErrorMessage = userError.message;
+ if (userError instanceof Error) {
+ userErrorMessage = userError.message;
+            }
             toast({ title: "Kullanıcı Yükleme Hatası", description: userErrorMessage, variant: "destructive" });
         } finally {
             setIsLoadingUsersForAssignment(false);
@@ -216,7 +226,9 @@ export default function DashboardPage() {
     } catch (error: unknown) {
       let errorMessage = "Turquality işlemi sırasında bir sorun oluştu.";
       if (error instanceof Error) errorMessage = error.message;
-      toast({ title: "Turquality İşlem Hatası", description: errorMessage, variant: "destructive" });
+ else if (typeof error === 'string') {
+ errorMessage = error;
+ }
     } finally {
       setIsTurqualityDialogOpen(false);
       setPendingInvoiceData(null);
@@ -241,9 +253,14 @@ export default function DashboardPage() {
         toast({ title: "Bilgi", description: "Turquality görevine kimse atanmadı. Görevi daha sonra manuel olarak atayabilirsiniz.", variant: "default" });
       }
     } catch (error: unknown) {
-      let errorMessage = "Görev atanırken bir sorun oluştu.";
-      if (error instanceof Error) errorMessage = error.message;
-      toast({ title: "Görev Atama Hatası", description: errorMessage, variant: "destructive" });
+ let errorMessage = "Görev atanırken bir sorun oluştu.";
+      if (error instanceof Error) {
+ errorMessage = `Görev atama hatası: ${error.message}`;
+ console.error("Error assigning task:", error);
+      } else if (typeof error === 'string') {
+ errorMessage = `Görev atama hatası: ${error}`;
+ console.error("Error assigning task:", error);
+ }
     } finally {
       setIsAssignTaskDialogOpen(false);
       setNewlyCreatedTurqualityTaskId(null);

@@ -6,10 +6,22 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart as LucideLineChart } from "lucide-react";
 
-// TODO: Define proper types for chart data
 // Data will be fetched and processed from Firebase
-const taskCompletionData: any[] = [];
-const projectStatusData: any[] = [];
+
+interface MonthlyTaskCompletion {
+  month: string; // e.g., "Ocak", "Şubat"
+  completed: number; // Number of completed tasks
+  overdue: number; // Number of overdue tasks
+  total?: number; // Optional total tasks (completed + overdue)
+}
+
+interface ProjectStatus {
+  name: string; // Status name, e.g., "Tamamlandı", "Devam Ediyor"
+  value: number; // Count of projects in this status
+}
+
+const taskCompletionData: MonthlyTaskCompletion[] = [];
+const projectStatusData: ProjectStatus[] = [];
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))'];
 

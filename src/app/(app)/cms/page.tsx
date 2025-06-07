@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useActionState, startTransition } from 'react'; // Added startTransition
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth, type User } from "@/contexts/auth-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Palette, DollarSign, ListPlus, Edit2, Loader2, UploadCloud, DatabaseZap } from "lucide-react";
@@ -59,7 +59,7 @@ export default function CmsPage() {
   const logoFileInputRef = useRef<HTMLInputElement>(null);
 
   // useActionState hook
-  const [updateActivitiesState, handleUpdateActivitiesSubmit, isUpdatingActivitiesPending] = useActionState(
+  const [updateActivitiesState, handleUpdateActivitiesSubmit, isUpdatingActivitiesPending] = useActionState<any, FormData>( // Explicitly type useActionState
     handleUpdateActivitiesWithHotelInfoAction, // Server action
     undefined // Initial state for the action's return value
   );

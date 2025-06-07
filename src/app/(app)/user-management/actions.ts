@@ -3,7 +3,6 @@
 
 import { admin } from '@/lib/firebase-admin'; // Firebase Admin SDK
 import { createUserDocumentInFirestore, deleteUserDocument, updateUserProfile } from "@/services/user-service";
-// TODO: import { USER_ROLES } from '@/lib/constants'; // Kullanılmıyor, ancak yetkilendirme eklendiğinde gerekebilir.
 
 interface AddUserResult {
   success: boolean;
@@ -36,7 +35,7 @@ async function checkAdminPrivileges(idToken?: string | null): Promise<boolean> {
 }
 
 
-export async function handleAddUserAction(prevState: unknown, formData: FormData): Promise<AddUserResult> {
+export async function handleAddUserAction(formData: FormData): Promise<AddUserResult> {
   // const idToken = formData.get('idToken') as string | null; // Formdan ID token al (istemci sağlamalı)
   // const isAdmin = await checkAdminPrivileges(idToken); // ID Token'ı kontrole gönder
   const isAdmin = await checkAdminPrivileges(); // Şimdilik ID Token olmadan çağırıyoruz, bu da false dönecek
@@ -102,7 +101,7 @@ interface UpdateUserResult {
   message: string;
 }
 
-export async function handleUpdateUserAction(prevState: unknown, formData: FormData): Promise<UpdateUserResult> {
+export async function handleUpdateUserAction(formData: FormData): Promise<UpdateUserResult> {
   // const idToken = formData.get('idToken') as string | null;
   // const isAdmin = await checkAdminPrivileges(idToken);
   const isAdmin = await checkAdminPrivileges();
@@ -166,13 +165,13 @@ export async function handleDeleteUserAction(uid: string, userFullName: string):
     await deleteUserDocument(uid);
     
     return { success: true, message: `"${userFullName}" kullanıcısı başarıyla sistemden silindi.` };
-  } catch (error: any) {
-    console.error("Error deleting user:", error); // 'any' bırakıldı çünkü Firebase Admin hatası detaylı bilgi içerebilir.
-    if (error.code === 'auth/user-not-found') {
+  } catch (error: unknown) { // Use unknown instead of any
+    console.error("Error deleting user:", error); 
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as any).code === 'auth/user-not-found') { // Type assertion for code check
       // Kullanıcı Auth'da bulunamadıysa, Firestore belgesini silmeyi dene.
       try {
         await deleteUserDocument(uid);
-        return { success: true, message: `"${userFullName}" kullanıcısının Firestore belgesi silindi (Auth'da bulunamadı).` };
+        return { success: true, message: `"${userFullName}" kullanıcısının bilgileri kısmen silindi (Auth'da bulunamadı). Firestore belgesi silindi.` };
       } catch (dbError: any) {
         return { success: false, message: `Kullanıcı Auth'da bulunamadı ve Firestore belgesi silinirken hata oluştu: ${dbError.message}` };
       }

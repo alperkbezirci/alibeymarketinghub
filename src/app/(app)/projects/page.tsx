@@ -56,7 +56,7 @@ export default function ProjectsPage() {
       
       setProjects(fetchedProjects);
       setUsersList(fetchedUsers as AppUser[]); // Ensure type compatibility for usersList
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message = err instanceof ProjectError ? err.message : "Projeler veya kullanıcılar yüklenirken bir hata oluştu.";
       setError(message);
       toast({ title: "Hata", description: message, variant: "destructive" });
@@ -64,9 +64,7 @@ export default function ProjectsPage() {
       setIsLoadingProjects(false);
       setIsLoadingUsers(false);
     }
-    // Add toast as a dependency here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]);
+  }, [toast, isAdminOrMarketingManager]);
 
   useEffect(() => {
     fetchPageData();
@@ -117,8 +115,11 @@ export default function ProjectsPage() {
       await addProject(projectDataForService);
       toast({ title: "Başarılı", description: `'${formData.projectName}' adlı proje oluşturuldu.` });
       setIsFormDialogOpen(false);
-      fetchPageData(); 
-    } catch (err: any)      {
+      fetchPageData(toast);
+    } catch (err: unknown) {
+ if (err instanceof Error) {
+ toast({ title: "Hata", description: err.message || "Proje kaydedilirken bir hata oluştu.", variant: "destructive" });
+ } else {
       toast({ title: "Hata", description: err.message || "Proje kaydedilirken bir hata oluştu.", variant: "destructive" });
     } finally {
       setIsSaving(false);

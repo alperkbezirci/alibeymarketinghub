@@ -55,16 +55,20 @@ export default function TaskDetailPage() {
       const fetchedUsers = await getAllUsers();
       setUsers(fetchedUsers);
 
-    } catch (err: any) {
-      console.error("Error fetching task details:", err);
-      setError(err.message || `Görev (ID: ${taskId}) detayları yüklenirken bir hata oluştu.`);
-      toast({ title: "Görev Yükleme Hatası", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      console.error("Error fetching task details:", err); // Log the original error
+ let errorMessage = `Görev (ID: ${taskId}) detayları yüklenirken bir hata oluştu.`;
+ if (err instanceof Error) {
+ errorMessage = err.message;
+ }
+      setError(errorMessage);
+      toast({ title: "Görev Yükleme Hatası", description: errorMessage, variant: "destructive" });
     } finally {
  setIsLoadingTask(false);
  setIsLoadingUsers(false); // Users are fetched regardless of project
     }
   }, [taskId, toast]);
-
+  // Removed getTaskById, getProjectById, getAllUsers, state setters as they are stable functions/setters provided by React/libraries
   useEffect(() => {
     fetchTaskDetails();
   }, [fetchTaskDetails]);

@@ -86,7 +86,7 @@ export function ProjectDetailDialog({
     } finally {
       setIsLoadingActivities(false);
     }
-  }, [project?.id, toast]);
+  }, [project?.id, toast, getProjectActivities, setProjectActivities, setIsLoadingActivities, setActivitiesError]);
 
   useEffect(() => {
     if (isOpen && project?.id) {
@@ -154,8 +154,13 @@ export function ProjectDetailDialog({
         } else {
             toast({ title: "Hata", description: result.error || "İşlem başarısız oldu.", variant: "destructive" });
         }
-    } catch (tokenError: any) {
+    } catch (tokenError: unknown) {
         console.error("Error getting ID token for sendForApproval:", tokenError);
+        let errorMessage = "Token alınırken hata oluştu.";
+        if (tokenError instanceof Error) {
+            errorMessage = `Token alınırken hata: ${tokenError.message}`;
+        }
+
         toast({ title: "Kimlik Doğrulama Hatası", description: `Token alınırken hata: ${tokenError.message}`, variant: "destructive" });
     } finally {
         setIsSubmittingApproval(false);
@@ -184,8 +189,13 @@ export function ProjectDetailDialog({
         } else {
           toast({ title: "Hata", description: result.message, variant: "destructive" });
         } // Assuming handleApprove/RejectAction return a consistent shape with message and success
-    } catch (tokenError: any) {
+    } catch (tokenError: unknown) {
         console.error("Error getting ID token for managerDecision:", tokenError);
+        let errorMessage = "Token alınırken hata oluştu.";
+        if (tokenError instanceof Error) {
+            errorMessage = `Token alınırken hata: ${tokenError.message}`;
+        }
+
         toast({ title: "Kimlik Doğrulama Hatası", description: `Token alınırken hata: ${tokenError.message}`, variant: "destructive" });
     } finally {
         setIsSubmittingDecision(false);

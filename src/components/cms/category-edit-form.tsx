@@ -25,7 +25,7 @@ export function CategoryEditForm({ category, onSave, onClose }: CategoryEditForm
     setLimit(category.limit);
   }, [category]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const numericLimit = parseFloat(String(limit));
 

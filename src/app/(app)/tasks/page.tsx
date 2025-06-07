@@ -66,9 +66,13 @@ export default function TasksPage() {
       setTasks(fetchedTasks);
       setProjectsList(fetchedProjects);
       setUsersList(fetchedUsers);
- // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setError(err.message || "Veriler yüklenirken bir hata oluştu.");
+    } catch (err: unknown) {
+      let message = "Veriler yüklenirken bir hata oluştu.";
+      if (err instanceof Error) {
+        message = err.message;
+        console.error("Error fetching page data:", err);
+      }
+      setError(message);
       toast({ title: "Hata", description: err.message, variant: "destructive" });
     } finally {
       setIsLoadingTasks(false);
@@ -98,8 +102,12 @@ export default function TasksPage() {
  fetchPageData();
     } catch (err: any) {
       toast({ title: "Hata", description: err.message || "Görev kaydedilirken bir hata oluştu.", variant: "destructive" });
-    } finally {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Görev kaydedilirken bir hata oluştu.";
+      toast({ title: "Hata", description: message, variant: "destructive" });
+    }finally {
       setIsSaving(false);
+
     }
   };
 
@@ -128,8 +136,12 @@ export default function TasksPage() {
       fetchPageData(); // Refresh list
       setIsDetailDialogOpen(false); // Close dialog
       setSelectedTaskForDetail(null);
-    } catch (err: any) { // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      toast({ title: "Silme Hatası", description: err.message || "Görev silinirken bir hata oluştu.", variant: "destructive" });
+    } catch (err: unknown) {
+      let message = "Görev silinirken bir hata oluştu.";
+      if (err instanceof Error) {
+        message = err.message;
+      }
+      toast({ title: "Silme Hatası", description: message, variant: "destructive" });
     }
   };
 

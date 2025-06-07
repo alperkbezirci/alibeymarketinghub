@@ -86,9 +86,10 @@ export default function SpendingCategoryDetailPage() {
     try {
       const allInvoicesData = await getAllInvoices();
       const filtered = allInvoicesData.filter(inv => inv.spendingCategoryName === selectedCategory.name);
-      setInvoicesForCategory(filtered);
-    } catch (err: any) {
+ setInvoicesForCategory(filtered as Invoice[]); // Tip güvenliği için cast
+    } catch (err: unknown) {
       console.error("Error fetching invoices for category:", err);
+      // Hata bir Error nesnesi mi kontrol et
       const errorMsg = err.message || "Bu kategoriye ait faturalar yüklenirken bir sorun oluştu.";
       setPageError(errorMsg);
       toast({ title: "Fatura Yükleme Hatası", description: errorMsg, variant: "destructive" });
@@ -114,8 +115,9 @@ export default function SpendingCategoryDetailPage() {
  const monthYearKey = format(date, 'yyyy-MM');
  spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
  }
-          } catch (_e: any) {
-             console.warn(`Geçersiz fatura tarihi: ${invoice.invoiceDate} (ID: ${invoice.id})`);
+          } catch (_e: unknown) {
+ // Hata oluştuysa bile fatura tarihini logla
+ console.warn(`Fatura tarihi işlenirken hata: ${invoice.invoiceDate} (ID: ${invoice.id})`, e);
           }
         }
       });
@@ -157,8 +159,9 @@ export default function SpendingCategoryDetailPage() {
  const monthYearKey = format(date, 'yyyy-MM');
  spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
  }
-            } catch (_e: any) {
-                console.warn(`Geçersiz fatura tarihi: ${invoice.invoiceDate} (ID: ${invoice.id})`);
+            } catch (e: unknown) {
+                // Hata oluştuysa bile fatura tarihini logla
+ console.warn(`Fatura tarihi işlenirken hata: ${invoice.invoiceDate} (ID: ${invoice.id})`, e);
             }
             }
         });
@@ -176,7 +179,8 @@ export default function SpendingCategoryDetailPage() {
 
       toast({ title: "Başarılı", description: `Fatura "${invoiceToDelete.invoiceNumber}" başarıyla silindi.` });
       setInvoiceToDelete(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      // Hata bir Error nesnesi mi kontrol et
       toast({ title: "Silme Hatası", description: error.message || "Fatura silinirken bir hata oluştu.", variant: "destructive" });
       fetchInvoicesForCategory();
     } finally {
@@ -334,8 +338,8 @@ export default function SpendingCategoryDetailPage() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Faturayı Silmek Üzeresiniz</AlertDialogTitle>
-              <AlertDialogDescription>
- &quot;{invoiceToDelete.invoiceNumber}&quot; numaralı, {invoiceToDelete.companyName} adına kesilmiş faturayı silmek istediğinizden emin misiniz?
+              <AlertDialogDescription className="text-sm text-muted-foreground">
+ &quot;{invoiceToDelete.invoiceNumber}&quot; numaralı, {invoiceToDelete.companyName} ad&apos;ına kesilmiş faturayı silmek istediğinizden emin misiniz?
                 Bu işlem geri alınamaz. Varsa, ilişkili dosya da Storage'dan silinecektir.
               </AlertDialogDescription>
             </AlertDialogHeader>
