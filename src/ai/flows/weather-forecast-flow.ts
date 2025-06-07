@@ -92,7 +92,7 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
         if (itemDateISO >= todayISO) { // Start from today for aggregation
             if (!dailySummaries[itemDateISO]) {
                 // Limit to processing data for today + next 3 days for summaries array
-                if (Object.keys(dailySummaries).length >= 4 && itemDateISO !== todayISO) continue; 
+                if (Object.keys(dailySummaries).length >= 4 && itemDateISO !== todayISO) continue;
                 dailySummaries[itemDateISO] = {
                     dateObj: startOfDay(itemDateTime),
                     temps: [],
@@ -109,7 +109,7 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
             }
         }
     }
-    
+
     const processedThreeDaySummary: WeatherInfoOutput['threeDaySummaryForecast'] = [];
     const sortedDates = Object.keys(dailySummaries).sort();
 
@@ -122,11 +122,11 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
         const minTemp = Math.round(Math.min(...dayData.temps));
         const maxTemp = Math.round(Math.max(...dayData.temps));
         const precipitationChance = Math.round(Math.max(...dayData.pops));
-        
+
         const midIndex = Math.floor(dayData.icons.length / 2);
         const icon = dayData.icons[midIndex] || dayData.icons[0];
         const description = dayData.descs[midIndex] || dayData.descs[0];
-        
+
         let dayNameDisplay = format(dayData.dateObj, 'eeee', {locale: tr});
         if (dateISO === format(addDays(new Date(), 1), 'yyyy-MM-dd')) {
             dayNameDisplay = "Yarın";
@@ -169,7 +169,7 @@ async function fetchAndProcessWeather(location: string): Promise<WeatherInfoOutp
             responseDataMessage = responseError.data.message;
         }
     }
-    
+
     if (error instanceof Error) {
         errorMessage = error.message;
     } else if (typeof error === 'string') {
@@ -191,3 +191,4 @@ export async function getWeatherForecast(input: WeatherRequestInput): Promise<We
   console.log(`[weather-forecast-flow] getWeatherForecast called for location: ${input.location}`);
   return fetchAndProcessWeather(input.location);
 }
+
