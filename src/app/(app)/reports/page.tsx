@@ -36,7 +36,7 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle className="font-headline text-xl flex items-center">
              <LucideLineChart className="mr-2 h-5 w-5 text-primary"/> Kişisel Performans Özeti
-          </CardTitle>
+ </CardTitle>
           <CardDescription>Görev tamamlama ve proje katılım durumlarınız (veriler Firebase'den gelecek).</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
@@ -90,7 +90,7 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
       <p className="text-center text-muted-foreground">
-        Bu alanda kendi performansınızla ilgili detaylı görseller ve istatistikler yer alacaktır. Veriler Firebase'den yüklenecektir.
+ Bu alanda kendi performansınızla ilgili detaylı görseller ve istatistikler yer alacaktır. Veriler Firebase&apos;den yüklenecektir.
       </p>
     </div>
   );

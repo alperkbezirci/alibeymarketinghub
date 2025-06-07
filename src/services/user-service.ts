@@ -58,6 +58,7 @@ export async function createUserDocumentInFirestore(
       title: title || '', // Ensure undefined is not sent if not provided
       organization: organization || '',
       authorizationLevel: authorizationLevel || '',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       updatedAt: serverTimestamp() as Timestamp,
     };
 
@@ -66,6 +67,7 @@ export async function createUserDocumentInFirestore(
     }
 
     if (!docSnap.exists()) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       userData.createdAt = serverTimestamp() as Timestamp;
     }
 
@@ -85,6 +87,7 @@ export async function getAllUsers(): Promise<User[]> {
     const q = query(usersCollection); 
     const usersSnapshot = await getDocs(q);
     const usersList = usersSnapshot.docs.map(docSnap => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = docSnap.data() as UserProfileData;
       return {
         uid: docSnap.id,
@@ -95,6 +98,7 @@ export async function getAllUsers(): Promise<User[]> {
         organization: data.organization,
         roles: data.roles || [], 
         authorizationLevel: data.authorizationLevel,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         photoURL: data.photoURL,
       } as User; 
     });
@@ -156,6 +160,7 @@ export async function updateUserProfile(
       title: title || '',
       organization: organization || '',
       authorizationLevel: authorizationLevel || '',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       updatedAt: serverTimestamp() as Timestamp,
     };
     await updateDoc(userDocRef, updateData);

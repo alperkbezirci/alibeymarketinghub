@@ -4,15 +4,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, TrendingUp, Layers, Loader2 } from "lucide-react"; // Removed Users, CheckCircle, AlertTriangle, Download
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // Removed DialogClose
+import { PlusCircle, TrendingUp, Layers, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { InvoiceForm, type InvoiceFormData } from "@/components/budget/invoice-form"; // InvoiceFormData for client form
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // Removed CardFooter
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { MANAGED_BUDGET_HOTELS } from "@/lib/constants"; // Removed HOTEL_NAMES
 import { useSpendingCategories } from "@/contexts/spending-categories-context"; // Removed type SpendingCategory
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -20,16 +19,13 @@ import { getHotelBudgetLimits, type HotelBudgetLimits } from "@/services/budget-
 import { addInvoice, getAllInvoices, type Invoice, type InvoiceInputDataForService, linkTaskToInvoice } from '@/services/invoice-service';
 import { addTask, updateTaskAssignees, type TaskInputData } from '@/services/task-service';
 import { getAllUsers, type User as AppUser } from "@/services/user-service";
-import { format, addDays } from "date-fns";
-// import { tr } from "date-fns/locale"; // Removed tr
+import { format, addDays } from "date-fns"; // Removed tr
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"; // Firebase client storage SDK
 import { v4 as uuidv4 } from 'uuid'; // For unique file names/paths
-
-// Removed unused BudgetSummaryItem interface
 
 const TURQUALITY_PROJECT_ID = "xDCcOOdDVUgSs1YUcLoU"; 
 

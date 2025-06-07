@@ -211,7 +211,7 @@ const Sidebar = React.forwardRef<
             <SheetHeader className="sr-only">
               <h2 id={mobileSheetInternalTitleId}>Ana Mobil Menü</h2>
               <SheetDescription id={mobileSheetInternalDescriptionId}>Uygulamanın mobil ana navigasyon menüsü.</SheetDescription>
-            </div>
+            </SheetHeader>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>

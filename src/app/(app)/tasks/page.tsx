@@ -100,8 +100,6 @@ export default function TasksPage() {
       toast({ title: "Başarılı", description: `${formData.taskName} adlı görev oluşturuldu.` });
       setIsFormDialogOpen(false);
  fetchPageData();
-    } catch (err: any) {
-      toast({ title: "Hata", description: err.message || "Görev kaydedilirken bir hata oluştu.", variant: "destructive" });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Görev kaydedilirken bir hata oluştu.";
       toast({ title: "Hata", description: message, variant: "destructive" });
@@ -265,7 +263,7 @@ export default function TasksPage() {
       {!isLoading && !error && tasks.length === 0 && (
         <p className="col-span-full text-center text-muted-foreground py-8">
           Gösterilecek görev bulunmamaktadır. Sağ üst köşedeki 'Yeni Görev Oluştur' butonu ile ilk görevinizi ekleyebilirsiniz.
-        </p>
+ </p>
       )}
 
       {!isLoading && !error && tasks.length > 0 && (

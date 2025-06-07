@@ -3,7 +3,7 @@
 /**
  * @fileOverview Firestore service for managing invoices.
  */
-import { db, storage as clientStorage } from '@/lib/firebase'; // clientStorage for potential client-side URL generation if needed, not for upload here
+import { db } from '@/lib/firebase'; // clientStorage for potential client-side URL generation if needed, not for upload here
 import { admin } from '@/lib/firebase-admin';
 import { collection, getDocs, addDoc, serverTimestamp, Timestamp, query, orderBy, doc, updateDoc, getDoc as getFirestoreDoc, deleteDoc } from 'firebase/firestore';
 import { deleteTask } from './task-service'; // Import deleteTask

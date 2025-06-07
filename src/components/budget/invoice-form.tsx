@@ -230,7 +230,7 @@ export function InvoiceForm({ onSave, onClose, initialData, isSaving }: InvoiceF
             disabled={isSaving}
           />
            <p className="text-xs text-muted-foreground mt-1">
- 1 EUR&apos;nun kaç {currency} yaptığını giriniz.
+ 1 EUR'nun kaç {currency} yaptığını giriniz.
           </p>
         </div>
       )}

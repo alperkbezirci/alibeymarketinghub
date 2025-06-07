@@ -401,7 +401,7 @@ export function ProjectDetailDialog({
       </DialogContent>
 
       {/* Sub-dialog for manager's decision */}
-      <Dialog open={!!activityForDecision && !!decisionType} onOpenChange={(open) => { if (!open) { setActivityForDecision(null); setDecisionType(null); setManagerFeedbackInput(""); }}}>
+      <Dialog open={!!activityForDecision && !!decisionType} onOpenChange={(open) => { if (!open) { setActivityForDecision(null); setDecisionType(null); setManagerFeedbackInput(""); }}} aria-labelledby="manager-decision-dialog-title" aria-describedby="manager-decision-dialog-description">
         <DialogContent>
           <DialogHeader><DialogTitle className="font-headline text-xl">Aktiviteyi {decisionType === 'approve' ? 'Onayla' : 'Reddet'}</DialogTitle>
             <DialogDescription asChild>

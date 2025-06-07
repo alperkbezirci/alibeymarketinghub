@@ -56,7 +56,8 @@ async function checkAdminPrivilegesForAction(idToken?: string | null): Promise<b
  // Check if the error is a FirebaseError or has a 'code' property
  // Safely check if error is an object before accessing properties
  if (typeof error === 'object' && error !== null && 'code' in error) {
- // Use a more specific type assertion if 'code' is expected to be a string
+ 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             errorCode = (error as any).code; // Use `any` here as FirebaseError is not directly typed, but this is limited to the error object itself.
         }
     } else if (typeof error === 'string') {

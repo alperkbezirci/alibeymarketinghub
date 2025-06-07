@@ -73,7 +73,7 @@ export default function SpendingCategoryDetailPage() {
       setSelectedCategory(foundCategory);
     } else {
       setPageError("Belirtilen ID ile kategori bulunamadı.");
-      toast({ title: "Hata", description: "Kategori bulunamadı.", variant: "destructive" });
+      toast({ title: "&quot;Hata&quot;", description: "&quot;Kategori bulunamadı.&quot;", variant: "destructive" });
     }
     setIsLoadingCategoryDetails(false);
   }, [categoryId, allCategories, isLoadingCategoriesContext, categoriesContextError, toast]);
@@ -86,14 +86,14 @@ export default function SpendingCategoryDetailPage() {
     try {
       const allInvoicesData = await getAllInvoices();
       const filtered = allInvoicesData.filter(inv => inv.spendingCategoryName === selectedCategory.name);
- setInvoicesForCategory(filtered as Invoice[]); // Tip güvenliği için cast
+      setInvoicesForCategory(filtered);
     } catch (err: unknown) {
       console.error("Error fetching invoices for category:", err);
       // Hata bir Error nesnesi mi kontrol et
       const errorMsg = err.message || "Bu kategoriye ait faturalar yüklenirken bir sorun oluştu.";
       setPageError(errorMsg);
       toast({ title: "Fatura Yükleme Hatası", description: errorMsg, variant: "destructive" });
-    } finally {
+    } finally { 
       setIsLoadingInvoices(false);
     }
   }, [selectedCategory, toast]);
@@ -115,9 +115,12 @@ export default function SpendingCategoryDetailPage() {
  const monthYearKey = format(date, 'yyyy-MM');
  spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
  }
-          } catch (_e: unknown) {
+          } catch (_e: unknown) { // Catch block uses _e which is typed as unknown
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
  // Hata oluştuysa bile fatura tarihini logla
- console.warn(`Fatura tarihi işlenirken hata: ${invoice.invoiceDate} (ID: ${invoice.id})`, e);
+ // Check if _e is an Error object before accessing its properties
+ const errorMessage = _e instanceof Error ? _e.message : String(_e);
+ console.warn(`Fatura tarihi işlenirken hata: ${invoice.invoiceDate} (ID: ${invoice.id})`, errorMessage);
           }
         }
       });
@@ -137,7 +140,7 @@ export default function SpendingCategoryDetailPage() {
   }, [invoicesForCategory]);
 
   const handleEditInvoice = (invoiceId: string) => {
-    toast({ title: "Düzenle (Yapım Aşamasında)", description: `Fatura ID: ${invoiceId} için düzenleme formu açılacak.` });
+ toast({ title: "&quot;Düzenle (Yapım Aşamasında)&quot;", description: `Fatura ID: ${invoiceId} için düzenleme formu açılacak.` });
   };
 
   const handleDeleteInvoice = async () => {
@@ -153,6 +156,7 @@ export default function SpendingCategoryDetailPage() {
         const spendingByMonth: Record<string, number> = {};
         updatedInvoices.forEach(invoice => {
             if (invoice.invoiceDate && invoice.amountInEur) {
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
             try {
                 const date = parseISO(invoice.invoiceDate);
  if (isValid(date)) {
@@ -160,7 +164,7 @@ export default function SpendingCategoryDetailPage() {
  spendingByMonth[monthYearKey] = (spendingByMonth[monthYearKey] || 0) + invoice.amountInEur;
  }
             } catch (e: unknown) {
-                // Hata oluştuysa bile fatura tarihini logla
+ // Hata oluştuysa bile fatura tarihini logla
  console.warn(`Fatura tarihi işlenirken hata: ${invoice.invoiceDate} (ID: ${invoice.id})`, e);
             }
             }
@@ -177,11 +181,12 @@ export default function SpendingCategoryDetailPage() {
             setMonthlyChartData([]);
         }
 
-      toast({ title: "Başarılı", description: `Fatura "${invoiceToDelete.invoiceNumber}" başarıyla silindi.` });
+      toast({ title: "&quot;Başarılı&quot;", description: `Fatura "${invoiceToDelete.invoiceNumber}" başarıyla silindi.` });
       setInvoiceToDelete(null);
     } catch (error: unknown) {
-      // Hata bir Error nesnesi mi kontrol et
-      toast({ title: "Silme Hatası", description: error.message || "Fatura silinirken bir hata oluştu.", variant: "destructive" });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ // Hata bir Error nesnesi mi kontrol et
+      toast({ title: "&quot;Silme Hatası&quot;", description: error instanceof Error ? error.message : "Fatura silinirken bilinmeyen bir hata oluştu.", variant: "destructive" });
       fetchInvoicesForCategory();
     } finally {
       setIsDeletingInvoice(false);
@@ -338,8 +343,8 @@ export default function SpendingCategoryDetailPage() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Faturayı Silmek Üzeresiniz</AlertDialogTitle>
-              <AlertDialogDescription className="text-sm text-muted-foreground">
- &quot;{invoiceToDelete.invoiceNumber}&quot; numaralı, {invoiceToDelete.companyName} ad&apos;ına kesilmiş faturayı silmek istediğinizden emin misiniz?
+              <AlertDialogDescription className="text-sm text-muted-foreground">\
+                &quot;{invoiceToDelete.invoiceNumber}&quot; numaralı, {invoiceToDelete.companyName} ad&apos;ına kesilmiş faturayı silmek istediğinizden emin misiniz?
                 Bu işlem geri alınamaz. Varsa, ilişkili dosya da Storage'dan silinecektir.
               </AlertDialogDescription>
             </AlertDialogHeader>

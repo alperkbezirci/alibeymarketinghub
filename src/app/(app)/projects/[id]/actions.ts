@@ -43,7 +43,11 @@ async function verifyIdTokenAndGetUserDetails(idToken: string): Promise<{ uid: s
     if (error instanceof Error) {
         errorMessage = error.message;
         if ('code' in error) {
- errorCode = (error as { code: string }).code;
+ // Safely check the type of the 'code' property
+ if (typeof error.code === 'string') {
+ errorCode = error.code;
+ } else if (typeof error.code === 'number') { // Handle numeric error codes as well
+ errorCode = String(error.code);
         }
     } else if (typeof error === 'string') {
         errorMessage = error;
@@ -86,7 +90,11 @@ async function checkManagerOrAdminPrivileges(idToken?: string | null): Promise<b
  errorMessage = error.message;
       // Safely check for 'code' property on the error object
             if (typeof error === 'object' && error !== null && 'code' in error) {
-                errorCode = error.code as string;
+ // Safely check the type of the 'code' property
+ if (typeof error.code === 'string') {
+ errorCode = error.code;
+ } else if (typeof error.code === 'number') { // Handle numeric error codes as well
+ errorCode = String(error.code);
             }
         } else if (typeof error === 'string') {
             errorMessage = error;
@@ -226,6 +234,7 @@ export async function handleAddProjectActivityAction(
             if ('code' in uploadError) {
               errorCode = (uploadError as { code: string }).code;
             }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } else if (typeof uploadError === 'string') { // This check might not be strictly necessary if only Error instances are expected
             errorMessage = uploadError;
         }
@@ -253,6 +262,7 @@ export async function handleAddProjectActivityAction(
         let errorCode: string | undefined;
  if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
  errorCode = e.code; // Safely access 'code' property if it exists
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
  console.error("Error Code:", errorCode);
  }
  console.error("Error Stack:", e.stack);
@@ -324,6 +334,7 @@ export async function handleUpdateActivityStatusAction(
  let errorCode: string | undefined;
  if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
  errorCode = e.code; // Safely access 'code' property if it exists
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
  console.error("Error Code:", errorCode);
     }
         console.error("Error Stack:", e.stack);
@@ -334,7 +345,6 @@ export async function handleUpdateActivityStatusAction(
     return { success: false, message: simpleErrorMessage };
   }
 }
-
 export async function handleApproveActivityAction(
     activityId: string,
     projectId: string,
@@ -380,6 +390,7 @@ export async function handleApproveActivityAction(
         let errorCode: string | undefined;
  if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
  errorCode = e.code; // Safely access 'code' property if it exists
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
  console.error("Error Code:", errorCode);
     }
  console.error("Error Stack:", e.stack);
@@ -390,7 +401,6 @@ export async function handleApproveActivityAction(
     return { success: false, message: simpleErrorMessage };
   }
 }
-
 export async function handleRejectActivityAction(
     activityId: string,
     projectId: string,
@@ -436,6 +446,7 @@ export async function handleRejectActivityAction(
  let errorCode: string | undefined;
  if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
  errorCode = e.code; // Safely access 'code' property if it exists
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
  console.error("Error Code:", errorCode);
     }
         console.error("Error Stack:", e.stack);
@@ -445,7 +456,6 @@ export async function handleRejectActivityAction(
     }
     return { success: false, message: simpleErrorMessage };
   }
-}
 
 interface UpdateProjectResult {
   success: boolean;
@@ -537,6 +547,7 @@ export async function handleUpdateProjectAction(
       let errorCode: string | undefined;
  if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
         errorCode = e.code;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
  }
       return { success: false, message: `Mevcut proje bilgileri alınırken hata: ${errorMessage}${errorCode ? ` (Kod: ${errorCode})` : ''}. Lütfen sunucu loglarını kontrol edin.` };
     }
@@ -559,6 +570,7 @@ export async function handleUpdateProjectAction(
  let errorCode: string | undefined;
  if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
  errorCode = e.code;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         }
  console.warn(`[Action Log - UpdateProject] Error deleting old file ${currentProject.projectStoragePath}: ${errorMessage}${errorCode ? ` (Kod: ${errorCode})` : ''}. Continuing project update without file change.`, e);
       }
@@ -574,6 +586,7 @@ export async function handleUpdateProjectAction(
           let errorMessage = "Bilinmeyen bir eski dosya silme hatası (yeni yükleme öncesi)";
           if (e instanceof Error) errorMessage = e.message;
           else if (typeof e === 'string') errorMessage = e;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
  let errorCode: string | undefined; // Declare errorCode here
  if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') { // Explicit check
             errorCode = e.code;
@@ -598,6 +611,7 @@ export async function handleUpdateProjectAction(
         let errorMessage = "Bilinmeyen bir yeni proje dosyası yükleme hatası";
         if (e instanceof Error) errorMessage = e.message;
         else if (typeof e === 'string') errorMessage = e;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
  let errorCode: string | undefined;
  if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
  errorCode = e.code;
@@ -617,23 +631,22 @@ export async function handleUpdateProjectAction(
     revalidatePath('/projects');
     console.log(`[Action Log - UpdateProject] Project ${projectId} successfully updated and paths revalidated.`);
     return { success: true, message: "Proje başarıyla güncellendi." };
-
   } catch (e: unknown) {
-    console.error("[Action Log - UpdateProject] CRITICAL UNHANDLED EXCEPTION in action.");
-    let simpleErrorMessage = "Proje güncellenirken beklenmedik bir sunucu hatası oluştu. Lütfen sunucu loglarını kontrol edin.";
+    console.error("[Action Log - UpdateProject] CRITICAL UNHANDLED EXCEPTION during project update.");
+    let simpleErrorMessage = "Sunucu tarafında proje güncellenirken kritik ve beklenmedik bir hata oluştu. Lütfen sunucu loglarını detaylı bir şekilde kontrol edin.";
     if (e instanceof Error) {
+      console.error("Error Name:", e.name);
+      console.error("Error Message:", e.message);
+      let errorCode: string | undefined;
+ if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') {
+ errorCode = e.code; // Safely access 'code' property if it exists
+ console.error("Error Code:", errorCode);
+ }
  console.error("Error Stack:", e.stack);
-        console.error("Error Name:", e.name);
- console.error("Error Message:", e.message);
- if (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string') { // Explicit check
- console.error("Error Code:", e.code); // Access code here
-        }
-        console.error("Error Stack:", e.stack);
-        simpleErrorMessage = `Proje güncellenirken sunucu hatası: ${e.message.substring(0,100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
+      simpleErrorMessage = `Proje güncellenirken sunucu hatası: ${e.message.substring(0, 100)}${e.message.length > 100 ? "..." : ""}. Detaylar için sunucu loglarına bakın.`;
     } else if (typeof e === 'string') {
-        simpleErrorMessage = e;
+ simpleErrorMessage = e;
     }
     return { success: false, message: simpleErrorMessage };
   }
 }
-    

@@ -55,6 +55,7 @@ export default function ProjectsPage() {
       const [fetchedProjects, fetchedUsers] = await Promise.all([projectsPromise, usersPromise]);
       
       setProjects(fetchedProjects);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setUsersList(fetchedUsers as AppUser[]); // Ensure type compatibility for usersList
     } catch (err: unknown) {
       const message = err instanceof ProjectError ? err.message : "Projeler veya kullanıcılar yüklenirken bir hata oluştu.";
@@ -117,11 +118,14 @@ export default function ProjectsPage() {
       setIsFormDialogOpen(false);
       fetchPageData(toast);
     } catch (err: unknown) {
- if (err instanceof Error) {
- toast({ title: "Hata", description: err.message || "Proje kaydedilirken bir hata oluştu.", variant: "destructive" });
- } else {
-      toast({ title: "Hata", description: err.message || "Proje kaydedilirken bir hata oluştu.", variant: "destructive" });
-    } finally {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'string'
+          ? err
+          : 'Proje kaydedilirken bir hata oluştu.';
+      toast({ title: "Hata", description: errorMessage, variant: "destructive" });
+    } finally { // Moved finally block outside of catch
       setIsSaving(false);
     }
   };
@@ -225,7 +229,7 @@ export default function ProjectsPage() {
       {!isLoading && !error && projects.length === 0 && (
         <p className="col-span-full text-center text-muted-foreground py-8">
           Gösterilecek proje bulunmamaktadır. Sağ üst köşedeki 'Yeni Proje Oluştur' butonu ile ilk projenizi ekleyebilirsiniz.
-        </p>
+ </p>
       )}
 
       {!isLoading && !error && projects.length > 0 && (

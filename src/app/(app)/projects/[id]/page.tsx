@@ -4,8 +4,7 @@
 
 import React, { useEffect, useState, useCallback, useActionState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFormStatus, useFormState } from 'react-dom';
-import { getProjectById, type Project } from '@/services/project-service';
+import { useFormStatus } from 'react-dom';
 import { getAllUsers, type User as AppUser, type UserData } from '@/services/user-service';
 import { getTasksByProjectId, type Task } from '@/services/task-service';
 import { getProjectActivities, type ProjectActivity, type ProjectActivityStatus } from '@/services/project-activity-service';
@@ -13,6 +12,7 @@ import { handleAddProjectActivityAction, handleUpdateActivityStatusAction, handl
 import { useAuth } from '@/contexts/auth-context';
 import { auth } from '@/lib/firebase'; 
 
+import { getProjectById, type Project } from '@/services/project-service';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -59,7 +59,7 @@ export default function ProjectDetailsPage() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const [addActivityState, handleAddActivitySubmit] = useFormState(handleAddProjectActivityAction, undefined);
+  const [addActivityState, handleAddActivitySubmit] = useActionState(handleAddProjectActivityAction, undefined);
   const activityFormRef = React.useRef<HTMLFormElement>(null);
   const [selectedActivityFileName, setSelectedActivityFileName] = useState<string | null>(null);
   const [idTokenForActivityForm, setIdTokenForActivityForm] = useState<string>('');
@@ -97,7 +97,7 @@ export default function ProjectDetailsPage() {
     setIsLoadingProject(true);
     setError(null);
     try { // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const fetchedProject = await getProjectById(projectId);
+      const fetchedProject = await getProjectById(projectId) as Project | null;
       setProject(fetchedProject);
       if (fetchedProject) {
         // Using type assertion here based on the expected return type of getAllUsers
@@ -106,8 +106,8 @@ export default function ProjectDetailsPage() {
 
         const fetchedUsers: UserData[] = await getAllUsers();
         setUsers(fetchedUsers);
-      }
-    } catch (err: any) {
+      } 
+    } catch (err: unknown) {
       console.error("Error fetching project details:", err);
       setError(err.message || `Proje (ID: ${projectId}) detayları yüklenirken bir hata oluştu.`);
       toast({ title: "Proje Yükleme Hatası", description: err.message, variant: "destructive" });
@@ -120,7 +120,7 @@ export default function ProjectDetailsPage() {
     if (!projectId) return;
     setIsLoadingTasks(true);
     try { // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tasks = await getTasksByProjectId(projectId);
+      const tasks = await getTasksByProjectId(projectId) as Task[];
       setProjectTasks(tasks); 
     } catch (err: unknown) {
       console.error("Error fetching project tasks:", err);
@@ -140,7 +140,7 @@ export default function ProjectDetailsPage() {
     if (!projectId) return;
     setIsLoadingActivities(true);
     try { // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const activities = await getProjectActivities(projectId);
+      const activities = await getProjectActivities(projectId) as ProjectActivity[];
       setProjectActivities(activities); 
     } catch (err: unknown) {
       console.error("Error fetching project activities:", err);
@@ -185,7 +185,7 @@ export default function ProjectDetailsPage() {
   const handleSendForApproval = async () => {
     if (!activityToApprove || !projectId) return;
     setIsSubmittingApproval(true);
-    const result = await handleUpdateActivityStatusAction(activityToApprove.id, projectId, 'pending_approval', approvalMessage);
+    const result = await handleUpdateActivityStatusAction(activityToApprove.id, projectId, 'pending_approval', approvalMessage as string);
     if (result.success) {
         toast({ title: "Başarılı", description: result.message });
         fetchActivitiesForProject();
@@ -203,9 +203,9 @@ export default function ProjectDetailsPage() {
 
     let result;
     if (decisionType === 'approve') {
-      result = await handleApproveActivityAction(activityForDecision.id, projectId, managerFeedbackInput);
+      result = await handleApproveActivityAction(activityForDecision.id, projectId, managerFeedbackInput as string);
     } else {
-      result = await handleRejectActivityAction(activityForDecision.id, projectId, managerFeedbackInput);
+      result = await handleRejectActivityAction(activityForDecision.id, projectId, managerFeedbackInput as string);
     }
 
     if (result.success) {
@@ -410,7 +410,7 @@ export default function ProjectDetailsPage() {
             <CardHeader>
               <CardTitle className="font-headline text-xl flex items-center"><MessageSquare className="mr-2 h-5 w-5 text-primary" />Proje Akışı & Yorumlar</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 overflow-hidden"> {/* Added overflow-hidden */}
               <form action={handleAddActivitySubmit} ref={activityFormRef} className="space-y-4 mb-6 p-4 border rounded-lg bg-muted/20">
                 <input type="hidden" name="projectId" value={projectId} />
                 <input type="hidden" name="idToken" value={idTokenForActivityForm} /> {/* Ensure idTokenForActivityForm is a string */}
@@ -471,7 +471,7 @@ export default function ProjectDetailsPage() {
                     ))}
                 </div>
               ) : projectActivities.length > 0 ? (
-                <ScrollArea className="h-[calc(100vh-380px)] min-h-[300px] pr-1">
+                <ScrollArea className="h-[calc(100vh-380px)] min-h-[300px] pr-3 -mr-3"> {/* Adjusted padding/margin for scrollbar */}
                   <ul className="space-y-4">
                     {projectActivities.map(activity => {
                       const activityStatusInfo = getActivityStatusInfo(activity.status);
@@ -630,10 +630,14 @@ export default function ProjectDetailsPage() {
             <DialogDescription>
               Aşağıdaki aktivite için kararınızı ve isteğe bağlı olarak geri bildiriminizi girin.
               <blockquote className="mt-2 p-2 border-l-4 bg-muted text-sm italic">
-                Kullanıcı: {activityForDecision?.userName} <br />
-                İçerik: {activityForDecision?.content ? `"${activityForDecision.content.substring(0,100)}${activityForDecision.content.length > 100 ? "..." : ""}"`
-                                  : `Dosya: "${activityForDecision?.fileName}"`}
-                {activityForDecision?.messageForManager && <><br/>Kullanıcı Notu: {activityForDecision.messageForManager}</>} {/* Ensure activityForDecision?.messageForManager is a string */}
+                Kullanıcı: {activityForDecision?.userName}
+                {activityForDecision?.content ? (
+                  <> <br /> İçerik: &quot;{activityForDecision.content.substring(0,100)}{activityForDecision.content.length > 100 ? "..." : ""}&quot;</>
+                ) : activityForDecision?.fileName ? (
+                  <> <br /> Dosya: &quot;{activityForDecision?.fileName}&quot;</>
+                ) : null}
+
+                {activityForDecision?.messageForManager && <> <br /> Kullanıcı Notu: {activityForDecision.messageForManager}</>}
               </blockquote>
             </DialogDescription>
           </DialogHeader>

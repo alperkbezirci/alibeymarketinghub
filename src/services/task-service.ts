@@ -1,4 +1,3 @@
-https://alibeyvlubhotels.com/manavgat/index.php
 // src/services/task-service.ts
 'use server';
 /**
@@ -53,7 +52,8 @@ export async function getTasks(): Promise<Task[]> {
     const q = query(tasksCollection, orderBy('createdAt', 'desc'));
     const taskSnapshot = await getDocs(q);
     const taskList = taskSnapshot.docs.map(docSnap => {
-      const data = docSnap.data();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = docSnap.data() as any;
       return {
         id: docSnap.id,
         taskName: data.taskName || 'İsimsiz Görev',
@@ -67,6 +67,7 @@ export async function getTasks(): Promise<Task[]> {
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
         turqualityTaskId: data.turqualityTaskId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as Task;
     });
     return taskList;
@@ -92,7 +93,8 @@ export async function getTaskById(id: string): Promise<Task | null> {
     const docSnap = await getFirestoreDoc(taskDocRef);
 
     if (docSnap.exists()) {
-      const data = docSnap.data();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = docSnap.data() as any;
       return {
         id: docSnap.id,
         taskName: data.taskName || 'İsimsiz Görev',
@@ -106,6 +108,7 @@ export async function getTaskById(id: string): Promise<Task | null> {
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
         turqualityTaskId: data.turqualityTaskId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as Task;
     } else {
       return null;
@@ -124,7 +127,8 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
     const q = query(tasksCollection, where('project', '==', projectId), orderBy('dueDate', 'asc'));
     const taskSnapshot = await getDocs(q);
     const taskList = taskSnapshot.docs.map(docSnap => {
-      const data = docSnap.data();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = docSnap.data() as any;
       return {
         id: docSnap.id,
         taskName: data.taskName || 'İsimsiz Görev',
@@ -138,6 +142,7 @@ export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
         turqualityTaskId: data.turqualityTaskId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as Task;
     });
     return taskList;
@@ -166,6 +171,7 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
     // If taskData.project is undefined (meaning "__none__" was selected in form), save as empty string.
     const projectValueForFirestore = taskData.project === undefined ? '' : taskData.project;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dataToSave: Omit<TaskInputData, 'dueDate' | 'assignedTo'> & { dueDate: Timestamp, assignedTo: string[], createdAt: any, updatedAt: any, turqualityTaskId?: string } = { 
       taskName: taskData.taskName,
       project: projectValueForFirestore, 
@@ -185,6 +191,7 @@ export async function addTask(taskData: TaskInputData): Promise<Task> {
     const docRef = await addDoc(collection(db, TASKS_COLLECTION), dataToSave);
     
     const newDocSnap = await getFirestoreDoc(doc(db, TASKS_COLLECTION, docRef.id));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newData = newDocSnap.data();
 
     return { 
@@ -218,6 +225,7 @@ export async function updateTaskAssignees(taskId: string, assignedTo: string[]):
     const taskDocRef = doc(db, TASKS_COLLECTION, taskId);
     await updateDoc(taskDocRef, {
       assignedTo: assignedTo,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       updatedAt: serverTimestamp()
     });
   } catch (error: unknown) {
@@ -231,6 +239,7 @@ export async function updateTaskAssignees(taskId: string, assignedTo: string[]):
 export async function updateTask(taskId: string, updates: Partial<Omit<TaskInputData, 'dueDate'> & {dueDate?: Date}>): Promise<void> {
   const taskDoc = doc(db, TASKS_COLLECTION, taskId);
   const dataToUpdate: Partial<Omit<TaskInputData, 'dueDate'> & {dueDate?: Timestamp, assignedTo?: string[]}> & { updatedAt: Timestamp } = { ...updates, updatedAt: serverTimestamp() };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
   if (updates.dueDate) {
     dataToUpdate.dueDate = Timestamp.fromDate(updates.dueDate);
@@ -276,7 +285,8 @@ export async function getTaskCountByStatus(): Promise<{ status: string; count: n
     const statusCounts: { [key: string]: number } = {};
 
     taskSnapshot.docs.forEach(docSnap => {
-      const data = docSnap.data();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = docSnap.data() as any;
       const status = data.status || 'Bilinmiyor';
       statusCounts[status] = (statusCounts[status] || 0) + 1;
     });
@@ -298,7 +308,8 @@ export async function getTaskCompletionTrend(): Promise<{ month: string; complet
     const monthlyData: { [month: string]: { completed: number; created: number } } = {};
 
     taskSnapshot.docs.forEach(docSnap => {
-      const data = docSnap.data();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = docSnap.data() as any;
       const createdAt = data.createdAt;
       const dueDate = data.dueDate; 
       
@@ -350,6 +361,7 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
     taskSnapshot.docs.forEach(docSnap => {
       const data = docSnap.data();
       taskList.push({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         id: docSnap.id,
         taskName: data.taskName || 'İsimsiz Görev',
         project: data.project || '',
@@ -362,6 +374,7 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
         turqualityTaskId: data.turqualityTaskId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as Task);
     });
     return taskList;
@@ -375,6 +388,7 @@ export async function getTasksByUserId(userId: string): Promise<Task[]> {
     } else {
       userMessage += ` Detaylar: ${error.message}`;
     }
+ }
     throw new Error(userMessage);
   }
 }
@@ -429,7 +443,8 @@ export async function getActiveTasks(limitCount: number = 5): Promise<Task[]> {
 
     const taskSnapshot = await getDocs(q);
     const taskList = taskSnapshot.docs.map(docSnap => {
-      const data = docSnap.data();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = docSnap.data() as any;
       return {
         id: docSnap.id,
         taskName: data.taskName || 'İsimsiz Görev',
@@ -443,6 +458,7 @@ export async function getActiveTasks(limitCount: number = 5): Promise<Task[]> {
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
         turqualityTaskId: data.turqualityTaskId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as Task;
     });
     return taskList;
@@ -475,7 +491,8 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
 
     const taskSnapshot = await getDocs(q);
     const taskList = taskSnapshot.docs.map(docSnap => {
-      const data = docSnap.data();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = docSnap.data() as any;
       return {
         id: docSnap.id,
         taskName: data.taskName || 'İsimsiz Görev',
@@ -489,6 +506,7 @@ export async function getOverdueTasks(limitCount: number = 5): Promise<Task[]> {
         createdAt: convertToISOString(data.createdAt),
         updatedAt: convertToISOString(data.updatedAt),
         turqualityTaskId: data.turqualityTaskId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as Task;
     });
     return taskList;

@@ -216,9 +216,9 @@ export default function UserManagementPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Kullanıcıyı Silmek Üzeresiniz</AlertDialogTitle>
             <AlertDialogDescription>
-              "{userToDelete?.firstName} {userToDelete?.lastName}" adlı kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem kullanıcının Firestore verilerini silecektir.
+              &quot;{userToDelete?.firstName} {userToDelete?.lastName}&quot; adlı kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem kullanıcının Firestore verilerini silecektir.
               <br/>
-              <strong className="text-destructive">Firebase Authentication kaydının silinmesi Admin SDK gerektirir ve bu arayüzden tam olarak yapılamayabilir.</strong>
+              <strong className="text-destructive">&quot;Firebase Authentication kaydının silinmesi Admin SDK gerektirir ve bu arayüzden tam olarak yapılamayabilir.&quot;</strong>
               <br/>
               Bu işlem geri alınamaz.
             </AlertDialogDescription>
